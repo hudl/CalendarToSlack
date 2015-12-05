@@ -121,13 +121,13 @@ namespace CalendarToSlack
             Out.WriteLine("Found {0} events today (between {1} and {2})", events.Count, today, tomorrow);
 
             var now = DateTime.UtcNow;
-            var ninetySecondsFromNow = now.AddMinutes(1);
+            var ninetySecondsFromNow = now.AddSeconds(90);
 
             // Look a bit into the future. If there's an event starting in 90 seconds, you're
             // probably on your way to it (or preparing).
             var happeningNow = events.Where(e => e.StartTime <= ninetySecondsFromNow && now < e.EndTime).ToList();
 
-            Out.WriteLine("Found {0} events starting/happening in the next 90 seconds (i.e. starting before {2}):", happeningNow.Count, ninetySecondsFromNow);
+            Out.WriteLine("Found {0} events starting/happening in the next 90 seconds (i.e. starting before {1}):", happeningNow.Count, ninetySecondsFromNow);
             var result = new List<CalendarEvent>();
             foreach (var e in happeningNow)
             {
