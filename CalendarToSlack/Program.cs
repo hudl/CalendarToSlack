@@ -18,12 +18,27 @@ namespace CalendarToSlack
     {
         static void Main(string[] args)
         {
-            Out.WriteLine("Initializing");
+            Out.WriteLine("Starting");
 
             // args[1] = exchange username
             // args[2] = exchange password
             // args[3] = slack auth token
-            var updater = new Updater(args[0], args[1], args[2]);
+            // args[4] = slack user id
+            
+            var slack = new Slack(args[2], args[3]);
+            var userInfo = slack.GetUserInfo();
+            Out.WriteLine("Current Slack user info is FirstName={0}, LastName={1}", userInfo.FirstName, userInfo.LastName);
+
+            var presence = slack.GetPresence();
+            Out.WriteLine("Current Slack presence is {0}", presence);
+
+            //slack.UpdateProfileWithStatusMessage("foo");
+            //userInfo = slack.GetUserInfo();
+            //Out.WriteLine("Updated Slack user info is FirstName={0}, LastName={1}", userInfo.FirstName, userInfo.LastName);
+
+            var calendar = new Calendar(args[0], args[1]);
+
+            var updater = new Updater(calendar, slack);
             updater.Start();
 
             Console.ReadLine();
@@ -38,10 +53,10 @@ namespace CalendarToSlack
         private DateTime _lastCheck;
         private LegacyFreeBusyStatus? _lastStatusUpdate;
 
-        public Updater(string exchangeUsername, string exchangePassword, string slackAuthToken)
+        public Updater(Calendar calendar, Slack slack)
         {
-            _calendar = new Calendar(exchangeUsername, exchangePassword);
-            _slack = new Slack(slackAuthToken);
+            _calendar = calendar;
+            _slack = slack;
             
             _timer = new Timer
             {
@@ -54,9 +69,7 @@ namespace CalendarToSlack
 
         public void Start()
         {
-            var presence = _slack.GetPresence();
-            Out.WriteLine("Current Slack presence is {0}", presence);
-
+            
             _lastCheck = CurrentMinuteWithSecondsTruncated();
             Out.WriteLine("Starting poll with last check time of {0}", _lastCheck);
             _timer.Start();
@@ -196,16 +209,23 @@ namespace CalendarToSlack
     class Slack
     {
         private readonly string _authToken;
+        private readonly string _userId;
         private readonly HttpClient _http;
 
-        public Slack(string authToken)
+        public Slack(string authToken, string userId)
         {
             if (string.IsNullOrWhiteSpace(authToken))
             {
                 throw new ArgumentException("authToken");
             }
 
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new ArgumentException("userId");
+            }
+
             _authToken = authToken;
+            _userId = userId;
 
             _http = new HttpClient
             {
@@ -215,8 +235,11 @@ namespace CalendarToSlack
 
         public string GetPresence()
         {
-            var result = _http.GetStringAsync(string.Format("https://slack.com/api/users.getPresence?token={0}", _authToken)).Result;
-            var data = Json.Decode(result);
+            var result = _http.GetAsync(string.Format("https://slack.com/api/users.getPresence?token={0}", _authToken)).Result;
+            result.EnsureSuccessStatusCode();
+
+            var content = result.Content.ReadAsStringAsync().Result;
+            var data = Json.Decode(content);
             return data.presence;
         }
 
@@ -230,6 +253,65 @@ namespace CalendarToSlack
             var result = _http.PostAsync("https://slack.com/api/users.setPresence", content).Result;
             result.EnsureSuccessStatusCode();
         }
+
+        public SlackUserInfo GetUserInfo()
+        {
+            var result = _http.GetAsync(string.Format("https://slack.com/api/users.info?token={0}&user={1}", _authToken, _userId)).Result;
+            result.EnsureSuccessStatusCode();
+
+            var content = result.Content.ReadAsStringAsync().Result;
+
+            var data = Json.Decode(content);
+            return new SlackUserInfo
+            {
+                FirstName = data.user.profile.first_name,
+                LastName = data.user.profile.last_name
+            };
+        }
+
+        /// <summary>
+        /// Doesn't work.
+        /// </summary>
+        public void UpdateProfileWithStatusMessage(string message)
+        {
+            throw new NotImplementedException();
+
+            // The web application version of slack uses the `users.profile.set` API endpoint
+            // to update profile information. I've been trying to mimic it, but haven't been
+            // successful.
+            //
+            // Slack's support for status/presence (i.e. only auto/away) is limited, and one of
+            // our conventions for broadcasting more precise status is to change our last name
+            // to something like "Rob Hruska | Busy" or "Rob Hruska | OOO til Mon".
+            //
+            // If Slack ever 1) opens up their profile API, or 2) builds a more
+            // full-featured status, we can try wiring that up here.
+
+            // TODO enforce limits and truncation on message
+
+            
+            var profile = string.Format("{{\"first_name\":\"Rob\",\"last_name\":\"H\"}}");
+
+            Out.WriteLine("Sending profile update with profile: {0}", profile);
+
+            var content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                { "users", _userId },
+                { "profile", profile },
+                { "token", _authToken }
+            });
+            var result = _http.PostAsync("https://hudl.slack.com/api/users.profile.set", content).Result;
+
+            Out.WriteLine("Status: " + result.StatusCode);
+            result.EnsureSuccessStatusCode();
+            Out.WriteLine("Profile update complete");
+        }
+    }
+
+    class SlackUserInfo
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
     }
 
     enum Presence
