@@ -44,10 +44,15 @@ namespace CalendarToSlack
 
         public void Start()
         {
-            var now = DateTime.UtcNow;
-            _lastCheck = new DateTime(now.Ticks - (now.Ticks % TimeSpan.TicksPerMinute), now.Kind);
+            _lastCheck = CurrentMinuteWithSecondsTruncated();
             Out.WriteLine("Starting poll with last check time of {0}", _lastCheck);
             _timer.Start();
+        }
+
+        private DateTime CurrentMinuteWithSecondsTruncated()
+        {
+            var now = DateTime.UtcNow;
+            return new DateTime(now.Ticks - (now.Ticks % TimeSpan.TicksPerMinute), now.Kind);
         }
 
         private void PollAndUpdateSlack(object o, ElapsedEventArgs args)
@@ -56,7 +61,7 @@ namespace CalendarToSlack
             // This is a naive attempt to avoid drift (by checking every second and comparing time).
             if (DateTime.UtcNow >= _lastCheck.AddMinutes(1))
             {
-                _lastCheck = DateTime.UtcNow;
+                _lastCheck = CurrentMinuteWithSecondsTruncated();
 
                 Out.WriteLine("Polling calendar");
 
@@ -162,7 +167,7 @@ namespace CalendarToSlack
     {
         public static void WriteLine(string line, params object[] args)
         {
-            var l = string.Format("[{0}] {1}", DateTime.UtcNow, line);
+            var l = string.Format("[{0}] {1}", DateTime.UtcNow.ToString("yyyy'-'MM'-'dd HH':'mm':'ss fffffff K"), line);
             Console.WriteLine(l, args);
         }
     }
