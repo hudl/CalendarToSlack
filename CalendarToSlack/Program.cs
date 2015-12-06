@@ -91,6 +91,8 @@ namespace CalendarToSlack
                     return;
                 }
 
+                // TODO if current presence is already the same (i.e. on startup), don't set this the first time.
+                
                 _lastStatusUpdate = status;
                 var presence = GetPresenceForAvailability(status);
                 Out.WriteLine("Changing current presence to {0} for availability {1}", presence, status);
