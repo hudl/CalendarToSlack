@@ -1,4 +1,6 @@
-﻿using System.Timers;
+﻿using System.Net.Http;
+using System.Timers;
+using System.Web.Helpers;
 using Microsoft.Exchange.WebServices.Data;
 using System;
 using System.Collections.Generic;
@@ -7,15 +9,21 @@ using System.Net;
 
 namespace CalendarToSlack
 {
+    // TODO error handling
+    // - i've left out try/catches, response status code checks, etc. for now. as i prototype, i'd
+    //   prefer to just crash and find out about the error. once this is all proven out, come back
+    //   through and give errors better consideration.
+
     class Program
     {
         static void Main(string[] args)
         {
-            // No try/catch for now. As I dev/prototype, I'd prefer to crash over doing something
-            // like hammering the exchange server or slack API.
-
             Out.WriteLine("Initializing");
-            var updater = new Updater(args[0], args[1]);
+
+            // args[1] = exchange username
+            // args[2] = exchange password
+            // args[3] = slack auth token
+            var updater = new Updater(args[0], args[1], args[2]);
             updater.Start();
 
             Console.ReadLine();
@@ -25,14 +33,16 @@ namespace CalendarToSlack
     class Updater
     {
         private readonly Calendar _calendar;
+        private readonly Slack _slack;
         private readonly Timer _timer;
         private DateTime _lastCheck;
         private LegacyFreeBusyStatus? _lastStatusUpdate;
 
-        public Updater(string username, string password)
+        public Updater(string exchangeUsername, string exchangePassword, string slackAuthToken)
         {
-            _calendar = new Calendar(username, password);
-
+            _calendar = new Calendar(exchangeUsername, exchangePassword);
+            _slack = new Slack(slackAuthToken);
+            
             _timer = new Timer
             {
                 Enabled = false,
@@ -44,6 +54,9 @@ namespace CalendarToSlack
 
         public void Start()
         {
+            var presence = _slack.GetPresence();
+            Out.WriteLine("Current Slack presence is {0}", presence);
+
             _lastCheck = CurrentMinuteWithSecondsTruncated();
             Out.WriteLine("Starting poll with last check time of {0}", _lastCheck);
             _timer.Start();
@@ -79,7 +92,22 @@ namespace CalendarToSlack
                 }
 
                 _lastStatusUpdate = status;
-                Out.WriteLine("Changing current status to {0}", status);
+                var presence = GetPresenceForAvailability(status);
+                Out.WriteLine("Changing current presence to {0} for availability {1}", presence, status);
+                _slack.SetPresence(presence);
+            }
+        }
+
+        private static Presence GetPresenceForAvailability(LegacyFreeBusyStatus status)
+        {
+            switch (status)
+            {
+                case LegacyFreeBusyStatus.Busy:
+                case LegacyFreeBusyStatus.OOF:
+                    return Presence.Away;
+
+                default:
+                    return Presence.Auto;
             }
         }
     }
@@ -161,6 +189,51 @@ namespace CalendarToSlack
             _freeBusyStatus = freeBusyStatus;
             _subject = subject;
         }
+    }
+
+    class Slack
+    {
+        private readonly string _authToken;
+        private readonly HttpClient _http;
+
+        public Slack(string authToken)
+        {
+            if (string.IsNullOrWhiteSpace(authToken))
+            {
+                throw new ArgumentException("authToken");
+            }
+
+            _authToken = authToken;
+
+            _http = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(5),
+            };
+        }
+
+        public string GetPresence()
+        {
+            var result = _http.GetStringAsync(string.Format("https://slack.com/api/users.getPresence?token={0}", _authToken)).Result;
+            var data = Json.Decode(result);
+            return data.presence;
+        }
+
+        public void SetPresence(Presence presence)
+        {
+            var content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                { "token", _authToken },
+                { "presence", (presence == Presence.Auto ? "auto" : "away") }
+            });
+            var result = _http.PostAsync("https://slack.com/api/users.setPresence", content).Result;
+            result.EnsureSuccessStatusCode();
+        }
+    }
+
+    enum Presence
+    {
+        Away,
+        Auto,
     }
 
     public static class Out
