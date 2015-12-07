@@ -30,11 +30,12 @@ namespace CalendarToSlack
             // args[4] = slack user id
             
             var slack = new Slack(args[2], args[3]);
-            var userInfo = slack.GetUserInfo();
-            Out.WriteLine("Current Slack user info is FirstName={0}, LastName={1}", userInfo.FirstName, userInfo.LastName);
+            
 
             var presence = slack.GetPresence();
             Out.WriteLine("Current Slack presence is {0}", presence);
+
+            //slack.PostSlackbotMessage("This is a test message");
 
             //slack.UpdateProfileWithStatusMessage("foo");
             //userInfo = slack.GetUserInfo();
@@ -76,6 +77,8 @@ namespace CalendarToSlack
             
             _lastCheck = CurrentMinuteWithSecondsTruncated();
             Out.WriteLine("Starting poll with last check time of {0}", _lastCheck);
+            _slack.PostSlackbotMessage("CalendarToSlack is up and running");
+
             _timer.Start();
         }
 
@@ -97,9 +100,12 @@ namespace CalendarToSlack
 
                 var events = _calendar.GetEventsHappeningNow();
                 var status = LegacyFreeBusyStatus.Free;
+                CalendarEvent busyEvent = null;
                 if (events.Any())
                 {
+                    // Could be improved, the status and event selection here is disjoint.
                     status = GetBusiestStatus(events);
+                    busyEvent = events.First(ev => ev.FreeBusyStatus == status);
                 }
 
                 if (_lastStatusUpdate != null && _lastStatusUpdate == status)
@@ -116,6 +122,14 @@ namespace CalendarToSlack
                 {
                     Out.WriteLine("Changing current presence to {0} for availability {1}", presenceToSet, status);
                     _slack.SetPresence(presenceToSet);
+                    if (presenceToSet == Presence.Away)
+                    {
+                        _slack.PostSlackbotMessage(string.Format("Changed your status to Away for {0}", busyEvent.Subject));
+                    }
+                    else
+                    {
+                        _slack.PostSlackbotMessage("Changed your status from Away to Auto");
+                    }
                 }
             }
         }
@@ -219,6 +233,7 @@ namespace CalendarToSlack
         private readonly string _subject;
 
         public LegacyFreeBusyStatus FreeBusyStatus { get { return _freeBusyStatus; } }
+        public string Subject { get { return _subject; } }
 
         public CalendarEvent(DateTime startTime, DateTime endTime, LegacyFreeBusyStatus freeBusyStatus, string subject)
         {
@@ -233,6 +248,7 @@ namespace CalendarToSlack
     {
         private readonly string _authToken;
         private readonly string _userId;
+        private readonly string _username;
         private readonly HttpClient _http;
 
         public Slack(string authToken, string userId)
@@ -254,6 +270,12 @@ namespace CalendarToSlack
             {
                 Timeout = TimeSpan.FromSeconds(5),
             };
+
+            // Making network calls in a constructor, eh? Ballsy.
+            var userInfo = GetUserInfo();
+            Out.WriteLine("Current Slack user info is FirstName={0}, LastName={1} Username={2}", userInfo.FirstName, userInfo.LastName, userInfo.Username);
+
+            _username = userInfo.Username;
         }
 
         public Presence GetPresence()
@@ -288,8 +310,24 @@ namespace CalendarToSlack
             return new SlackUserInfo
             {
                 FirstName = data.user.profile.first_name,
-                LastName = data.user.profile.last_name
+                LastName = data.user.profile.last_name,
+                Username = data.user.name,
             };
+        }
+
+        public void PostSlackbotMessage(string message)
+        {
+            Out.WriteLine("Posting message to @{0}'s slackbot: {1}", _username, message);
+            var content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                { "token", _authToken },
+                { "channel", "@" + _username },
+                { "as_user", "false" },
+                { "text", message },
+                { "username", "CalendarToSlack" }
+            });
+            var result = _http.PostAsync("https://slack.com/api/chat.postMessage", content).Result;
+            result.EnsureSuccessStatusCode();
         }
 
         /// <summary>
@@ -335,6 +373,7 @@ namespace CalendarToSlack
     {
         public string FirstName { get; set; }
         public string LastName { get; set; }
+        public string Username { get; set; }
     }
 
     enum Presence
