@@ -14,6 +14,10 @@ namespace CalendarToSlack
     //   prefer to just crash and find out about the error. once this is all proven out, come back
     //   through and give errors better consideration.
 
+    // TODO consider a "business hours" rule to just auto-away anytime outside of business hours
+    // TODO post to slackbot when status changes from here
+    // TODO convert to a service?
+
     class Program
     {
         static void Main(string[] args)
@@ -95,7 +99,7 @@ namespace CalendarToSlack
                 var status = LegacyFreeBusyStatus.Free;
                 if (events.Any())
                 {
-                    status = events.First().FreeBusyStatus;
+                    status = GetBusiestStatus(events);
                 }
 
                 if (_lastStatusUpdate != null && _lastStatusUpdate == status)
@@ -104,13 +108,32 @@ namespace CalendarToSlack
                     return;
                 }
 
-                // TODO if current presence is already the same (i.e. on startup), don't set this the first time.
-                
                 _lastStatusUpdate = status;
-                var presence = GetPresenceForAvailability(status);
-                Out.WriteLine("Changing current presence to {0} for availability {1}", presence, status);
-                _slack.SetPresence(presence);
+                var presenceToSet = GetPresenceForAvailability(status);
+
+                var currentPresence = _slack.GetPresence();
+                if (currentPresence != presenceToSet)
+                {
+                    Out.WriteLine("Changing current presence to {0} for availability {1}", presenceToSet, status);
+                    _slack.SetPresence(presenceToSet);
+                }
             }
+        }
+
+        private static readonly List<LegacyFreeBusyStatus> StatusesOrderedByBusiest = new List<LegacyFreeBusyStatus>
+        {
+            LegacyFreeBusyStatus.OOF,
+            LegacyFreeBusyStatus.Busy,
+            LegacyFreeBusyStatus.Tentative,
+            LegacyFreeBusyStatus.WorkingElsewhere,
+            LegacyFreeBusyStatus.NoData,
+            LegacyFreeBusyStatus.Free,
+        };
+
+        private static LegacyFreeBusyStatus GetBusiestStatus(List<CalendarEvent> events)
+        {
+            var statuses = events.Select(e => e.FreeBusyStatus);
+            return StatusesOrderedByBusiest.FirstOrDefault(statuses.Contains);
         }
 
         private static Presence GetPresenceForAvailability(LegacyFreeBusyStatus status)
@@ -233,14 +256,14 @@ namespace CalendarToSlack
             };
         }
 
-        public string GetPresence()
+        public Presence GetPresence()
         {
             var result = _http.GetAsync(string.Format("https://slack.com/api/users.getPresence?token={0}", _authToken)).Result;
             result.EnsureSuccessStatusCode();
 
             var content = result.Content.ReadAsStringAsync().Result;
             var data = Json.Decode(content);
-            return data.presence;
+            return (string.Equals(data.presence, "away", StringComparison.OrdinalIgnoreCase) ? Presence.Away : Presence.Auto);
         }
 
         public void SetPresence(Presence presence)
