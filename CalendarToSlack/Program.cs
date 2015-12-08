@@ -15,14 +15,14 @@ namespace CalendarToSlack
     //   through and give errors better consideration.
 
     // TODO consider a "business hours" rule to just auto-away anytime outside of business hours
-    // TODO post to slackbot when status changes from here
     // TODO convert to a service?
+    // TODO if user sets Away before an event manually, make sure we don't set them back to Auto after the event ends? depends, i guess.
 
     class Program
     {
         static void Main(string[] args)
         {
-            Out.WriteLine("Starting");
+            Out.WriteInfo("Setting up Exchange and Slack connectivity");
 
             // args[1] = exchange username
             // args[2] = exchange password
@@ -33,13 +33,13 @@ namespace CalendarToSlack
             
 
             var presence = slack.GetPresence();
-            Out.WriteLine("Current Slack presence is {0}", presence);
+            Out.WriteInfo("Current Slack presence is {0}", presence);
 
             //slack.PostSlackbotMessage("This is a test message");
 
             //slack.UpdateProfileWithStatusMessage("foo");
             //userInfo = slack.GetUserInfo();
-            //Out.WriteLine("Updated Slack user info is FirstName={0}, LastName={1}", userInfo.FirstName, userInfo.LastName);
+            //Out.WriteDebug("Updated Slack user info is FirstName={0}, LastName={1}", userInfo.FirstName, userInfo.LastName);
 
             var calendar = new Calendar(args[0], args[1]);
 
@@ -76,7 +76,8 @@ namespace CalendarToSlack
         {
             
             _lastCheck = CurrentMinuteWithSecondsTruncated();
-            Out.WriteLine("Starting poll with last check time of {0}", _lastCheck);
+            Out.WriteDebug("Starting poll with last check time of {0}", _lastCheck);
+            Out.WriteInfo("Started up and ready to rock");
             _slack.PostSlackbotMessage("CalendarToSlack is up and running");
 
             _timer.Start();
@@ -96,7 +97,7 @@ namespace CalendarToSlack
             {
                 _lastCheck = CurrentMinuteWithSecondsTruncated();
 
-                Out.WriteLine("Polling calendar");
+                Out.WriteDebug("Polling calendar");
 
                 var events = _calendar.GetEventsHappeningNow();
                 var status = LegacyFreeBusyStatus.Free;
@@ -110,7 +111,7 @@ namespace CalendarToSlack
 
                 if (_lastStatusUpdate != null && _lastStatusUpdate == status)
                 {
-                    Out.WriteLine("No status change since last check");
+                    Out.WriteDebug("No status change since last check");
                     return;
                 }
 
@@ -120,16 +121,17 @@ namespace CalendarToSlack
                 var currentPresence = _slack.GetPresence();
                 if (currentPresence != presenceToSet)
                 {
-                    Out.WriteLine("Changing current presence to {0} for availability {1}", presenceToSet, status);
-                    _slack.SetPresence(presenceToSet);
                     if (presenceToSet == Presence.Away)
                     {
+                        Out.WriteStatus("Changing current presence to {0} for \"{1}\" ({2}) ", presenceToSet, busyEvent.Subject, status);
                         _slack.PostSlackbotMessage(string.Format("Changed your status to Away for {0}", busyEvent.Subject));
                     }
                     else
                     {
+                        Out.WriteStatus("Changing current presence to {0} for availability {1}", presenceToSet, status);
                         _slack.PostSlackbotMessage("Changed your status from Away to Auto");
                     }
+                    _slack.SetPresence(presenceToSet);
                 }
             }
         }
@@ -190,7 +192,7 @@ namespace CalendarToSlack
 
         public List<CalendarEvent> GetEventsHappeningNow()
         {
-            Out.WriteLine("Getting availability for {0}", _username);
+            Out.WriteDebug("Getting availability for {0}", _username);
 
             // According to the docs, the query period has to be at least 24 hours, with times
             // from midnight to midnight.
@@ -200,10 +202,10 @@ namespace CalendarToSlack
                 new TimeWindow(today, tomorrow),
                 AvailabilityData.FreeBusy);
 
-            Out.WriteLine("Availability retrieved, parsing results");
+            Out.WriteDebug("Availability retrieved, parsing results");
             var events = results.AttendeesAvailability.SelectMany(a => a.CalendarEvents).ToList();
 
-            Out.WriteLine("Found {0} events today (between {1} and {2})", events.Count, today, tomorrow);
+            Out.WriteDebug("Found {0} events today (between {1} and {2})", events.Count, today, tomorrow);
 
             var now = DateTime.UtcNow;
             var ninetySecondsFromNow = now.AddSeconds(90);
@@ -212,15 +214,15 @@ namespace CalendarToSlack
             // probably on your way to it (or preparing).
             var happeningNow = events.Where(e => e.StartTime <= ninetySecondsFromNow && now < e.EndTime).ToList();
 
-            Out.WriteLine("Found {0} events starting/happening in the next 90 seconds (i.e. starting before {1}):", happeningNow.Count, ninetySecondsFromNow);
+            Out.WriteDebug("Found {0} events starting/happening in the next 90 seconds (i.e. starting before {1}):", happeningNow.Count, ninetySecondsFromNow);
             var result = new List<CalendarEvent>();
             foreach (var e in happeningNow)
             {
-                Out.WriteLine("> {0} {1} {2} {3}", e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject);
+                Out.WriteDebug("> {0} {1} {2} {3}", e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject);
                 result.Add(new CalendarEvent(e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject));
             }
 
-            Out.WriteLine("Done retrieving");
+            Out.WriteDebug("Done retrieving");
             return result;
         }
     }
@@ -273,7 +275,7 @@ namespace CalendarToSlack
 
             // Making network calls in a constructor, eh? Ballsy.
             var userInfo = GetUserInfo();
-            Out.WriteLine("Current Slack user info is FirstName={0}, LastName={1} Username={2}", userInfo.FirstName, userInfo.LastName, userInfo.Username);
+            Out.WriteDebug("Current Slack user info is FirstName={0}, LastName={1} Username={2}", userInfo.FirstName, userInfo.LastName, userInfo.Username);
 
             _username = userInfo.Username;
         }
@@ -317,7 +319,7 @@ namespace CalendarToSlack
 
         public void PostSlackbotMessage(string message)
         {
-            Out.WriteLine("Posting message to @{0}'s slackbot: {1}", _username, message);
+            Out.WriteInfo("Posting message to @{0}'s slackbot: {1}", _username, message);
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 { "token", _authToken },
@@ -353,7 +355,7 @@ namespace CalendarToSlack
             
             var profile = string.Format("{{\"first_name\":\"Rob\",\"last_name\":\"H\"}}");
 
-            Out.WriteLine("Sending profile update with profile: {0}", profile);
+            Out.WriteDebug("Sending profile update with profile: {0}", profile);
 
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -363,9 +365,9 @@ namespace CalendarToSlack
             });
             var result = _http.PostAsync("https://hudl.slack.com/api/users.profile.set", content).Result;
 
-            Out.WriteLine("Status: " + result.StatusCode);
+            Out.WriteDebug("Status: " + result.StatusCode);
             result.EnsureSuccessStatusCode();
-            Out.WriteLine("Profile update complete");
+            Out.WriteDebug("Profile update complete");
         }
     }
 
@@ -384,10 +386,35 @@ namespace CalendarToSlack
 
     public static class Out
     {
-        public static void WriteLine(string line, params object[] args)
+        private const bool IsDebugEnabled = true;
+
+        public static void WriteDebug(string line, params object[] args)
         {
+            if (!IsDebugEnabled)
+            {
+                return;
+            }
+            Write(ConsoleColor.Gray, line, args);
+        }
+
+        public static void WriteInfo(string line, params object[] args)
+        {
+            Write(ConsoleColor.Green, line, args);
+        }
+
+
+        public static void WriteStatus(string line, params object[] args)
+        {
+            Write(ConsoleColor.Cyan, line, args);
+        }
+
+        private static void Write(ConsoleColor color, string line, params object[] args)
+        {
+            var orig = Console.ForegroundColor;
+            Console.ForegroundColor = color;
             var l = string.Format("[{0}] {1}", DateTime.UtcNow.ToString("yyyy'-'MM'-'dd HH':'mm':'ss fffffff K"), line);
             Console.WriteLine(l, args);
+            Console.ForegroundColor = orig;
         }
     }
 
