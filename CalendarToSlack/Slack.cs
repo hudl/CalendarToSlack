@@ -56,6 +56,7 @@ namespace CalendarToSlack
 
         public void PostSlackbotMessage(string authToken, string username, string message)
         {
+            return; // Temporarily disabled.
             Out.WriteInfo("Posting message to @{0}'s slackbot: {1}", username, message);
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -114,13 +115,42 @@ namespace CalendarToSlack
             }
             return newLastName;
         }
+
+        public List<SlackUserInfo> ListUsers(string authToken)
+        {
+            var result = _http.GetAsync(string.Format("https://slack.com/api/users.list?token={0}&presence=1", authToken)).Result;
+            result.EnsureSuccessStatusCode();
+
+            var content = result.Content.ReadAsStringAsync().Result;
+
+            var results = new List<SlackUserInfo>();
+
+            var data = Json.Decode(content);
+            var members = data.members;
+            foreach (var member in members)
+            {
+                // startup presence = member.presence
+                results.Add(new SlackUserInfo
+                {
+                    UserId = member.id,
+                    Username = member.name,
+                    FirstName = member.profile.first_name,
+                    LastName = member.profile.last_name,
+                    Email = member.profile.email,
+                });
+            }
+            return results;
+        }
     }
 
     class SlackUserInfo
     {
+        public string UserId { get; set; }
+        public string Username { get; set; }
+        
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        public string Username { get; set; }
+        public string Email { get; set; }
 
         public string ActualLastName { get { return LastName.Split('|')[0]; } }
     }

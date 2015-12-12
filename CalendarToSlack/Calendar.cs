@@ -68,7 +68,7 @@ namespace CalendarToSlack
         }
     }
 
-    class CalendarEvent
+    class CalendarEvent : IEquatable<CalendarEvent>
     {
         private readonly DateTime _startTime;
         private readonly DateTime _endTime;
@@ -84,6 +84,43 @@ namespace CalendarToSlack
             _endTime = endTime;
             _freeBusyStatus = freeBusyStatus;
             _subject = subject;
+        }
+
+        public bool Equals(CalendarEvent other)
+        {
+            if (ReferenceEquals(null, other)) return false;
+            if (ReferenceEquals(this, other)) return true;
+            return _startTime.Equals(other._startTime) && _endTime.Equals(other._endTime) && _freeBusyStatus == other._freeBusyStatus && string.Equals(_subject, other._subject);
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != this.GetType()) return false;
+            return Equals((CalendarEvent)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hashCode = _startTime.GetHashCode();
+                hashCode = (hashCode * 397) ^ _endTime.GetHashCode();
+                hashCode = (hashCode * 397) ^ (int)_freeBusyStatus;
+                hashCode = (hashCode * 397) ^ (_subject != null ? _subject.GetHashCode() : 0);
+                return hashCode;
+            }
+        }
+
+        public static bool operator ==(CalendarEvent left, CalendarEvent right)
+        {
+            return Equals(left, right);
+        }
+
+        public static bool operator !=(CalendarEvent left, CalendarEvent right)
+        {
+            return !Equals(left, right);
         }
     }
 }

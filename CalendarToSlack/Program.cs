@@ -97,43 +97,48 @@ namespace CalendarToSlack
             }
         }
 
-        private void CheckUserStatusAndUpdate(RegisteredUser user, List<CalendarEvent> events)
+        private CalendarEvent GetBusiestEvent(List<CalendarEvent> events)
         {
-            var status = LegacyFreeBusyStatus.Free;
-            CalendarEvent busyEvent = null;
-            if (events.Any())
+            if (!events.Any())
             {
-                // Could be improved, the status and event selection here is disjoint.
-                status = GetBusiestStatus(events);
-                busyEvent = events.First(ev => ev.FreeBusyStatus == status);
+                return null;
             }
 
-            if (user.LastStatusUpdate != null && user.LastStatusUpdate == status)
+            var status = GetBusiestStatus(events);
+            return events.First(ev => ev.FreeBusyStatus == status);
+        }
+
+        private void CheckUserStatusAndUpdate(RegisteredUser user, List<CalendarEvent> events)
+        {
+            // Will return null if there are no events currently happening.
+            var busiestEvent = GetBusiestEvent(events);
+
+            if (busiestEvent == user.CurrentEvent)
             {
-                Out.WriteDebug("No status change since last check");
+                // User is still in the same event, no change.
                 return;
             }
 
-            user.LastStatusUpdate = status;
-            var presenceToSet = GetPresenceForAvailability(status);
+            user.CurrentEvent = busiestEvent;
 
-            var currentPresence = _slack.GetPresence(user.SlackApplicationAuthToken);
-            if (currentPresence != presenceToSet)
+            if (busiestEvent == null)
             {
-                if (presenceToSet == Presence.Away)
-                {
-                    Out.WriteStatus("Changing current presence to {0} for \"{1}\" ({2}) ", presenceToSet, busyEvent.Subject, status);
-                    _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, string.Format("Changed your status to Away for {0}", busyEvent.Subject));
-                    _slack.UpdateProfileWithStatusMessage(user, GetAwayMessageForStatus(status));
-                }
-                else
-                {
-                    Out.WriteStatus("Changing current presence to {0} for availability {1}", presenceToSet, status);
-                    _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, "Changed your status from Away to Auto");
-                    _slack.UpdateProfileWithStatusMessage(user, null);
-                }
-                _slack.SetPresence(user.SlackApplicationAuthToken, presenceToSet);
+                // Status changed to Free.
+                Out.WriteStatus("{0} is now {1}", user.ExchangeUsername, Presence.Auto);
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, "Changed your status to Auto");
+                _slack.UpdateProfileWithStatusMessage(user, null);
+                _slack.SetPresence(user.SlackApplicationAuthToken, Presence.Auto);
+                return;
             }
+
+            // Otherwise, we're transitioning into an event that's coming up (or just got added).
+
+            var presenceToSet = GetPresenceForAvailability(busiestEvent.FreeBusyStatus);
+            //var currentPresence = _slack.GetPresence(user.SlackApplicationAuthToken);
+            Out.WriteStatus("{0} is now {1} for \"{2}\" ({3}) ", user.ExchangeUsername, presenceToSet, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
+            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, string.Format("Changed your status to {0} for {1}", presenceToSet, busiestEvent.Subject));
+            _slack.UpdateProfileWithStatusMessage(user, GetAwayMessageForStatus(busiestEvent.FreeBusyStatus));
+            _slack.SetPresence(user.SlackApplicationAuthToken, presenceToSet);
         }
 
         private static readonly List<LegacyFreeBusyStatus> StatusesOrderedByBusiest = new List<LegacyFreeBusyStatus>

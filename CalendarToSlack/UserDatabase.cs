@@ -29,9 +29,8 @@ namespace CalendarToSlack
                 var user = new RegisteredUser
                 {
                     ExchangeUsername = fields[0],
-                    SlackUserId = fields[1],
-                    SlackApplicationAuthToken = fields[2],
-                    HackyPersonalFullAccessSlackToken = fields[3],
+                    SlackApplicationAuthToken = fields[1],
+                    HackyPersonalFullAccessSlackToken = fields[2],
                 };
                 Out.WriteDebug("Loaded registered user {0}", user.ExchangeUsername);
                 _registeredUsers.Add(user);
@@ -40,11 +39,27 @@ namespace CalendarToSlack
 
         public void QueryAndSetSlackUserInfo(Slack slack)
         {
+            // Hacky - first user's creds are used to list all users.
+            var authToken = _registeredUsers[0].SlackApplicationAuthToken;
+
+            var slackUsers = slack.ListUsers(authToken);
+            Out.WriteDebug("Found {0} slack users", slackUsers.Count);
+
             foreach (var user in _registeredUsers)
             {
-                var userInfo = slack.GetUserInfo(user.SlackApplicationAuthToken, user.SlackUserId);
-                user.SlackUserInfo = userInfo;
-                Out.WriteDebug("Current Slack user info is FirstName={0}, LastName={1} Username={2}", userInfo.FirstName, userInfo.LastName, userInfo.Username);
+                var email = user.ExchangeUsername;
+                var userInfo = slackUsers.FirstOrDefault(u => u.Email == email);
+                if (userInfo != null)
+                {
+                    user.SlackUserInfo = userInfo;
+                    Out.WriteDebug("Associated Exchange user {0} with Slack User {1} {2} {3} {4}",
+                        email, userInfo.UserId, userInfo.Username, userInfo.FirstName, userInfo.LastName);
+                }
+                else
+                {
+                    Out.WriteInfo("Couldn't find Slack user with email {0}", email);
+                }
+                
             }
         }
 
@@ -54,15 +69,16 @@ namespace CalendarToSlack
         }
     }
 
+    // TODO change last name if it needs changing (even if status remains the same)?
+
     class RegisteredUser
     {
         public string ExchangeUsername { get; set; }
-        public string SlackUserId { get; set; }
         public string SlackApplicationAuthToken { get; set; }
         public string HackyPersonalFullAccessSlackToken { get; set; } // Will be removed.
 
         // These fields aren't persisted, but get set/modified during runtime.
-        public LegacyFreeBusyStatus? LastStatusUpdate { get; set; }
+        public CalendarEvent CurrentEvent { get; set; }
         public SlackUserInfo SlackUserInfo { get; set; }
     }
 }
