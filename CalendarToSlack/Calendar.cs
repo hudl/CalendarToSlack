@@ -40,6 +40,7 @@ namespace CalendarToSlack
             var now = DateTime.UtcNow;
             var ninetySecondsFromNow = now.AddSeconds(90);
 
+            // TODO batch this call instead of looping
             var results = new Dictionary<string, List<CalendarEvent>>();
             foreach (var username in usernames)
             {
@@ -52,7 +53,7 @@ namespace CalendarToSlack
                 // probably on your way to it (or preparing).
                 var happeningNow = events.Where(e => e.StartTime <= ninetySecondsFromNow && now < e.EndTime).ToList();
 
-                Out.WriteDebug("Found {0} events starting/happening in the next 90 seconds (i.e. starting before {1}):", happeningNow.Count, ninetySecondsFromNow);
+                Out.WriteDebug("Found {0} events starting/happening in the next 90 seconds for {1} (i.e. starting before {2}):", happeningNow.Count, username, ninetySecondsFromNow);
                 var result = new List<CalendarEvent>();
                 foreach (var e in happeningNow)
                 {
