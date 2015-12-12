@@ -1,4 +1,5 @@
-﻿using System.Net.Http;
+﻿using System.IO;
+using System.Net.Http;
 using System.Timers;
 using System.Web.Helpers;
 using Microsoft.Exchange.WebServices.Data;
@@ -9,11 +10,7 @@ using System.Net;
 
 namespace CalendarToSlack
 {
-    // TODO error handling
-    // - i've left out try/catches, response status code checks, etc. for now. as i prototype, i'd
-    //   prefer to just crash and find out about the error. once this is all proven out, come back
-    //   through and give errors better consideration.
-
+    // TODO error handling, move beyond a prototype
     // TODO consider a "business hours" rule to just auto-away anytime outside of business hours
     // TODO convert to a service?
     // TODO if user sets Away before an event manually, make sure we don't set them back to Auto after the event ends? depends, i guess.
@@ -24,26 +21,21 @@ namespace CalendarToSlack
         {
             Out.WriteInfo("Setting up Exchange and Slack connectivity");
 
-            // args[1] = exchange username
-            // args[2] = exchange password
-            // args[3] = slack auth token
-            // args[4] = slack user id
+            // args[0] = exchange username
+            // args[1] = exchange password
             
-            var slack = new Slack(args[2], args[3]);
-            
+            var slack = new Slack();
 
-            var presence = slack.GetPresence();
-            Out.WriteInfo("Current Slack presence is {0}", presence);
+            var dbfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "calendar-to-slack-users.txt");
+            Out.WriteInfo("Loading user database from {0}", dbfile);
 
-            //slack.PostSlackbotMessage("This is a test message");
-
-            //slack.UpdateProfileWithStatusMessage("foo");
-            //userInfo = slack.GetUserInfo();
-            //Out.WriteDebug("Updated Slack user info is FirstName={0}, LastName={1}", userInfo.FirstName, userInfo.LastName);
+            var database = new UserDatabase();
+            database.Load(dbfile);
+            database.QueryAndSetSlackUserInfo(slack);
 
             var calendar = new Calendar(args[0], args[1]);
 
-            var updater = new Updater(calendar, slack);
+            var updater = new Updater(database, calendar, slack);
             updater.Start();
 
             Console.ReadLine();
@@ -52,14 +44,15 @@ namespace CalendarToSlack
 
     class Updater
     {
+        private readonly UserDatabase _userdb;
         private readonly Calendar _calendar;
         private readonly Slack _slack;
         private readonly Timer _timer;
         private DateTime _lastCheck;
-        private LegacyFreeBusyStatus? _lastStatusUpdate;
 
-        public Updater(Calendar calendar, Slack slack)
+        public Updater(UserDatabase userdb, Calendar calendar, Slack slack)
         {
+            _userdb = userdb;
             _calendar = calendar;
             _slack = slack;
             
@@ -78,7 +71,6 @@ namespace CalendarToSlack
             _lastCheck = CurrentMinuteWithSecondsTruncated();
             Out.WriteDebug("Starting poll with last check time of {0}", _lastCheck);
             Out.WriteInfo("Started up and ready to rock");
-            _slack.PostSlackbotMessage("CalendarToSlack is up and running");
 
             _timer.Start();
         }
@@ -97,42 +89,53 @@ namespace CalendarToSlack
             {
                 _lastCheck = CurrentMinuteWithSecondsTruncated();
 
-                Out.WriteDebug("Polling calendar");
+                var usernames = _userdb.Users.Select(u => u.ExchangeUsername).ToList();
+                var allEvents = _calendar.GetEventsHappeningNow(usernames);
 
-                var events = _calendar.GetEventsHappeningNow();
-                var status = LegacyFreeBusyStatus.Free;
-                CalendarEvent busyEvent = null;
-                if (events.Any())
+                foreach (var user in _userdb.Users)
                 {
-                    // Could be improved, the status and event selection here is disjoint.
-                    status = GetBusiestStatus(events);
-                    busyEvent = events.First(ev => ev.FreeBusyStatus == status);
+                    var events = allEvents[user.ExchangeUsername];
+                    CheckUserStatusAndUpdate(user, events);
                 }
+            }
+        }
 
-                if (_lastStatusUpdate != null && _lastStatusUpdate == status)
+        private void CheckUserStatusAndUpdate(RegisteredUser user, List<CalendarEvent> events)
+        {
+            var status = LegacyFreeBusyStatus.Free;
+            CalendarEvent busyEvent = null;
+            if (events.Any())
+            {
+                // Could be improved, the status and event selection here is disjoint.
+                status = GetBusiestStatus(events);
+                busyEvent = events.First(ev => ev.FreeBusyStatus == status);
+            }
+
+            if (user.LastStatusUpdate != null && user.LastStatusUpdate == status)
+            {
+                Out.WriteDebug("No status change since last check");
+                return;
+            }
+
+            user.LastStatusUpdate = status;
+            var presenceToSet = GetPresenceForAvailability(status);
+
+            var currentPresence = _slack.GetPresence(user.SlackApplicationAuthToken);
+            if (currentPresence != presenceToSet)
+            {
+                if (presenceToSet == Presence.Away)
                 {
-                    Out.WriteDebug("No status change since last check");
-                    return;
+                    Out.WriteStatus("Changing current presence to {0} for \"{1}\" ({2}) ", presenceToSet, busyEvent.Subject, status);
+                    _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, string.Format("Changed your status to Away for {0}", busyEvent.Subject));
+                    _slack.UpdateProfileWithStatusMessage(user, GetAwayMessageForStatus(status));
                 }
-
-                _lastStatusUpdate = status;
-                var presenceToSet = GetPresenceForAvailability(status);
-
-                var currentPresence = _slack.GetPresence();
-                if (currentPresence != presenceToSet)
+                else
                 {
-                    if (presenceToSet == Presence.Away)
-                    {
-                        Out.WriteStatus("Changing current presence to {0} for \"{1}\" ({2}) ", presenceToSet, busyEvent.Subject, status);
-                        _slack.PostSlackbotMessage(string.Format("Changed your status to Away for {0}", busyEvent.Subject));
-                    }
-                    else
-                    {
-                        Out.WriteStatus("Changing current presence to {0} for availability {1}", presenceToSet, status);
-                        _slack.PostSlackbotMessage("Changed your status from Away to Auto");
-                    }
-                    _slack.SetPresence(presenceToSet);
+                    Out.WriteStatus("Changing current presence to {0} for availability {1}", presenceToSet, status);
+                    _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, "Changed your status from Away to Auto");
+                    _slack.UpdateProfileWithStatusMessage(user, null);
                 }
+                _slack.SetPresence(user.SlackApplicationAuthToken, presenceToSet);
             }
         }
 
@@ -145,6 +148,18 @@ namespace CalendarToSlack
             LegacyFreeBusyStatus.NoData,
             LegacyFreeBusyStatus.Free,
         };
+
+        private static string GetAwayMessageForStatus(LegacyFreeBusyStatus status)
+        {
+            switch (status)
+            {
+                case LegacyFreeBusyStatus.OOF:
+                    return "OOO";
+
+                default:
+                    return "Busy";
+            }
+        }
 
         private static LegacyFreeBusyStatus GetBusiestStatus(List<CalendarEvent> events)
         {
@@ -169,7 +184,6 @@ namespace CalendarToSlack
     class Calendar
     {
         private readonly ExchangeService _exchange;
-        private readonly string _username;
 
         public Calendar(string username, string password)
         {
@@ -178,7 +192,6 @@ namespace CalendarToSlack
                 throw new ArgumentException("username");
             }
 
-            _username = username;
             _exchange = new ExchangeService(TimeZoneInfo.Utc)
             {
                 Credentials = new NetworkCredential(username, password),
@@ -190,40 +203,40 @@ namespace CalendarToSlack
             _exchange.AutodiscoverUrl(username, url => true);
         }
 
-        public List<CalendarEvent> GetEventsHappeningNow()
+        public Dictionary<string, List<CalendarEvent>> GetEventsHappeningNow(List<string> usernames)
         {
-            Out.WriteDebug("Getting availability for {0}", _username);
-
             // According to the docs, the query period has to be at least 24 hours, with times
             // from midnight to midnight.
             var today = DateTime.UtcNow.Date;
             var tomorrow = today.AddDays(1);
-            var results = _exchange.GetUserAvailability(new List<AttendeeInfo> { _username },
-                new TimeWindow(today, tomorrow),
-                AvailabilityData.FreeBusy);
-
-            Out.WriteDebug("Availability retrieved, parsing results");
-            var events = results.AttendeesAvailability.SelectMany(a => a.CalendarEvents).ToList();
-
-            Out.WriteDebug("Found {0} events today (between {1} and {2})", events.Count, today, tomorrow);
 
             var now = DateTime.UtcNow;
             var ninetySecondsFromNow = now.AddSeconds(90);
 
-            // Look a bit into the future. If there's an event starting in 90 seconds, you're
-            // probably on your way to it (or preparing).
-            var happeningNow = events.Where(e => e.StartTime <= ninetySecondsFromNow && now < e.EndTime).ToList();
-
-            Out.WriteDebug("Found {0} events starting/happening in the next 90 seconds (i.e. starting before {1}):", happeningNow.Count, ninetySecondsFromNow);
-            var result = new List<CalendarEvent>();
-            foreach (var e in happeningNow)
+            var results = new Dictionary<string, List<CalendarEvent>>();
+            foreach (var username in usernames)
             {
-                Out.WriteDebug("> {0} {1} {2} {3}", e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject);
-                result.Add(new CalendarEvent(e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject));
-            }
+                var availability = _exchange.GetUserAvailability(new List<AttendeeInfo> { username },
+                    new TimeWindow(today, tomorrow),
+                    AvailabilityData.FreeBusy);
+                var events = availability.AttendeesAvailability.SelectMany(a => a.CalendarEvents).ToList();
+                
+                // Look a bit into the future. If there's an event starting in 90 seconds, you're
+                // probably on your way to it (or preparing).
+                var happeningNow = events.Where(e => e.StartTime <= ninetySecondsFromNow && now < e.EndTime).ToList();
 
-            Out.WriteDebug("Done retrieving");
-            return result;
+                Out.WriteDebug("Found {0} events starting/happening in the next 90 seconds (i.e. starting before {1}):", happeningNow.Count, ninetySecondsFromNow);
+                var result = new List<CalendarEvent>();
+                foreach (var e in happeningNow)
+                {
+                    Out.WriteDebug("> {0} {1} {2} {3}", e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject);
+                    result.Add(new CalendarEvent(e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject));
+                }
+
+                results[username] = result;
+            }
+            
+            return results;
         }
     }
 
@@ -248,41 +261,19 @@ namespace CalendarToSlack
 
     class Slack
     {
-        private readonly string _authToken;
-        private readonly string _userId;
-        private readonly string _username;
         private readonly HttpClient _http;
 
-        public Slack(string authToken, string userId)
+        public Slack()
         {
-            if (string.IsNullOrWhiteSpace(authToken))
-            {
-                throw new ArgumentException("authToken");
-            }
-
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                throw new ArgumentException("userId");
-            }
-
-            _authToken = authToken;
-            _userId = userId;
-
             _http = new HttpClient
             {
                 Timeout = TimeSpan.FromSeconds(5),
             };
-
-            // Making network calls in a constructor, eh? Ballsy.
-            var userInfo = GetUserInfo();
-            Out.WriteDebug("Current Slack user info is FirstName={0}, LastName={1} Username={2}", userInfo.FirstName, userInfo.LastName, userInfo.Username);
-
-            _username = userInfo.Username;
         }
 
-        public Presence GetPresence()
+        public Presence GetPresence(string authToken)
         {
-            var result = _http.GetAsync(string.Format("https://slack.com/api/users.getPresence?token={0}", _authToken)).Result;
+            var result = _http.GetAsync(string.Format("https://slack.com/api/users.getPresence?token={0}", authToken)).Result;
             result.EnsureSuccessStatusCode();
 
             var content = result.Content.ReadAsStringAsync().Result;
@@ -290,20 +281,20 @@ namespace CalendarToSlack
             return (string.Equals(data.presence, "away", StringComparison.OrdinalIgnoreCase) ? Presence.Away : Presence.Auto);
         }
 
-        public void SetPresence(Presence presence)
+        public void SetPresence(string authToken, Presence presence)
         {
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                { "token", _authToken },
+                { "token", authToken },
                 { "presence", (presence == Presence.Auto ? "auto" : "away") }
             });
             var result = _http.PostAsync("https://slack.com/api/users.setPresence", content).Result;
             result.EnsureSuccessStatusCode();
         }
 
-        public SlackUserInfo GetUserInfo()
+        public SlackUserInfo GetUserInfo(string authToken, string userId)
         {
-            var result = _http.GetAsync(string.Format("https://slack.com/api/users.info?token={0}&user={1}", _authToken, _userId)).Result;
+            var result = _http.GetAsync(string.Format("https://slack.com/api/users.info?token={0}&user={1}", authToken, userId)).Result;
             result.EnsureSuccessStatusCode();
 
             var content = result.Content.ReadAsStringAsync().Result;
@@ -317,13 +308,13 @@ namespace CalendarToSlack
             };
         }
 
-        public void PostSlackbotMessage(string message)
+        public void PostSlackbotMessage(string authToken, string username, string message)
         {
-            Out.WriteInfo("Posting message to @{0}'s slackbot: {1}", _username, message);
+            Out.WriteInfo("Posting message to @{0}'s slackbot: {1}", username, message);
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                { "token", _authToken },
-                { "channel", "@" + _username },
+                { "token", authToken },
+                { "channel", "@" + username },
                 { "as_user", "false" },
                 { "text", message },
                 { "username", "CalendarToSlack" }
@@ -335,38 +326,49 @@ namespace CalendarToSlack
         /// <summary>
         /// Doesn't work.
         /// </summary>
-        public void UpdateProfileWithStatusMessage(string message)
+        public void UpdateProfileWithStatusMessage(RegisteredUser user, string message)
         {
-            throw new NotImplementedException();
-
-            // The web application version of slack uses the `users.profile.set` API endpoint
-            // to update profile information. I've been trying to mimic it, but haven't been
-            // successful.
-            //
             // Slack's support for status/presence (i.e. only auto/away) is limited, and one of
             // our conventions for broadcasting more precise status is to change our last name
             // to something like "Rob Hruska | Busy" or "Rob Hruska | OOO til Mon".
+
+            // The users.profile.set API endpoint (which isn't public, but is used by the webapp
+            // version of Slack) requires the `post` scope, but applications can't request/authorize
+            // that scope because it's deprecated.
+            // 
+            // The "full access" token (from the Web API test page) does support post, but I don't
+            // want to manage those within the app here. I've temporarily allowed it for myself,
+            // but it'll be removed in the future.
             //
-            // If Slack ever 1) opens up their profile API, or 2) builds a more
-            // full-featured status, we can try wiring that up here.
+            // The current plan is to wait for Slack to either 1) expose a formal users.profile.set
+            // API, or 2) introduce custom away status messages.
 
-            // TODO enforce limits and truncation on message
+            const int maxLastName = 35;
+            const string separator = " | ";
 
-            
-            var profile = string.Format("{{\"first_name\":\"Rob\",\"last_name\":\"H\"}}");
+            var newLastName = user.SlackUserInfo.ActualLastName;
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                newLastName = user.SlackUserInfo.ActualLastName + separator + message.Substring(0, Math.Min(message.Length, maxLastName - (user.SlackUserInfo.ActualLastName.Length + separator.Length)));
+            }
 
+            var profile = string.Format("{{\"first_name\":\"{0}\",\"last_name\":\"{1}\"}}", user.SlackUserInfo.FirstName, newLastName);
+
+            Out.WriteInfo("Changed profile last name to {0}", newLastName);
             Out.WriteDebug("Sending profile update with profile: {0}", profile);
 
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                { "users", _userId },
                 { "profile", profile },
-                { "token", _authToken }
+                { "token", user.HackyPersonalFullAccessSlackToken } // TODO switch to auth token. see comments above in this method
             });
-            var result = _http.PostAsync("https://hudl.slack.com/api/users.profile.set", content).Result;
+            var result = _http.PostAsync("https://slack.com/api/users.profile.set", content).Result;
 
             Out.WriteDebug("Status: " + result.StatusCode);
             result.EnsureSuccessStatusCode();
+
+            Out.WriteDebug("Response: {0}", result.Content.ReadAsStringAsync().Result);
+
             Out.WriteDebug("Profile update complete");
         }
     }
@@ -376,6 +378,8 @@ namespace CalendarToSlack
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string Username { get; set; }
+
+        public string ActualLastName { get { return LastName.Split('|')[0]; } }
     }
 
     enum Presence
@@ -417,5 +421,4 @@ namespace CalendarToSlack
             Console.ForegroundColor = orig;
         }
     }
-
 }
