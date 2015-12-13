@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,46 +7,71 @@ namespace CalendarToSlack
 {
     class UserDatabase
     {
-        private readonly List<RegisteredUser> _registeredUsers = new List<RegisteredUser>();
+        private const string DefaultFilterString = "OOO|Lunch|1:1|Working From Home>WFH|Meeting";
 
-        public void Load(string file)
+        private readonly List<RegisteredUser> _registeredUsers = new List<RegisteredUser>();
+        private readonly string _file;
+        private readonly object _lock = new { };
+
+        public UserDatabase(string file)
         {
-            if (!File.Exists(file))
+            if (string.IsNullOrWhiteSpace(file))
             {
-                File.Create(file);
-                return;
+                throw new ArgumentException("file");
             }
 
-            var lines = File.ReadAllLines(file);
-
-            var globalFilters = ParseStatusMessageFilter(lines[0]);
-
-            var index = 0;
-            foreach (var line in lines)
+            lock (_lock)
             {
-                if (index++ < 1 || line.StartsWith("#"))
+                if (!File.Exists(file))
                 {
-                    continue;
+                    File.Create(file);
+                    return;
                 }
+            }
 
-                var fields = line.Split(',');
+            _file = file;
+        }
 
-                var filters = new Dictionary<string, string>(globalFilters);
-                var personal = ParseStatusMessageFilter(fields[3]);
-                foreach (var filter in personal)
+        public void Load(Slack slack)
+        {
+            lock (_lock)
+            {
+                var lines = File.ReadAllLines(_file);
+
+                //var globalFilters = ParseStatusMessageFilter(lines[0]);
+
+                //var index = 0;
+                foreach (var line in lines)
                 {
-                    filters[filter.Key] = filter.Value;
-                }
+                    if (/*index++ < 1 || */line.StartsWith("#"))
+                    {
+                        continue;
+                    }
+
+                    var fields = line.Split(',');
+
+                    //var filters = new Dictionary<string, string>(globalFilters);
+                    var filters = ParseStatusMessageFilter(fields[3]);
+                    //foreach (var filter in personal)
+                    //{
+                    //    filters[filter.Key] = filter.Value;
+                    //}
                 
-                var user = new RegisteredUser
+                    var user = new RegisteredUser
+                    {
+                        Email = fields[0],
+                        SlackApplicationAuthToken = fields[1],
+                        HackyPersonalFullAccessSlackToken = fields[2],
+                        StatusMessageFilters = filters,
+                    };
+                    Out.WriteDebug("Loaded registered user {0}", user.Email);
+                    _registeredUsers.Add(user);
+                }
+
+                if (_registeredUsers.Any())
                 {
-                    ExchangeUsername = fields[0],
-                    SlackApplicationAuthToken = fields[1],
-                    HackyPersonalFullAccessSlackToken = fields[2],
-                    StatusMessageFilters = filters,
-                };
-                Out.WriteDebug("Loaded registered user {0}", user.ExchangeUsername);
-                _registeredUsers.Add(user);
+                    QueryAndSetSlackUserInfo(slack);
+                }
             }
         }
 
@@ -73,7 +99,8 @@ namespace CalendarToSlack
             return result;
         }
 
-        public void QueryAndSetSlackUserInfo(Slack slack)
+        // Caller should ensure they've acquired _lock.
+        private void QueryAndSetSlackUserInfo(Slack slack)
         {
             // Hacky - first user's creds are used to list all users.
             var authToken = _registeredUsers[0].SlackApplicationAuthToken;
@@ -83,7 +110,7 @@ namespace CalendarToSlack
 
             foreach (var user in _registeredUsers)
             {
-                var email = user.ExchangeUsername;
+                var email = user.Email;
                 var userInfo = slackUsers.FirstOrDefault(u => u.Email == email);
                 if (userInfo != null)
                 {
@@ -99,26 +126,63 @@ namespace CalendarToSlack
             }
         }
 
-        public List<RegisteredUser> Users
+        // Caller should ensure they've acquired _lock.
+        private void WriteFile()
         {
-            get { return _registeredUsers; }
+            var lines = new List<string>();
+
+            foreach (var user in _registeredUsers)
+            {
+                var filters = string.Join("|", user.StatusMessageFilters.Select(kvp => (kvp.Key == kvp.Value ? kvp.Key : kvp.Key + ">" + kvp.Value)));
+                var line = string.Format("{0},{1},{2},{3}", user.Email, user.SlackApplicationAuthToken ?? "", user.HackyPersonalFullAccessSlackToken ?? "", filters);
+                lines.Add(line);
+            }
+            
+            File.WriteAllLines(_file, lines);
         }
 
-        public void AddUser(string email, string slackAuthToken)
+        public List<RegisteredUser> Users
         {
-            // TODO
-            // lock
-            // look for current user
-            // if found, update
-            // if not found, add
-            // write database back to to file
-            // unlock
+            get
+            {
+                lock (_lock)
+                {
+                    return _registeredUsers;
+                }
+            }
+        }
+
+        public void AddUser(SlackUserInfo user, string slackAuthToken)
+        {
+            lock (_lock)
+            {
+                var existing = _registeredUsers.FirstOrDefault(u => u.Email == user.Email);
+                if (existing != null)
+                {
+                    existing.SlackUserInfo = user;
+                    existing.SlackApplicationAuthToken = slackAuthToken;
+                }
+                else
+                {
+                    _registeredUsers.Add(new RegisteredUser
+                    {
+                        Email = user.Email,
+                        SlackApplicationAuthToken = slackAuthToken,
+                        StatusMessageFilters = ParseStatusMessageFilter(DefaultFilterString),
+                    });
+                }
+
+                WriteFile();
+            }
         }
     }
 
     class RegisteredUser
     {
-        public string ExchangeUsername { get; set; }
+        // This is both their Slack email and their Exchange username. It's how we tie the two
+        // accounts together.
+        public string Email { get; set; }
+
         public string SlackApplicationAuthToken { get; set; }
         public string HackyPersonalFullAccessSlackToken { get; set; } // Will be removed.
         public Dictionary<string, string> StatusMessageFilters { get; set; } 

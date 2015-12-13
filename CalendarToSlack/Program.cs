@@ -20,22 +20,19 @@ namespace CalendarToSlack
         // args[3] = CalendarToSlack slack application client secret
         static void Main(string[] args)
         {
-            var server = new HttpServer(args[2], args[3]);
-            server.Start();
-            Console.ReadLine();
-            return;
-
-            Out.WriteInfo("Setting up Exchange and Slack connectivity");
-
-            
             var slack = new Slack();
 
             var dbfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "calendar-to-slack-users.txt");
             Out.WriteInfo("Loading user database from {0}", dbfile);
 
-            var database = new UserDatabase();
-            database.Load(dbfile);
-            database.QueryAndSetSlackUserInfo(slack);
+            var database = new UserDatabase(dbfile);
+            database.Load(slack);
+            //database.QueryAndSetSlackUserInfo(slack);
+
+            var server = new HttpServer(args[2], args[3], slack, database);
+            server.Start();
+            Console.ReadLine();
+            return;
 
             var calendar = new Calendar(args[0], args[1]);
 
@@ -94,12 +91,12 @@ namespace CalendarToSlack
             {
                 _lastCheck = CurrentMinuteWithSecondsTruncated();
 
-                var usernames = _userdb.Users.Select(u => u.ExchangeUsername).ToList();
+                var usernames = _userdb.Users.Select(u => u.Email).ToList();
                 var allEvents = _calendar.GetEventsHappeningNow(usernames);
 
                 foreach (var user in _userdb.Users)
                 {
-                    var events = allEvents[user.ExchangeUsername];
+                    var events = allEvents[user.Email];
                     CheckUserStatusAndUpdate(user, events);
                 }
             }
@@ -135,7 +132,7 @@ namespace CalendarToSlack
             if (busiestEvent == null)
             {
                 // Status changed to Free.
-                Out.WriteStatus("{0} is now {1}", user.ExchangeUsername, Presence.Auto);
+                Out.WriteStatus("{0} is now {1}", user.Email, Presence.Auto);
                 MakeSlackApiCalls(user, Presence.Auto, null, "Changed your status to Auto");
                 return;
             }
@@ -145,7 +142,7 @@ namespace CalendarToSlack
             var presenceToSet = GetPresenceForAvailability(busiestEvent.FreeBusyStatus);
             var statusMessage = GetUserMessage(busiestEvent, user);
             var slackbotMessage = string.Format("Changed your status to {0} for {1}", presenceToSet, busiestEvent.Subject);
-            Out.WriteStatus("{0} is now {1} for \"{2}\" ({3}) ", user.ExchangeUsername, presenceToSet, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
+            Out.WriteStatus("{0} is now {1} for \"{2}\" ({3}) ", user.Email, presenceToSet, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
             MakeSlackApiCalls(user, presenceToSet, statusMessage, slackbotMessage);
         }
 

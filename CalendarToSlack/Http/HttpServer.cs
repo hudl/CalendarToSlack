@@ -136,7 +136,7 @@ namespace CalendarToSlack.Http
                         var token = json.access_token;
                         var user = _slack.GetUserInfo(token);
 
-                        _database.AddUser(user.Email, token);
+                        _database.AddUser(user, token);
 
                         // TODO display/redirect to a "what's next" page, or something friendlier
                         SendHtml(context.Response, 200, "Added " + user.Email);
