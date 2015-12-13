@@ -103,6 +103,17 @@ namespace CalendarToSlack
         {
             get { return _registeredUsers; }
         }
+
+        public void AddUser(string email, string slackAuthToken)
+        {
+            // TODO
+            // lock
+            // look for current user
+            // if found, update
+            // if not found, add
+            // write database back to to file
+            // unlock
+        }
     }
 
     class RegisteredUser

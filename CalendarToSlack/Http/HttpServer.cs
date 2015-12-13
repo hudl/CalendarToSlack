@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web.Helpers;
 
 namespace CalendarToSlack.Http
 {
@@ -16,8 +16,10 @@ namespace CalendarToSlack.Http
 
         private readonly string _slackClientId;
         private readonly string _slackClientSecret;
+        private readonly Slack _slack;
+        private readonly UserDatabase _database;
 
-        public HttpServer(string slackClientId, string slackClientSecret)
+        public HttpServer(string slackClientId, string slackClientSecret, Slack slack, UserDatabase database)
         {
             if (string.IsNullOrWhiteSpace(slackClientId))
             {
@@ -29,8 +31,20 @@ namespace CalendarToSlack.Http
                 throw new ArgumentException("Cannot start HTTP server without a Slack application client secret; it's needed for OAuth");
             }
 
+            if (slack == null)
+            {
+                throw new ArgumentNullException("slack");
+            }
+
+            if (database == null)
+            {
+                throw new ArgumentNullException("database");
+            }
+
             _slackClientId = slackClientId;
             _slackClientSecret = slackClientSecret;
+            _slack = slack;
+            _database = database;
         }
 
         public void Start()
@@ -63,7 +77,6 @@ namespace CalendarToSlack.Http
         // - on startup, check user's slack last name and don't update if unnecessary
         // - how can we get their slack email address back with the oauth payload? or can we get it solely from the auth token?
         // - configurable startup port
-        // - configurable slack app token/secret for oauth
         // - landing page with description of behavior, screenshots
         //   - instructions on how to disable (is it manual for now?)
 
@@ -111,8 +124,22 @@ namespace CalendarToSlack.Http
                     var response = client.PostAsync("https://slack.com/api/oauth.access", content).Result;
                     if (response.IsSuccessStatusCode)
                     {
-                        // TODO save token, display "what's next" html
-                        SendHtml(context.Response, 200, "Success");
+                        var responseContent = response.Content.ReadAsStringAsync().Result;
+                        var json = Json.Decode(responseContent);
+
+                        if (!json.ok)
+                        {
+                            SendHtml(context.Response, 500, "Non-ok response from OAuth access request");
+                            return;
+                        }
+
+                        var token = json.access_token;
+                        var user = _slack.GetUserInfo(token);
+
+                        _database.AddUser(user.Email, token);
+
+                        // TODO display/redirect to a "what's next" page, or something friendlier
+                        SendHtml(context.Response, 200, "Added " + user.Email);
                     }
                     else
                     {
@@ -143,7 +170,7 @@ namespace CalendarToSlack.Http
         // Not super optimal - could stream these instead. But it's so
         // low traffic and lightweight that it doesn't matter, and this is
         // a bit faster to get going.
-        private string GetIndexPage(string slackClientId)
+        private static string GetIndexPage(string slackClientId)
         {
             var assembly = Assembly.GetExecutingAssembly();
             using (var stream = assembly.GetManifestResourceStream("CalendarToSlack.Http.Resources.index.html"))

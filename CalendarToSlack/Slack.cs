@@ -38,6 +38,22 @@ namespace CalendarToSlack
             result.EnsureSuccessStatusCode();
         }
 
+
+        // When we add a new user, we only have their auth token, and need to get their email address
+        // to associate it with an exchange account. This method is mainly for that.
+        public SlackUserInfo GetUserInfo(string authToken)
+        {
+            var result = _http.GetAsync(string.Format("https://slack.com/api/auth.test?token={0}", authToken)).Result;
+            result.EnsureSuccessStatusCode();
+
+            var content = result.Content.ReadAsStringAsync().Result;
+
+            var data = Json.Decode(content);
+            var info = GetUserInfo(authToken, data.user_id);
+
+            return info;
+        }
+
         public SlackUserInfo GetUserInfo(string authToken, string userId)
         {
             var result = _http.GetAsync(string.Format("https://slack.com/api/users.info?token={0}&user={1}", authToken, userId)).Result;
