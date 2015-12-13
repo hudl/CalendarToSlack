@@ -127,20 +127,24 @@ namespace CalendarToSlack
             {
                 // Status changed to Free.
                 Out.WriteStatus("{0} is now {1}", user.ExchangeUsername, Presence.Auto);
-                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, "Changed your status to Auto");
-                _slack.UpdateProfileWithStatusMessage(user, null);
-                _slack.SetPresence(user.SlackApplicationAuthToken, Presence.Auto);
+                MakeSlackApiCalls(user, Presence.Auto, null, "Changed your status to Auto");
                 return;
             }
 
             // Otherwise, we're transitioning into an event that's coming up (or just got added).
 
             var presenceToSet = GetPresenceForAvailability(busiestEvent.FreeBusyStatus);
-            //var currentPresence = _slack.GetPresence(user.SlackApplicationAuthToken);
+            var statusMessage = GetUserMessage(busiestEvent, user);
+            var slackbotMessage = string.Format("Changed your status to {0} for {1}", presenceToSet, busiestEvent.Subject);
             Out.WriteStatus("{0} is now {1} for \"{2}\" ({3}) ", user.ExchangeUsername, presenceToSet, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
-            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, string.Format("Changed your status to {0} for {1}", presenceToSet, busiestEvent.Subject));
-            _slack.UpdateProfileWithStatusMessage(user, GetUserMessage(busiestEvent, user));
-            _slack.SetPresence(user.SlackApplicationAuthToken, presenceToSet);
+            MakeSlackApiCalls(user, presenceToSet, statusMessage, slackbotMessage);
+        }
+
+        private void MakeSlackApiCalls(RegisteredUser user, Presence presence, string statusMessage, string slackbotMessage)
+        {
+            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotMessage);
+            _slack.UpdateProfileWithStatusMessage(user, statusMessage);
+            _slack.SetPresence(user.SlackApplicationAuthToken, presence);
         }
 
         private static readonly List<LegacyFreeBusyStatus> StatusesOrderedByBusiest = new List<LegacyFreeBusyStatus>
