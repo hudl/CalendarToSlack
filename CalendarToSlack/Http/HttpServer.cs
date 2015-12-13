@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,6 +13,25 @@ namespace CalendarToSlack.Http
     class HttpServer
     {
         private bool _keepRunning = true;
+
+        private readonly string _slackClientId;
+        private readonly string _slackClientSecret;
+
+        public HttpServer(string slackClientId, string slackClientSecret)
+        {
+            if (string.IsNullOrWhiteSpace(slackClientId))
+            {
+                throw new ArgumentException("Cannot start HTTP server without a Slack application client ID; it's needed for OAuth");
+            }
+
+            if (string.IsNullOrWhiteSpace(slackClientSecret))
+            {
+                throw new ArgumentException("Cannot start HTTP server without a Slack application client secret; it's needed for OAuth");
+            }
+
+            _slackClientId = slackClientId;
+            _slackClientSecret = slackClientSecret;
+        }
 
         public void Start()
         {
@@ -50,17 +72,85 @@ namespace CalendarToSlack.Http
             while (_keepRunning)
             {
                 var context = listener.GetContext(); // Blocks.
+                HandleRequest(context);
+            }
+        }
 
+        private void HandleRequest(HttpListenerContext context)
+        {
+            try
+            {
                 var req = context.Request;
 
                 Console.WriteLine("[http] Requested {0}", req.RawUrl);
 
-                var output = Encoding.UTF8.GetBytes("Hello");
-                context.Response.StatusCode = 200;
-                context.Response.ContentType = "text/html; charset=utf-8";
-                context.Response.ContentEncoding = Encoding.UTF8;
-                context.Response.ContentLength64 = output.Length;
-                context.Response.Close(output, false);
+                var path = req.RawUrl.Split('?')[0].TrimEnd('/');
+                if (path == "")
+                {
+                    var page = GetIndexPage(_slackClientId);
+                    SendHtml(context.Response, 200, page);
+                    return;
+                }
+
+                if (path == "/callback")
+                {
+                    var client = new HttpClient()
+                    {
+                        Timeout = TimeSpan.FromSeconds(5),
+                    };
+
+                    var code = req.QueryString["code"];
+
+                    var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
+                    {
+                        new KeyValuePair<string, string>("client_id", _slackClientId),
+                        new KeyValuePair<string, string>("client_secret", _slackClientSecret),
+                        new KeyValuePair<string, string>("code", code),
+                    });
+
+                    var response = client.PostAsync("https://slack.com/api/oauth.access", content).Result;
+                    if (response.IsSuccessStatusCode)
+                    {
+                        // TODO save token, display "what's next" html
+                        SendHtml(context.Response, 200, "Success");
+                    }
+                    else
+                    {
+                        SendHtml(context.Response, 500, "Error getting OAuth token");
+                    }
+
+                    return;
+                }
+
+                SendHtml(context.Response, 404, "Huh?");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+        }
+
+        private void SendHtml(HttpListenerResponse response, int status, string content)
+        {
+            var output = Encoding.UTF8.GetBytes(content);
+            response.StatusCode = status;
+            response.ContentType = "text/html; charset=utf-8";
+            response.ContentEncoding = Encoding.UTF8;
+            response.ContentLength64 = output.Length;
+            response.Close(output, false);
+        }
+
+        // Not super optimal - could stream these instead. But it's so
+        // low traffic and lightweight that it doesn't matter, and this is
+        // a bit faster to get going.
+        private string GetIndexPage(string slackClientId)
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            using (var stream = assembly.GetManifestResourceStream("CalendarToSlack.Http.Resources.index.html"))
+            using (var reader = new StreamReader(stream))
+            {
+                var content = reader.ReadToEnd();
+                return content.Replace("{{SlackClientId}}", slackClientId);
             }
         }
     }

@@ -14,18 +14,19 @@ namespace CalendarToSlack
 
     class Program
     {
+        // args[0] = exchange username
+        // args[1] = exchange password
+        // args[2] = CalendarToSlack slack application client ID
+        // args[3] = CalendarToSlack slack application client secret
         static void Main(string[] args)
         {
-
-            var server = new HttpServer();
+            var server = new HttpServer(args[2], args[3]);
             server.Start();
             Console.ReadLine();
             return;
 
             Out.WriteInfo("Setting up Exchange and Slack connectivity");
 
-            // args[0] = exchange username
-            // args[1] = exchange password
             
             var slack = new Slack();
 
