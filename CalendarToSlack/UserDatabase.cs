@@ -17,20 +17,32 @@ namespace CalendarToSlack
             }
 
             var lines = File.ReadAllLines(file);
+
+            var globalFilters = ParseStatusMessageFilter(lines[0]);
+
+            var index = 0;
             foreach (var line in lines)
             {
-                if (line.StartsWith("#"))
+                if (index++ < 1 || line.StartsWith("#"))
                 {
                     continue;
                 }
 
                 var fields = line.Split(',');
+
+                var filters = new Dictionary<string, string>(globalFilters);
+                var personal = ParseStatusMessageFilter(fields[3]);
+                foreach (var filter in personal)
+                {
+                    filters[filter.Key] = filter.Value;
+                }
+                
                 var user = new RegisteredUser
                 {
                     ExchangeUsername = fields[0],
                     SlackApplicationAuthToken = fields[1],
                     HackyPersonalFullAccessSlackToken = fields[2],
-                    StatusMessageFilter = ParseStatusMessageFilter(fields[3]),
+                    StatusMessageFilters = filters,
                 };
                 Out.WriteDebug("Loaded registered user {0}", user.ExchangeUsername);
                 _registeredUsers.Add(user);
@@ -93,17 +105,30 @@ namespace CalendarToSlack
         }
     }
 
-    // TODO change last name if it needs changing (even if status remains the same)?
-
     class RegisteredUser
     {
         public string ExchangeUsername { get; set; }
         public string SlackApplicationAuthToken { get; set; }
         public string HackyPersonalFullAccessSlackToken { get; set; } // Will be removed.
-        public Dictionary<string, string> StatusMessageFilter { get; set; } 
+        public Dictionary<string, string> StatusMessageFilters { get; set; } 
 
         // These fields aren't persisted, but get set/modified during runtime.
-        public CalendarEvent CurrentEvent { get; set; }
+
+        private bool _hasSetCurrentEvent = false;
+        private CalendarEvent _currentEvent;
+
+        public CalendarEvent CurrentEvent
+        {
+            get { return _currentEvent; }
+            set
+            {
+                _hasSetCurrentEvent = true;
+                _currentEvent = value;
+            }
+        }
+
+        public bool HasSetCurrentEvent { get { return _hasSetCurrentEvent; } }
+
         public SlackUserInfo SlackUserInfo { get; set; }
     }
 }

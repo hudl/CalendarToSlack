@@ -10,7 +10,6 @@ namespace CalendarToSlack
     // TODO error handling, move beyond a prototype
     // TODO consider a "business hours" rule to just auto-away anytime outside of business hours
     // TODO convert to a service?
-    // TODO if user sets Away before an event manually, make sure we don't set them back to Auto after the event ends? depends, i guess.
 
     class Program
     {
@@ -113,7 +112,10 @@ namespace CalendarToSlack
             // Will return null if there are no events currently happening.
             var busiestEvent = GetBusiestEvent(events);
 
-            if (busiestEvent == user.CurrentEvent)
+            // Only check if we've set a current event previously. Otherwise,
+            // on the first check after startup, we don't "correct" the value
+            // if the user became Free while this app was stopped.
+            if (user.HasSetCurrentEvent && busiestEvent == user.CurrentEvent)
             {
                 // User is still in the same event, no change.
                 return;
@@ -137,7 +139,7 @@ namespace CalendarToSlack
             //var currentPresence = _slack.GetPresence(user.SlackApplicationAuthToken);
             Out.WriteStatus("{0} is now {1} for \"{2}\" ({3}) ", user.ExchangeUsername, presenceToSet, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
             _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, string.Format("Changed your status to {0} for {1}", presenceToSet, busiestEvent.Subject));
-            _slack.UpdateProfileWithStatusMessage(user, GetAwayMessage(busiestEvent, user));
+            _slack.UpdateProfileWithStatusMessage(user, GetUserMessage(busiestEvent, user));
             _slack.SetPresence(user.SlackApplicationAuthToken, presenceToSet);
         }
 
@@ -151,24 +153,42 @@ namespace CalendarToSlack
             LegacyFreeBusyStatus.Free,
         };
 
-        private static string GetAwayMessage(CalendarEvent ev, RegisteredUser user)
+        private static string GetUserMessage(CalendarEvent ev, RegisteredUser user)
         {
-            foreach (var filter in user.StatusMessageFilter)
-            {
-                if (ev.Subject.IndexOf(filter.Key, StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    return filter.Value;
-                }
-            }
+            // Will be null if no matches.
+            var filterMatch = MatchFilter(ev.Subject, user.StatusMessageFilters);
 
             switch (ev.FreeBusyStatus)
             {
                 case LegacyFreeBusyStatus.OOF:
                     return "OOO";
-
+                
+                // With the non-away statuses, we'll still update the user's message
+                // but keep their status as Auto. This works for things like "Lunch"
+                // and "Working From Home".
+                case LegacyFreeBusyStatus.Tentative:
+                case LegacyFreeBusyStatus.WorkingElsewhere:
+                case LegacyFreeBusyStatus.Free:
+                    return filterMatch;
+                
+                case LegacyFreeBusyStatus.NoData:
+                case LegacyFreeBusyStatus.Busy:
                 default:
-                    return "Busy";
+                    return filterMatch ?? "Busy";
             }
+        }
+
+        private static string MatchFilter(string subject, Dictionary<string, string> filters)
+        {
+            foreach (var filter in filters)
+            {
+                if (subject.IndexOf(filter.Key, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return filter.Value;
+                }
+            }
+
+            return null;
         }
 
         private static LegacyFreeBusyStatus GetBusiestStatus(List<CalendarEvent> events)
