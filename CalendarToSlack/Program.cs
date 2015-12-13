@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Timers;
+using CalendarToSlack.Http;
 using Microsoft.Exchange.WebServices.Data;
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,12 @@ namespace CalendarToSlack
     {
         static void Main(string[] args)
         {
+
+            var server = new HttpServer();
+            server.Start();
+            Console.ReadLine();
+            return;
+
             Out.WriteInfo("Setting up Exchange and Slack connectivity");
 
             // args[0] = exchange username
@@ -33,6 +40,7 @@ namespace CalendarToSlack
 
             var updater = new Updater(database, calendar, slack);
             updater.Start();
+
 
             Console.ReadLine();
         }
