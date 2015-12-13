@@ -53,11 +53,11 @@ namespace CalendarToSlack
                 // probably on your way to it (or preparing).
                 var happeningNow = events.Where(e => e.StartTime <= ninetySecondsFromNow && now < e.EndTime).ToList();
 
-                Out.WriteDebug("Found {0} events starting/happening in the next 90 seconds for {1} (i.e. starting before {2}):", happeningNow.Count, username, ninetySecondsFromNow);
+                //Out.WriteDebug("Found {0} events starting/happening in the next 90 seconds for {1} (i.e. starting before {2}):", happeningNow.Count, username, ninetySecondsFromNow);
                 var result = new List<CalendarEvent>();
                 foreach (var e in happeningNow)
                 {
-                    Out.WriteDebug("> {0} {1} {2} {3}", e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject);
+                    //Out.WriteDebug("> {0} {1} {2} {3}", e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject);
                     result.Add(new CalendarEvent(e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject));
                 }
 

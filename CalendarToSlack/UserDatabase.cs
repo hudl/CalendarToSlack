@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Microsoft.Exchange.WebServices.Data;
 
 namespace CalendarToSlack
 {
@@ -31,10 +30,35 @@ namespace CalendarToSlack
                     ExchangeUsername = fields[0],
                     SlackApplicationAuthToken = fields[1],
                     HackyPersonalFullAccessSlackToken = fields[2],
+                    StatusMessageFilter = ParseStatusMessageFilter(fields[3]),
                 };
                 Out.WriteDebug("Loaded registered user {0}", user.ExchangeUsername);
                 _registeredUsers.Add(user);
             }
+        }
+
+        private Dictionary<string, string> ParseStatusMessageFilter(string raw)
+        {
+            var result = new Dictionary<string, string>();
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return result;
+            }
+
+            var filters = raw.Split('|');
+            foreach (var filter in filters)
+            {
+                if (filter.Contains('>'))
+                {
+                    var split = filter.Split('>');
+                    result[split[0]] = split[1];
+                }
+                else
+                {
+                    result[filter] = filter;
+                }
+            }
+            return result;
         }
 
         public void QueryAndSetSlackUserInfo(Slack slack)
@@ -76,6 +100,7 @@ namespace CalendarToSlack
         public string ExchangeUsername { get; set; }
         public string SlackApplicationAuthToken { get; set; }
         public string HackyPersonalFullAccessSlackToken { get; set; } // Will be removed.
+        public Dictionary<string, string> StatusMessageFilter { get; set; } 
 
         // These fields aren't persisted, but get set/modified during runtime.
         public CalendarEvent CurrentEvent { get; set; }

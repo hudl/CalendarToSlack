@@ -137,7 +137,7 @@ namespace CalendarToSlack
             //var currentPresence = _slack.GetPresence(user.SlackApplicationAuthToken);
             Out.WriteStatus("{0} is now {1} for \"{2}\" ({3}) ", user.ExchangeUsername, presenceToSet, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
             _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, string.Format("Changed your status to {0} for {1}", presenceToSet, busiestEvent.Subject));
-            _slack.UpdateProfileWithStatusMessage(user, GetAwayMessageForStatus(busiestEvent.FreeBusyStatus));
+            _slack.UpdateProfileWithStatusMessage(user, GetAwayMessage(busiestEvent, user));
             _slack.SetPresence(user.SlackApplicationAuthToken, presenceToSet);
         }
 
@@ -151,9 +151,17 @@ namespace CalendarToSlack
             LegacyFreeBusyStatus.Free,
         };
 
-        private static string GetAwayMessageForStatus(LegacyFreeBusyStatus status)
+        private static string GetAwayMessage(CalendarEvent ev, RegisteredUser user)
         {
-            switch (status)
+            foreach (var filter in user.StatusMessageFilter)
+            {
+                if (ev.Subject.IndexOf(filter.Key, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return filter.Value;
+                }
+            }
+
+            switch (ev.FreeBusyStatus)
             {
                 case LegacyFreeBusyStatus.OOF:
                     return "OOO";

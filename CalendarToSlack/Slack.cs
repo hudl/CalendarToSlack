@@ -152,7 +152,7 @@ namespace CalendarToSlack
         public string LastName { get; set; }
         public string Email { get; set; }
 
-        public string ActualLastName { get { return LastName.Split('|')[0]; } }
+        public string ActualLastName { get { return LastName.Split('|')[0].Trim(); } }
     }
 
     enum Presence
