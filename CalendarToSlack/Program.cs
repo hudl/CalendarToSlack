@@ -159,6 +159,7 @@ namespace CalendarToSlack
             LegacyFreeBusyStatus.Free,
         };
 
+        // Returns null if the user shoudl have no status message.
         private static string GetUserMessage(CalendarEvent ev, RegisteredUser user)
         {
             // Will be null if no matches.
@@ -180,7 +181,7 @@ namespace CalendarToSlack
                 case LegacyFreeBusyStatus.NoData:
                 case LegacyFreeBusyStatus.Busy:
                 default:
-                    return filterMatch ?? "Busy";
+                    return filterMatch ?? "Away";
             }
         }
 
