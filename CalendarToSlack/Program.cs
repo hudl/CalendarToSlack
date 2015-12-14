@@ -27,17 +27,14 @@ namespace CalendarToSlack
 
             var database = new UserDatabase(dbfile, slack);
             
-            var server = new HttpServer(args[2], args[3], slack, database);
-            server.Start();
-            Console.ReadLine();
-            return;
-
             var calendar = new Calendar(args[0], args[1]);
 
             var updater = new Updater(database, calendar, slack);
             updater.Start();
 
-
+            var server = new HttpServer(args[2], args[3], slack, database);
+            server.Start();
+            
             Console.ReadLine();
         }
     }

@@ -104,6 +104,12 @@ namespace CalendarToSlack
             // The current plan is to wait for Slack to either 1) expose a formal users.profile.set
             // API, or 2) introduce custom away status messages.
 
+            if (string.IsNullOrWhiteSpace(user.HackyPersonalFullAccessSlackToken))
+            {
+                // Can't update without the full token.
+                return;
+            }
+
             var newLastName = GetLastNameWithAppendedMessage(user, message);
 
             var profile = string.Format("{{\"first_name\":\"{0}\",\"last_name\":\"{1}\"}}", user.SlackUserInfo.FirstName, newLastName);
