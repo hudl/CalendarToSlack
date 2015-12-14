@@ -7,18 +7,29 @@ namespace CalendarToSlack
 {
     class UserDatabase
     {
+        // Assigned to new users when they're added to the DB
         private const string DefaultFilterString = "OOO|Lunch|1:1|Working From Home>WFH|Meeting";
 
-        private readonly List<RegisteredUser> _registeredUsers = new List<RegisteredUser>();
+        private readonly Slack _slack;
         private readonly string _file;
         private readonly object _lock = new { };
 
-        public UserDatabase(string file)
+        private List<RegisteredUser> _registeredUsers = new List<RegisteredUser>();
+
+        public UserDatabase(string file, Slack slack)
         {
             if (string.IsNullOrWhiteSpace(file))
             {
                 throw new ArgumentException("file");
             }
+
+            if (slack == null)
+            {
+                throw new ArgumentNullException("slack");
+            }
+
+            _slack = slack;
+            _file = file;
 
             lock (_lock)
             {
@@ -27,52 +38,46 @@ namespace CalendarToSlack
                     File.Create(file);
                     return;
                 }
-            }
 
-            _file = file;
+                _registeredUsers = ReadFile();
+            }
         }
 
-        public void Load(Slack slack)
+        // Caller should ensure they've acquired _lock.
+        private List<RegisteredUser> ReadFile()
         {
-            lock (_lock)
+            Console.WriteLine("Loading database from file {0}", _file);
+
+            var lines = File.ReadAllLines(_file);
+            var result = new List<RegisteredUser>();
+
+            foreach (var line in lines)
             {
-                var lines = File.ReadAllLines(_file);
-
-                //var globalFilters = ParseStatusMessageFilter(lines[0]);
-
-                //var index = 0;
-                foreach (var line in lines)
+                if (line.StartsWith("#"))
                 {
-                    if (/*index++ < 1 || */line.StartsWith("#"))
-                    {
-                        continue;
-                    }
-
-                    var fields = line.Split(',');
-
-                    //var filters = new Dictionary<string, string>(globalFilters);
-                    var filters = ParseStatusMessageFilter(fields[3]);
-                    //foreach (var filter in personal)
-                    //{
-                    //    filters[filter.Key] = filter.Value;
-                    //}
-                
-                    var user = new RegisteredUser
-                    {
-                        Email = fields[0],
-                        SlackApplicationAuthToken = fields[1],
-                        HackyPersonalFullAccessSlackToken = fields[2],
-                        StatusMessageFilters = filters,
-                    };
-                    Out.WriteDebug("Loaded registered user {0}", user.Email);
-                    _registeredUsers.Add(user);
+                    continue;
                 }
 
-                if (_registeredUsers.Any())
+                var fields = line.Split(',');
+                var filters = ParseStatusMessageFilter(fields[3]);
+
+                var user = new RegisteredUser
                 {
-                    QueryAndSetSlackUserInfo(slack);
-                }
+                    Email = fields[0],
+                    SlackApplicationAuthToken = fields[1],
+                    HackyPersonalFullAccessSlackToken = fields[2],
+                    StatusMessageFilters = filters,
+                };
+                Out.WriteDebug("Loaded registered user {0}", user.Email);
+                result.Add(user);
             }
+
+            if (result.Any())
+            {
+                QueryAndSetSlackUserInfo(result);
+            }
+
+            return result;
         }
 
         private Dictionary<string, string> ParseStatusMessageFilter(string raw)
@@ -100,15 +105,15 @@ namespace CalendarToSlack
         }
 
         // Caller should ensure they've acquired _lock.
-        private void QueryAndSetSlackUserInfo(Slack slack)
+        private void QueryAndSetSlackUserInfo(List<RegisteredUser> users)
         {
             // Hacky - first user's creds are used to list all users.
-            var authToken = _registeredUsers[0].SlackApplicationAuthToken;
+            var authToken = users[0].SlackApplicationAuthToken;
 
-            var slackUsers = slack.ListUsers(authToken);
+            var slackUsers = _slack.ListUsers(authToken);
             Out.WriteDebug("Found {0} slack users", slackUsers.Count);
 
-            foreach (var user in _registeredUsers)
+            foreach (var user in users)
             {
                 var email = user.Email;
                 var userInfo = slackUsers.FirstOrDefault(u => u.Email == email);
@@ -138,6 +143,8 @@ namespace CalendarToSlack
                 lines.Add(line);
             }
             
+            Console.WriteLine("[db] Rewriting database file");
+
             File.WriteAllLines(_file, lines);
         }
 
@@ -152,27 +159,70 @@ namespace CalendarToSlack
             }
         }
 
-        public void AddUser(SlackUserInfo user, string slackAuthToken)
+        // Returns true if a new user was added, false otherwise
+        public bool AddUser(SlackUserInfo user, string slackAuthToken)
         {
+            if (string.IsNullOrWhiteSpace(user.Email))
+            {
+                throw new ArgumentException("Cannot add user without email address");
+            }
+
             lock (_lock)
             {
+                var added = false;
                 var existing = _registeredUsers.FirstOrDefault(u => u.Email == user.Email);
                 if (existing != null)
                 {
+                    Console.WriteLine("Modifying existing user {0}", user.Email);
+
                     existing.SlackUserInfo = user;
                     existing.SlackApplicationAuthToken = slackAuthToken;
                 }
                 else
                 {
+                    if (_registeredUsers.Count >= 20)
+                    {
+                        // TODO remove someday. mainly exists to avoid hitting unexpected limits with repeated Exchange queries or Slack rate limiting
+                        throw new InvalidOperationException("Too many users, this is a safeguard while the app is being prototyped");
+                    }
+
+                    Console.WriteLine("Adding new user {0}", user.Email);
+
                     _registeredUsers.Add(new RegisteredUser
                     {
                         Email = user.Email,
                         SlackApplicationAuthToken = slackAuthToken,
                         StatusMessageFilters = ParseStatusMessageFilter(DefaultFilterString),
                     });
+                    added = true;
                 }
 
                 WriteFile();
+                return added;
+            }
+        }
+
+        // Right now, some operations are just done by manually modifying the database file. There's
+        // an HTTP server endpoint that'll trigger this, and it just needs to be hit once to safely
+        // reload the user database without restarting the app. Hack job, but works for now.
+        public void ManualReload()
+        {
+            Console.WriteLine("Manually reloading user database");
+            lock (_lock)
+            {
+                var previous = _registeredUsers;
+
+                var reloaded = ReadFile();
+                foreach (var previousUser in previous)
+                {
+                    var reloadedUser = reloaded.FirstOrDefault(user => user.Email == previousUser.Email);
+                    if (reloadedUser != null && previousUser.HasSetCurrentEvent)
+                    {
+                        reloadedUser.CurrentEvent = previousUser.CurrentEvent;
+                    }
+                }
+
+                _registeredUsers = reloaded;
             }
         }
     }

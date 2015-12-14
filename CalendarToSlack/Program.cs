@@ -25,10 +25,8 @@ namespace CalendarToSlack
             var dbfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "calendar-to-slack-users.txt");
             Out.WriteInfo("Loading user database from {0}", dbfile);
 
-            var database = new UserDatabase(dbfile);
-            database.Load(slack);
-            //database.QueryAndSetSlackUserInfo(slack);
-
+            var database = new UserDatabase(dbfile, slack);
+            
             var server = new HttpServer(args[2], args[3], slack, database);
             server.Start();
             Console.ReadLine();
@@ -148,7 +146,8 @@ namespace CalendarToSlack
 
         private void MakeSlackApiCalls(RegisteredUser user, Presence presence, string statusMessage, string slackbotMessage)
         {
-            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotMessage);
+            // TODO re-enable, maybe
+            //_slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotMessage);
             _slack.UpdateProfileWithStatusMessage(user, statusMessage);
             _slack.SetPresence(user.SlackApplicationAuthToken, presence);
         }

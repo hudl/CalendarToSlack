@@ -71,11 +71,7 @@ namespace CalendarToSlack.Http
         }
 
         // TODO
-        // - lock db on read/write
-        // - db ability to update records and write to disk on change (within r/w lock)
-        // - add a 15-person limit in for sanity checking
         // - on startup, check user's slack last name and don't update if unnecessary
-        // - how can we get their slack email address back with the oauth payload? or can we get it solely from the auth token?
         // - configurable startup port
         // - landing page with description of behavior, screenshots
         //   - instructions on how to disable (is it manual for now?)
@@ -136,9 +132,12 @@ namespace CalendarToSlack.Http
                         var token = json.access_token;
                         var user = _slack.GetUserInfo(token);
 
-                        _database.AddUser(user, token);
+                        if (_database.AddUser(user, token))
+                        {
+                            _slack.PostSlackbotMessage(token, user.Username, "Hey there! I'll be modifying your Slack free/away status when events come up on your calendar. How neat is that?");
+                        }
 
-                        // TODO display/redirect to a "what's next" page, or something friendlier
+                        // TODO redirect to a "what's next" page, or something friendlier
                         SendHtml(context.Response, 200, "Added " + user.Email);
                     }
                     else
@@ -149,15 +148,23 @@ namespace CalendarToSlack.Http
                     return;
                 }
 
+                if (path == "/reload-db")
+                {
+                    _database.ManualReload();
+                    SendHtml(context.Response, 200, "Done.");
+                    return;
+                }
+
                 SendHtml(context.Response, 404, "Huh?");
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
+                SendHtml(context.Response, 500, "<pre>" + e + "</pre>");
             }
         }
 
-        private void SendHtml(HttpListenerResponse response, int status, string content)
+        private static void SendHtml(HttpListenerResponse response, int status, string content)
         {
             var output = Encoding.UTF8.GetBytes(content);
             response.StatusCode = status;

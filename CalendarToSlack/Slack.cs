@@ -67,12 +67,13 @@ namespace CalendarToSlack
                 FirstName = data.user.profile.first_name,
                 LastName = data.user.profile.last_name,
                 Username = data.user.name,
+                Email = data.user.profile.email,
+                UserId = data.user.id,
             };
         }
 
         public void PostSlackbotMessage(string authToken, string username, string message)
         {
-            return; // Temporarily disabled.
             Out.WriteInfo("Posting message to @{0}'s slackbot: {1}", username, message);
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
