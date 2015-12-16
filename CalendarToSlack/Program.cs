@@ -123,13 +123,19 @@ namespace CalendarToSlack
                 return;
             }
 
+            var previousEvent = user.CurrentEvent;
             user.CurrentEvent = busiestEvent;
 
             if (busiestEvent == null)
             {
                 // Status changed to Free.
                 Out.WriteStatus("{0} is now {1}", user.Email, Presence.Auto);
-                MakeSlackApiCalls(user, Presence.Auto, null, "Changed your status to Auto");
+                var message = "Changed your status to Auto";
+                if (previousEvent != null)
+                {
+                    message = string.Format("{0} after finishing {1}", message, previousEvent.Subject);
+                }
+                MakeSlackApiCalls(user, Presence.Auto, null, message);
                 return;
             }
 
@@ -137,8 +143,8 @@ namespace CalendarToSlack
 
             var presenceToSet = GetPresenceForAvailability(busiestEvent.FreeBusyStatus);
             var statusMessage = GetUserMessage(busiestEvent, user);
-            var slackbotMessage = string.Format("Changed your status to {0} for {1}", presenceToSet, busiestEvent.Subject);
-            Out.WriteStatus("{0} is now {1} for \"{2}\" ({3}) ", user.Email, presenceToSet, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
+            var slackbotMessage = string.Format("Changed your status to {0} ({1}) for {2}", presenceToSet, statusMessage, busiestEvent.Subject);
+            Out.WriteStatus("{0} is now {1} ({2}) for \"{3}\" ({4}) ", user.Email, presenceToSet, statusMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
             MakeSlackApiCalls(user, presenceToSet, statusMessage, slackbotMessage);
         }
 
