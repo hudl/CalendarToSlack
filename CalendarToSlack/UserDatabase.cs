@@ -59,7 +59,8 @@ namespace CalendarToSlack
                 }
 
                 var fields = line.Split(',');
-                var filters = ParseStatusMessageFilter(fields[3]);
+                var options = ParseOptions(fields[3]);
+                var filters = ParseStatusMessageFilter(fields[4]);
 
                 var user = new RegisteredUser
                 {
@@ -67,6 +68,7 @@ namespace CalendarToSlack
                     SlackApplicationAuthToken = fields[1],
                     HackyPersonalFullAccessSlackToken = fields[2],
                     StatusMessageFilters = filters,
+                    Options = options,
                 };
                 Out.WriteDebug("Loaded registered user {0}", user.Email);
                 result.Add(user);
@@ -80,7 +82,27 @@ namespace CalendarToSlack
             return result;
         }
 
-        private Dictionary<string, string> ParseStatusMessageFilter(string raw)
+        private static HashSet<Option> ParseOptions(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return new HashSet<Option>();
+            }
+
+            var split = raw.Split('|');
+            var options = split.Select(item =>
+            {
+                Option parsed;
+                if (Enum.TryParse(item, out parsed))
+                {
+                    return parsed;
+                }
+                return (Option?) null;
+            }).Where(option => option != null).Select(option => option.Value);
+            return new HashSet<Option>(options);
+        }
+
+        private static Dictionary<string, string> ParseStatusMessageFilter(string raw)
         {
             var result = new Dictionary<string, string>();
             if (string.IsNullOrWhiteSpace(raw))
@@ -138,8 +160,9 @@ namespace CalendarToSlack
 
             foreach (var user in _registeredUsers)
             {
+                var options = string.Join("|", user.Options.Select(option => option.ToString()));
                 var filters = string.Join("|", user.StatusMessageFilters.Select(kvp => (kvp.Key == kvp.Value ? kvp.Key : kvp.Key + ">" + kvp.Value)));
-                var line = string.Format("{0},{1},{2},{3}", user.Email, user.SlackApplicationAuthToken ?? "", user.HackyPersonalFullAccessSlackToken ?? "", filters);
+                var line = string.Format("{0},{1},{2},{3},{4}", user.Email, user.SlackApplicationAuthToken ?? "", user.HackyPersonalFullAccessSlackToken ?? "", options, filters);
                 lines.Add(line);
             }
             
@@ -193,6 +216,10 @@ namespace CalendarToSlack
                         Email = user.Email,
                         SlackApplicationAuthToken = slackAuthToken,
                         StatusMessageFilters = ParseStatusMessageFilter(DefaultFilterString),
+                        Options = new HashSet<Option>
+                        {
+                            Option.Enabled,
+                        },
                     });
                     added = true;
                 }
@@ -235,7 +262,8 @@ namespace CalendarToSlack
 
         public string SlackApplicationAuthToken { get; set; }
         public string HackyPersonalFullAccessSlackToken { get; set; } // Will be removed.
-        public Dictionary<string, string> StatusMessageFilters { get; set; } 
+        public Dictionary<string, string> StatusMessageFilters { get; set; }
+        public HashSet<Option> Options { get; set; } 
 
         // These fields aren't persisted, but get set/modified during runtime.
 
@@ -255,5 +283,15 @@ namespace CalendarToSlack
         public bool HasSetCurrentEvent { get { return _hasSetCurrentEvent; } }
 
         public SlackUserInfo SlackUserInfo { get; set; }
+
+        public bool IsEnabled { get { return Options != null && Options.Contains(Option.Enabled); } }
+        public bool SendSlackbotMessageOnChange { get { return Options != null && Options.Contains(Option.SlackbotNotify); } }
+    }
+
+    // Don't rename these, they're persisted 1:1 in the database and parsed back in.
+    enum Option
+    {
+        Enabled,
+        SlackbotNotify,
     }
 }

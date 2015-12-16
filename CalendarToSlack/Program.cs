@@ -64,7 +64,6 @@ namespace CalendarToSlack
 
         public void Start()
         {
-            
             _lastCheck = CurrentMinuteWithSecondsTruncated();
             Out.WriteDebug("Starting poll with last check time of {0}", _lastCheck);
             Out.WriteInfo("Started up and ready to rock");
@@ -86,10 +85,12 @@ namespace CalendarToSlack
             {
                 _lastCheck = CurrentMinuteWithSecondsTruncated();
 
-                var usernames = _userdb.Users.Select(u => u.Email).ToList();
+                var enabledUsers = _userdb.Users.Where(user => user.IsEnabled).ToList();
+
+                var usernames = enabledUsers.Select(u => u.Email).ToList();
                 var allEvents = _calendar.GetEventsHappeningNow(usernames);
 
-                foreach (var user in _userdb.Users)
+                foreach (var user in enabledUsers)
                 {
                     var events = allEvents[user.Email];
                     CheckUserStatusAndUpdate(user, events);
@@ -143,8 +144,10 @@ namespace CalendarToSlack
 
         private void MakeSlackApiCalls(RegisteredUser user, Presence presence, string statusMessage, string slackbotMessage)
         {
-            // TODO re-enable, maybe
-            //_slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotMessage);
+            if (user.SendSlackbotMessageOnChange)
+            {
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotMessage);
+            }
             _slack.UpdateProfileWithStatusMessage(user, statusMessage);
             _slack.SetPresence(user.SlackApplicationAuthToken, presence);
         }
