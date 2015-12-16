@@ -3,9 +3,77 @@
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8" />
-    <title></title>
+    <title>Sync Slack status with calendar events</title>
+    <style type="text/css">
+        html, body { font-family: Arial, Helvetica, sans-serif; }
+        .pre { font-family: monospace; }
+        p, #add-to-slack { margin-left: 30px; }
+        h1, h2, h3 { margin: 5px 0 10px 0; padding: 0; }
+        h2 { border-top: 1px dotted #ccc; padding-top: 10px; }
+        #add-to-slack { margin-bottom: 10px; }
+
+        /* 
+         * Grow-Rotate animation from Ian Lunn's "Hover" CSS library.
+         * Source: https://github.com/IanLunn/Hover
+         * MIT License: http://opensource.org/licenses/mit-license.php 
+         */
+        /* Grow Rotate */
+        .hvr-grow-rotate {
+          display: inline-block;
+          vertical-align: middle;
+          -webkit-transform: translateZ(0);
+          transform: translateZ(0);
+          box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+          -moz-osx-font-smoothing: grayscale;
+          -webkit-transition-duration: 0.3s;
+          transition-duration: 0.3s;
+          -webkit-transition-property: transform;
+          transition-property: transform;
+        }
+        .hvr-grow-rotate:hover, .hvr-grow-rotate:focus, .hvr-grow-rotate:active {
+          -webkit-transform: scale(1.1) rotate(4deg);
+          transform: scale(1.1) rotate(4deg);
+        }
+    </style>
 </head>
-<body>
-    <a href="https://slack.com/oauth/authorize?client_id={{SlackClientId}}&scope=users%3Aread+users%3Awrite+chat%3Awrite%3Abot+chat%3Awrite%3Auser"><img alt="Add to Slack" height="40" width="139" src="https://platform.slack-edge.com/img/add_to_slack.png" srcset="https://platform.slack-edge.com/img/add_to_slack.png 1x, https://platform.slack-edge.com/img/add_to_slack@2x.png 2x"></a>
-</body>
+    <body>
+        <h1>Calendar to Slack</h1>
+        <p><b>Marks you "Away" in Slack during events on your Outlook calendar.</b></p>
+        
+        <a id="add-to-slack" class="hvr-grow-rotate" href="https://slack.com/oauth/authorize?client_id={{SlackClientId}}&scope=users%3Aread+users%3Awrite+chat%3Awrite%3Abot+chat%3Awrite%3Auser"><img alt="Add to Slack" height="40" width="139" src="https://platform.slack-edge.com/img/add_to_slack.png" srcset="https://platform.slack-edge.com/img/add_to_slack.png 1x, https://platform.slack-edge.com/img/add_to_slack@2x.png 2x"></a>
+
+        <h2>What it does</h2>
+        
+
+        <p>
+            <img src="https://raw.githubusercontent.com/robhruska/CalendarToSlack/master/docs/calendar-event.png" />
+            <img src="https://raw.githubusercontent.com/robhruska/CalendarToSlack/master/docs/status.png" />
+        </p>
+
+        <p>When an event is happening on your Outlook calendar, Calendar to Slack updates your Slack presence to "Away" and optionally appends a status message (e.g. <span class="pre">| Away</span>) to your last name.</p>
+        
+        <h2>Features</h2>
+        
+        <i>Status messages in last name.</i>
+        <p>If the full-access token is provided, status messages are appended to your last name, so your full name displays as something like <span class="pre">Rob Hruska | Away</span>.</p>
+        <p><b>Prerequisite:</b> you'll have to give your personal, full-access Slack auth token to the server administrator. Contact them and discuss the security implications of that.</p>
+
+        <i>Whitelist support for status messages.</i>
+        <p>Example: <span class="pre">Lunch|1:1|Standup|Meeting|Planning&gt;Meeting</span></p>
+        <p>If any of these tokens are found in the calendar event subject, the token will be used as the status message instead of the default "Away".</p>
+        <p>A <span class="pre">&gt;</span> maps matched values on the left hand side to the status message on the right hand side.</p>
+        
+        <i>Conditional status based on OOO/Busy/Tentative/etc.</i>
+        
+        <p><i>OOO</i> and <i>Busy</i> events will set the status message and mark you as "Away". <i>Tentative</i> and <i>Working Elsewhere</i> events will set the status message, but keep your Slack status "Auto" (essentially "Available").</p>
+        
+        <h2>Tips &amp; Tricks</h2>
+        
+        <ul>
+            <li>In a different office for the week? Add an all-week <i>Working Elsewhere</i> event to your calendar named "London" and add "London" to your whitelist.</li>
+            <li>Want to stay available during lunch but let people know you're only partially around? Create a recurring 1-hour event named "Lunch" that's <i>Tentative</i>.</li>
+        </ul>
+    </body>
 </html>
