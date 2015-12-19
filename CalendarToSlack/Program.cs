@@ -187,10 +187,12 @@ namespace CalendarToSlack
                 case LegacyFreeBusyStatus.Free:
                     return filterMatch;
                 
+                // ReSharper disable RedundantCaseLabel - Not a fan of this RS check. Leaving these here to show intent (i.e. that they're explicitly and not accidentally considered "Away").
                 case LegacyFreeBusyStatus.NoData:
                 case LegacyFreeBusyStatus.Busy:
                 default:
                     return filterMatch ?? "Away";
+                // ReSharper restore RedundantCaseLabel
             }
         }
 
