@@ -53,7 +53,6 @@ namespace CalendarToSlack
             _lastCheck = CurrentMinuteWithSecondsTruncated().AddMinutes(1);
 
             Log.DebugFormat("Starting poll with last check time of {0}", _lastCheck);
-            Log.DebugFormat("Started up and ready to rock");
 
             _timer.Start();
         }
