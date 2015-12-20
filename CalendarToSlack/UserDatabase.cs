@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Timer = System.Timers.Timer;
 
 namespace CalendarToSlack
 {
@@ -12,16 +13,20 @@ namespace CalendarToSlack
 
         private readonly Slack _slack;
         private readonly string _file;
-        private readonly object _lock = new { };
+        private readonly object _usersLock = new { };
+
+        // ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
+        private readonly Timer _cleanupMarkedEventTimer;
+        // ReSharper restore PrivateFieldCanBeConvertedToLocalVariable
+        private readonly object _markedEventLock = new { };
 
         private List<RegisteredUser> _registeredUsers = new List<RegisteredUser>();
 
         // Doesn't really fit in the "User Database" domain, but since it's being mutated, having
         // it next to all of the other lockable data (that gets persisted) helps to not forget
         // about it. Might just rename this class "Database".
-        private readonly HashSet<CalendarEvent> _markedBack = new HashSet<CalendarEvent>();
+        private HashSet<CalendarEvent> _markedBack = new HashSet<CalendarEvent>();
 
-        // TODO background thread to clean out old marked events (say, older than 12 hours)
         // TODO persist marked events across restarts to avoid unexpected behavior during maintenance or crashes
         // TODO make "away updating" more immediate
         // - cache last queried events to avoid a re-query from exchange
@@ -43,7 +48,7 @@ namespace CalendarToSlack
             _slack = slack;
             _file = file;
 
-            lock (_lock)
+            lock (_usersLock)
             {
                 if (!File.Exists(file))
                 {
@@ -53,9 +58,17 @@ namespace CalendarToSlack
 
                 _registeredUsers = ReadFile();
             }
+
+            _cleanupMarkedEventTimer = new Timer
+            {
+                Enabled = true,
+                AutoReset = true,
+                Interval = 1000 * 60 * 60 * 12,
+            };
+            _cleanupMarkedEventTimer.Elapsed += (_, __) => CleanupOldMarkedEvents();
         }
 
-        // Caller should ensure they've acquired _lock.
+        // Caller should ensure they've acquired _usersLock.
         private List<RegisteredUser> ReadFile()
         {
             Console.WriteLine("Loading database from file {0}", _file);
@@ -138,7 +151,7 @@ namespace CalendarToSlack
             return result;
         }
 
-        // Caller should ensure they've acquired _lock.
+        // Caller should ensure they've acquired _usersLock.
         private void QueryAndSetSlackUserInfo(List<RegisteredUser> users)
         {
             // Hacky - first user's creds are used to list all users.
@@ -165,7 +178,7 @@ namespace CalendarToSlack
             }
         }
 
-        // Caller should ensure they've acquired _lock.
+        // Caller should ensure they've acquired _usersLock.
         private void WriteFile()
         {
             var lines = new List<string>();
@@ -187,7 +200,7 @@ namespace CalendarToSlack
         {
             get
             {
-                lock (_lock)
+                lock (_usersLock)
                 {
                     return _registeredUsers;
                 }
@@ -202,7 +215,7 @@ namespace CalendarToSlack
                 throw new ArgumentException("Cannot add user without email address");
             }
 
-            lock (_lock)
+            lock (_usersLock)
             {
                 var added = false;
                 var existing = _registeredUsers.FirstOrDefault(u => u.Email == user.Email);
@@ -247,7 +260,7 @@ namespace CalendarToSlack
         public void ManualReload()
         {
             Console.WriteLine("Manually reloading user database");
-            lock (_lock)
+            lock (_usersLock)
             {
                 var previous = _registeredUsers;
 
@@ -267,13 +280,32 @@ namespace CalendarToSlack
 
         public void MarkBack(CalendarEvent calendarEvent)
         {
-            calendarEvent.MarkedBackOn = DateTime.UtcNow;
-            _markedBack.Add(calendarEvent);
+            lock (_markedEventLock)
+            {
+                calendarEvent.MarkedBackOn = DateTime.UtcNow;
+                _markedBack.Add(calendarEvent);
+            }
         }
 
         public bool IsMarkedBack(CalendarEvent calendarEvent)
         {
-            return _markedBack.Contains(calendarEvent);
+            lock (_markedEventLock)
+            {
+                return _markedBack.Contains(calendarEvent);
+            }
+            
+        }
+
+        private void CleanupOldMarkedEvents()
+        {
+            lock (_markedEventLock)
+            {
+                Console.WriteLine("Cleaning up old marked-back events");
+                var twelveHoursAgo = DateTime.UtcNow.AddHours(-12);
+                var recent = _markedBack.Where(e => e.MarkedBackOn > twelveHoursAgo).ToList();
+                Console.WriteLine("Pruned {0} events down to {1} recent ones", _markedBack.Count, recent.Count());
+                _markedBack = new HashSet<CalendarEvent>(recent);
+            }
         }
     }
 
