@@ -82,7 +82,7 @@ namespace CalendarToSlack
 
         private static void SetupLogging(string file)
         {
-            var layout = new PatternLayout("%utcdate [%-5level] [%20.30logger] %message%newline");
+            var layout = new PatternLayout("%utcdate [%-5level] [%16.16logger] %message%newline");
 
             var appender = new RollingFileAppender
             {

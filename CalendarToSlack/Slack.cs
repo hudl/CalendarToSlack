@@ -117,7 +117,7 @@ namespace CalendarToSlack
 
             var profile = string.Format("{{\"first_name\":\"{0}\",\"last_name\":\"{1}\"}}", user.SlackUserInfo.FirstName, newLastName);
 
-            Log.InfoFormat("Changed profile last name to {0}", newLastName);
+            Log.InfoFormat("Changed profile last name to \"{0}\"", newLastName);
             
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {

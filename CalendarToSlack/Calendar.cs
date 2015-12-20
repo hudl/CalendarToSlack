@@ -21,7 +21,7 @@ namespace CalendarToSlack
                 throw new ArgumentException("username");
             }
 
-            Log.Info("Connecting to Exchange. This may take 30-60s.");
+            Log.Debug("Connecting to Exchange. This may take 30-60s.");
 
             var stopwatch = Stopwatch.StartNew();
             _exchange = new ExchangeService(TimeZoneInfo.Utc)
