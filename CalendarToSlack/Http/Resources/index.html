@@ -3,7 +3,7 @@
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8" />
-    <title>Sync Slack status with calendar events</title>
+    <title>CalendarToSlack: Update Slack presence when calendar events occur</title>
     <style type="text/css">
         html, body { font-family: Arial, Helvetica, sans-serif; }
         .pre { font-family: monospace; }
@@ -40,20 +40,17 @@
 </head>
     <body>
         <h1>Calendar to Slack</h1>
-        <p><b>Marks you "Away" in Slack during events on your Outlook calendar.</b></p>
+        <p>When an event is happening on your Outlook calendar, CalendarToSlack updates your Slack presence to "Away" and optionally appends a custom message (e.g. <span class="pre">| Away</span>) to your last name.</p>
         
         <a id="add-to-slack" class="hvr-grow-rotate" href="https://slack.com/oauth/authorize?client_id={{SlackClientId}}&scope=commands+users%3Aread+users%3Awrite+chat%3Awrite%3Abot+chat%3Awrite%3Auser"><img alt="Add to Slack" height="40" width="139" src="https://platform.slack-edge.com/img/add_to_slack.png" srcset="https://platform.slack-edge.com/img/add_to_slack.png 1x, https://platform.slack-edge.com/img/add_to_slack@2x.png 2x"></a>
-
-        <h2>What it does</h2>
-        
 
         <p>
             <img src="https://raw.githubusercontent.com/robhruska/CalendarToSlack/master/docs/calendar-event.png" />
             <img src="https://raw.githubusercontent.com/robhruska/CalendarToSlack/master/docs/status.png" />
         </p>
-
-        <p>When an event is happening on your Outlook calendar, Calendar to Slack updates your Slack presence to "Away" and optionally appends a status message (e.g. <span class="pre">| Away</span>) to your last name.</p>
         
+        <p>For a comprehensive list of features and instructions, see the <a href="https://github.com/robhruska/CalendarToSlack/wiki">CalendarToSlack Wiki</a>.</p>
+        <!--
         <h2>Features</h2>
         
         <i>Status messages in last name.</i>
@@ -74,6 +71,6 @@
         <ul>
             <li>In a different office for the week? Add an all-week <i>Working Elsewhere</i> event to your calendar named "London" and add "London" to your whitelist.</li>
             <li>Want to stay available during lunch but let people know you're only partially around? Create a recurring 1-hour event named "Lunch" that's <i>Tentative</i>.</li>
-        </ul>
+        </ul>-->
     </body>
 </html>
