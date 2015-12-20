@@ -16,7 +16,6 @@ namespace CalendarToSlack
         private List<RegisteredUser> _registeredUsers = new List<RegisteredUser>();
 
         // TODO more sane logging
-        // TODO avoid setting status on startup if it matches
 
         public UserDatabase(string file, Slack slack)
         {
