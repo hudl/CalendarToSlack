@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CalendarToSlack.Http;
 using System;
 
@@ -10,16 +11,16 @@ namespace CalendarToSlack
 
     class Program
     {
-        // args[0] = exchange username
-        // args[1] = exchange password
-        // args[2] = CalendarToSlack slack application client ID
-        // args[3] = CalendarToSlack slack application client secret
-        // args[4] = CalendarToSlack slash command verification token
-        // args[5] = AWS access key
-        // args[6] = AWS secret key
-        // args[7] = AWS SQS queue URL
         static void Main(string[] args)
         {
+            var configPath = Path.Combine(Directory.GetCurrentDirectory(), "config.txt");
+            if (args.Length > 0)
+            {
+                configPath = args[0];
+            }
+            
+            var config = LoadConfig(configPath);
+
             var slack = new Slack();
 
             var dbfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "calendar-to-slack-users.txt");
@@ -27,18 +28,41 @@ namespace CalendarToSlack
 
             var database = new UserDatabase(dbfile, slack);
 
-            var calendar = new Calendar(args[0], args[1]);
+            var calendar = new Calendar(config[Config.ExchangeUsername], config[Config.ExchangePassword]);
 
             var updater = new Updater(database, calendar, slack);
             updater.Start();
 
-            var consumer = new SlackCommandConsumer(args[4], args[5], args[6], args[7], updater);
+            var consumer = new SlackCommandConsumer(
+                config[Config.SlackCommandVerificationToken],
+                config[Config.AwsAccessKey],
+                config[Config.AwsSecretKey],
+                config[Config.AwsSqsQueueUrl],
+                updater);
             consumer.Start();
 
-            var server = new HttpServer(args[2], args[3], slack, database);
+            var server = new HttpServer(config[Config.SlackApplicationClientId], config[Config.SlackApplicationClientSecret], slack, database);
             server.Start();
             
             Console.ReadLine();
+        }
+
+        private static Dictionary<Config, string> LoadConfig(string path)
+        {
+            var lines = File.ReadAllLines(path);
+            return lines.Where(line => !line.StartsWith("#")).ToDictionary(line => (Config) Enum.Parse(typeof(Config), line.Split('=')[0]), line => line.Split('=')[1]);
+        }
+
+        private enum Config
+        {
+            ExchangeUsername,
+            ExchangePassword,
+            SlackApplicationClientId,
+            SlackApplicationClientSecret,
+            SlackCommandVerificationToken,
+            AwsAccessKey,
+            AwsSecretKey,
+            AwsSqsQueueUrl,
         }
     }
 
