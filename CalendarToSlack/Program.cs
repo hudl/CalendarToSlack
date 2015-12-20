@@ -13,7 +13,10 @@ namespace CalendarToSlack
     {
         static void Main(string[] args)
         {
-            var configPath = Path.Combine(Directory.GetCurrentDirectory(), "config.txt");
+            var datadir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CalendarToSlack");
+            Directory.CreateDirectory(datadir);
+
+            var configPath = Path.Combine(datadir, "config.txt");
             if (args.Length > 0)
             {
                 configPath = args[0];
@@ -23,8 +26,8 @@ namespace CalendarToSlack
 
             var slack = new Slack();
 
-            var userdbfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "calendar-to-slack-users.txt");
-            var markdbfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "calendar-to-slack-marks.txt");
+            var userdbfile = Path.Combine(datadir, "db-users.txt");
+            var markdbfile = Path.Combine(datadir, "db-marks.txt");
 
             var userdb = new UserDatabase(userdbfile, slack);
             var markdb = new MarkedEventDatabase(markdbfile);

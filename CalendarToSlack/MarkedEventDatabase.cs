@@ -10,6 +10,9 @@ namespace CalendarToSlack
     // Persists that information across restarts.
     class MarkedEventDatabase
     {
+        // TODO edge case where a user calls /back between startup and the first poll
+        // - there's no latest CalendarEvent for the user, so nothing gets marked, even if the user's "| Away"
+
         private HashSet<MarkedEvent> _markedBack = new HashSet<MarkedEvent>();
 
         // ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
@@ -74,7 +77,7 @@ namespace CalendarToSlack
                 result.Add(new MarkedEvent(email, hashcode, date));
             }
 
-            Console.WriteLine("Loaded {0} marked-back events");
+            Console.WriteLine("Loaded {0} marked-back events", result.Count);
             return result;
         }
 
