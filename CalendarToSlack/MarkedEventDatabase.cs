@@ -11,9 +11,6 @@ namespace CalendarToSlack
     // Persists that information across restarts.
     class MarkedEventDatabase
     {
-        // TODO edge case where a user calls /back between startup and the first poll
-        // - there's no latest CalendarEvent for the user, so nothing gets marked, even if the user's "| Away"
-
         private static readonly ILog Log = LogManager.GetLogger(typeof (MarkedEventDatabase).Name);
 
         private HashSet<MarkedEvent> _markedBack = new HashSet<MarkedEvent>();

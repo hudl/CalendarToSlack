@@ -40,12 +40,18 @@ namespace CalendarToSlack
                 AutoReset = true,
                 Interval = 1000,
             };
-            _timer.Elapsed += PollAndUpdateSlack;
+            _timer.Elapsed += (_, __) => PollAndUpdateSlack();
         }
 
         public void Start()
         {
-            _lastCheck = CurrentMinuteWithSecondsTruncated();
+            CheckAllUsersAndUpdate();
+
+            // Since we _just_ did an update, we can wait 1-2 minutes before we actually check
+            // again via the poll. That's the reason for .AddMinutes(1) here. Helps avoid
+            // back-to-back check/update calls if we happen to start up really close to :00.
+            _lastCheck = CurrentMinuteWithSecondsTruncated().AddMinutes(1);
+
             Log.DebugFormat("Starting poll with last check time of {0}", _lastCheck);
             Log.DebugFormat("Started up and ready to rock");
 
@@ -58,27 +64,31 @@ namespace CalendarToSlack
             return new DateTime(now.Ticks - (now.Ticks % TimeSpan.TicksPerMinute), now.Kind);
         }
 
-        private void PollAndUpdateSlack(object o, ElapsedEventArgs args)
+        private void PollAndUpdateSlack()
         {
             // If we're a minute+ later than the last check, fire again.
             // This is a naive attempt to avoid drift (by checking every second and comparing time).
             if (DateTime.UtcNow >= _lastCheck.AddMinutes(1))
             {
-                lock (_updateLock)
+                _lastCheck = CurrentMinuteWithSecondsTruncated();
+                CheckAllUsersAndUpdate();
+            }
+        }
+
+        private void CheckAllUsersAndUpdate()
+        {
+            lock (_updateLock)
+            {
+                var enabledUsers = _userdb.Users.Where(user => user.IsEnabled).ToList();
+
+                var usernames = enabledUsers.Select(u => u.Email).ToList();
+                var allEvents = _calendar.GetEventsHappeningNow(usernames);
+                _eventsFromLastPoll = allEvents;
+
+                foreach (var user in enabledUsers)
                 {
-                    _lastCheck = CurrentMinuteWithSecondsTruncated();
-
-                    var enabledUsers = _userdb.Users.Where(user => user.IsEnabled).ToList();
-
-                    var usernames = enabledUsers.Select(u => u.Email).ToList();
-                    var allEvents = _calendar.GetEventsHappeningNow(usernames);
-                    _eventsFromLastPoll = allEvents;
-
-                    foreach (var user in enabledUsers)
-                    {
-                        var events = allEvents[user.Email];
-                        CheckUserStatusAndUpdate(user, events);
-                    }
+                    var events = allEvents[user.Email];
+                    CheckUserStatusAndUpdate(user, events);
                 }
             }
         }
