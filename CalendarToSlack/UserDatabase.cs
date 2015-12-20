@@ -151,7 +151,7 @@ namespace CalendarToSlack
                 }
                 else
                 {
-                    Log.WarnFormat("Couldn't find Slack user with email {0}", email);
+                    Log.WarnFormat("Couldn't find Slack user with email {0}, user will be disabled", email);
                 }
             }
         }
@@ -213,7 +213,7 @@ namespace CalendarToSlack
 
                     Log.DebugFormat("Adding new user {0}", user.Email);
 
-                    _registeredUsers.Add(new RegisteredUser
+                    var registeredUser = new RegisteredUser
                     {
                         Email = user.Email,
                         SlackApplicationAuthToken = slackAuthToken,
@@ -222,7 +222,11 @@ namespace CalendarToSlack
                         {
                             Option.Enabled,
                         },
-                    });
+                    };
+
+                    _registeredUsers.Add(registeredUser);
+
+                    QueryAndSetSlackUserInfo(new List<RegisteredUser> { registeredUser });
                     added = true;
                 }
 
@@ -286,7 +290,14 @@ namespace CalendarToSlack
 
         public SlackUserInfo SlackUserInfo { get; set; }
 
-        public bool IsEnabled { get { return Options != null && Options.Contains(Option.Enabled); } }
+        public bool IsEnabled
+        {
+            get
+            {
+                return Options != null && Options.Contains(Option.Enabled) && SlackUserInfo != null;
+            }
+        }
+
         public bool SendSlackbotMessageOnChange { get { return Options != null && Options.Contains(Option.SlackbotNotify); } }
     }
 

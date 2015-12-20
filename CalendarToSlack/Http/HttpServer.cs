@@ -74,7 +74,6 @@ namespace CalendarToSlack.Http
         }
 
         // TODO
-        // - on startup, check user's slack last name and don't update if unnecessary
         // - configurable startup port
         // - landing page with description of behavior, screenshots
         //   - instructions on how to disable (is it manual for now?)

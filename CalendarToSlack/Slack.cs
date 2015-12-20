@@ -129,7 +129,7 @@ namespace CalendarToSlack
             result.EnsureSuccessStatusCode();
         }
 
-        private string GetLastNameWithAppendedMessage(RegisteredUser user, string message)
+        private static string GetLastNameWithAppendedMessage(RegisteredUser user, string message)
         {
             const int maxLastName = 35;
             const string separator = " | ";

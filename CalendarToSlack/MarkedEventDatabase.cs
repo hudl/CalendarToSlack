@@ -40,7 +40,10 @@ namespace CalendarToSlack
                 else
                 {
                     _markedBack = ReadFile();
-                    CleanupOldEvents();
+                    if (_markedBack.Any())
+                    {
+                        CleanupOldEvents();
+                    }
                 }
             }
 
