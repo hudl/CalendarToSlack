@@ -16,6 +16,20 @@ namespace CalendarToSlack
 
         private List<RegisteredUser> _registeredUsers = new List<RegisteredUser>();
 
+        // Doesn't really fit in the "User Database" domain, but since it's being mutated, having
+        // it next to all of the other lockable data (that gets persisted) helps to not forget
+        // about it. Might just rename this class "Database".
+        private readonly HashSet<CalendarEvent> _markedBack = new HashSet<CalendarEvent>();
+
+        // TODO background thread to clean out old marked events (say, older than 12 hours)
+        // TODO persist marked events across restarts to avoid unexpected behavior during maintenance or crashes
+        // TODO make "away updating" more immediate
+        // - cache last queried events to avoid a re-query from exchange
+        // - lock around update logic to avoid concurrent modifications/checks
+        // TODO batch-query exchange up front. do some timing first
+        // TODO run as a service
+        // TODO more sane logging
+
         public UserDatabase(string file, Slack slack)
         {
             if (string.IsNullOrWhiteSpace(file))
@@ -251,6 +265,17 @@ namespace CalendarToSlack
 
                 _registeredUsers = reloaded;
             }
+        }
+
+        public void MarkBack(CalendarEvent calendarEvent)
+        {
+            calendarEvent.MarkedBackOn = DateTime.UtcNow;
+            _markedBack.Add(calendarEvent);
+        }
+
+        public bool IsMarkedBack(CalendarEvent calendarEvent)
+        {
+            return _markedBack.Contains(calendarEvent);
         }
     }
 
