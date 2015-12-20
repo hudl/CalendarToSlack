@@ -33,11 +33,12 @@ namespace CalendarToSlack
                 if (!File.Exists(file))
                 {
                     File.Create(file);
-                    return;
                 }
-
-                _markedBack = ReadFile();
-                CleanupOldEvents();
+                else
+                {
+                    _markedBack = ReadFile();
+                    CleanupOldEvents();
+                }
             }
 
             _cleanupTimer = new Timer

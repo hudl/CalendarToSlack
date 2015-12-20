@@ -37,10 +37,11 @@ namespace CalendarToSlack
                 if (!File.Exists(file))
                 {
                     File.Create(file);
-                    return;
                 }
-
-                _registeredUsers = ReadFile();
+                else
+                {
+                    _registeredUsers = ReadFile();
+                }
             }
         }
 
