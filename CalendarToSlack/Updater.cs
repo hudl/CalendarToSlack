@@ -9,14 +9,16 @@ namespace CalendarToSlack
     class Updater
     {
         private readonly UserDatabase _userdb;
+        private readonly MarkedEventDatabase _markdb;
         private readonly Calendar _calendar;
         private readonly Slack _slack;
         private readonly Timer _timer;
         private DateTime _lastCheck;
 
-        public Updater(UserDatabase userdb, Calendar calendar, Slack slack)
+        public Updater(UserDatabase userdb, MarkedEventDatabase markdb, Calendar calendar, Slack slack)
         {
             _userdb = userdb;
+            _markdb = markdb;
             _calendar = calendar;
             _slack = slack;
             
@@ -65,9 +67,9 @@ namespace CalendarToSlack
             }
         }
 
-        private CalendarEvent GetBusiestEvent(List<CalendarEvent> events)
+        private CalendarEvent GetBusiestEvent(RegisteredUser user, List<CalendarEvent> events)
         {
-            var pruned = events.Where(ev => !_userdb.IsMarkedBack(ev)).ToList();
+            var pruned = events.Where(ev => !_markdb.IsMarkedBack(user, ev)).ToList();
 
             if (!pruned.Any())
             {
@@ -102,7 +104,7 @@ namespace CalendarToSlack
             }
 
             Console.WriteLine("Marking {0} 'back' from {1}", user.SlackUserInfo.Username, eventToMark.Subject);
-            _userdb.MarkBack(eventToMark);
+            _markdb.MarkBack(user, eventToMark);
             // For now, we'll wait until the next minute, where CheckUserStatusAndUpdate() will
             // realize we've added this event and it'll omit it. If we need more responsiveness,
             // a call to CheckUserStatusAndUpdate() could be forced here. Just didn't want to
@@ -116,7 +118,7 @@ namespace CalendarToSlack
         private void CheckUserStatusAndUpdate(RegisteredUser user, List<CalendarEvent> events)
         {
             // Will return null if there are no events currently happening.
-            var busiestEvent = GetBusiestEvent(events);
+            var busiestEvent = GetBusiestEvent(user, events);
 
             // Only check if we've set a current event previously. Otherwise,
             // on the first check after startup, we don't "correct" the value

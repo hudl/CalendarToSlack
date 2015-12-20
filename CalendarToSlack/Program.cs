@@ -23,14 +23,15 @@ namespace CalendarToSlack
 
             var slack = new Slack();
 
-            var dbfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "calendar-to-slack-users.txt");
-            Out.WriteInfo("Loading user database from {0}", dbfile);
+            var userdbfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "calendar-to-slack-users.txt");
+            var markdbfile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "calendar-to-slack-marks.txt");
 
-            var database = new UserDatabase(dbfile, slack);
+            var userdb = new UserDatabase(userdbfile, slack);
+            var markdb = new MarkedEventDatabase(markdbfile);
 
             var calendar = new Calendar(config[Config.ExchangeUsername], config[Config.ExchangePassword]);
 
-            var updater = new Updater(database, calendar, slack);
+            var updater = new Updater(userdb, markdb, calendar, slack);
             updater.Start();
 
             var consumer = new SlackCommandConsumer(
@@ -41,7 +42,7 @@ namespace CalendarToSlack
                 updater);
             consumer.Start();
 
-            var server = new HttpServer(config[Config.SlackApplicationClientId], config[Config.SlackApplicationClientSecret], slack, database);
+            var server = new HttpServer(config[Config.SlackApplicationClientId], config[Config.SlackApplicationClientSecret], slack, userdb);
             server.Start();
             
             Console.ReadLine();

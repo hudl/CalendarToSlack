@@ -66,6 +66,7 @@
   <ItemGroup>
     <Compile Include="Calendar.cs" />
     <Compile Include="Http\HttpServer.cs" />
+    <Compile Include="MarkedEventDatabase.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Slack.cs" />
