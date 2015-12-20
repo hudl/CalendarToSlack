@@ -168,7 +168,7 @@ namespace CalendarToSlack
             var statusMessage = GetUserMessage(busiestEvent, user);
             var withMessage = (string.IsNullOrWhiteSpace(statusMessage) ? "(with no message)" : string.Format("(with message \"| {0}\")", statusMessage));
             var slackbotMessage = string.Format("Changed your status to {0} {1} for \"{2}\"", presenceToSet, withMessage, busiestEvent.Subject);
-            Log.InfoFormat("{0} is now {1} ({2}) for \"{3}\" ({4}) ", user.Email, presenceToSet, statusMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
+            Log.InfoFormat("{0} is now {1} {2} for \"{3}\" (event status \"{4}\") ", user.Email, presenceToSet, withMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
             MakeSlackApiCalls(user, presenceToSet, statusMessage, slackbotMessage);
         }
 
