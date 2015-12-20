@@ -137,11 +137,10 @@ namespace CalendarToSlack.Http
 
                         if (_database.AddUser(user, token))
                         {
-                            _slack.PostSlackbotMessage(token, user.Username, "Hey there! I'll be modifying your Slack free/away status when events come up on your calendar. How neat is that?");
+                            _slack.PostSlackbotMessage(token, user.Username, "Hey there! I'll be modifying your Slack free/away status when events come up on your calendar. How neat is that?\nSee https://github.com/robhruska/CalendarToSlack/wiki for all the cool things I can do.");
                         }
 
-                        // TODO redirect to a "what's next" page, or something friendlier
-                        SendHtml(context.Response, 200, "Added " + user.Email);
+                        SendHtml(context.Response, 200, "Added " + user.Email + ". Check out <a href=\"https://github.com/robhruska/CalendarToSlack/wiki\">the wiki</a>.");
                     }
                     else
                     {
