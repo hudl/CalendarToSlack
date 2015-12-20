@@ -15,8 +15,6 @@ namespace CalendarToSlack
         private readonly object _lock = new { };
         private List<RegisteredUser> _registeredUsers = new List<RegisteredUser>();
 
-        // TODO more sane logging
-
         public UserDatabase(string file, Slack slack)
         {
             if (string.IsNullOrWhiteSpace(file))

@@ -3,6 +3,11 @@ using System.IO;
 using System.Linq;
 using CalendarToSlack.Http;
 using System;
+using log4net;
+using log4net.Appender;
+using log4net.Config;
+using log4net.Core;
+using log4net.Layout;
 
 namespace CalendarToSlack
 {
@@ -11,10 +16,16 @@ namespace CalendarToSlack
 
     class Program
     {
+        private static readonly ILog Log = LogManager.GetLogger(typeof (Program));
+
         static void Main(string[] args)
         {
             var datadir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CalendarToSlack");
             Directory.CreateDirectory(datadir);
+
+            SetupLogging(Path.Combine(datadir, "log.txt"));
+
+            Log.DebugFormat("Starting up with data directory {0}", datadir);
 
             var configPath = Path.Combine(datadir, "config.txt");
             if (args.Length > 0)
@@ -67,6 +78,27 @@ namespace CalendarToSlack
             AwsAccessKey,
             AwsSecretKey,
             AwsSqsQueueUrl,
+        }
+
+        private static void SetupLogging(string file)
+        {
+            var layout = new PatternLayout("%utcdate [%-5level] [%-20.30logger] %message%newline");
+
+            var appender = new RollingFileAppender
+            {
+                Threshold = Level.Debug,
+                AppendToFile = true,
+                File = file,
+                MaximumFileSize = "10MB",
+                RollingStyle = RollingFileAppender.RollingMode.Size,
+                MaxSizeRollBackups = 5,
+                StaticLogFileName = true,
+                Layout = layout,
+            };
+
+            appender.ActivateOptions();
+
+            BasicConfigurator.Configure(appender);
         }
     }
 
