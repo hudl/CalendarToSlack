@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using log4net;
 
 namespace CalendarToSlack
 {
@@ -9,6 +10,8 @@ namespace CalendarToSlack
     {
         // Assigned to new users when they're added to the DB
         private const string DefaultFilterString = "OOO|Lunch|1:1|Working From Home>WFH|Meeting";
+
+        private static readonly ILog Log = LogManager.GetLogger(typeof (UserDatabase).Name);
 
         private readonly Slack _slack;
         private readonly string _file;
@@ -46,7 +49,7 @@ namespace CalendarToSlack
         // Caller should ensure they've acquired _lock.
         private List<RegisteredUser> ReadFile()
         {
-            Console.WriteLine("Loading user database from file {0}", _file);
+            Log.DebugFormat("Loading user database from file {0}", _file);
 
             var lines = File.ReadAllLines(_file);
             var result = new List<RegisteredUser>();
@@ -70,7 +73,7 @@ namespace CalendarToSlack
                     StatusMessageFilters = filters,
                     Options = options,
                 };
-                Out.WriteDebug("Loaded registered user {0}", user.Email);
+                Log.DebugFormat("Loaded registered user {0}", user.Email);
                 result.Add(user);
             }
 
@@ -133,7 +136,7 @@ namespace CalendarToSlack
             var authToken = users[0].SlackApplicationAuthToken;
 
             var slackUsers = _slack.ListUsers(authToken);
-            Out.WriteDebug("Found {0} slack users", slackUsers.Count);
+            Log.DebugFormat("Found {0} slack users", slackUsers.Count);
 
             foreach (var user in users)
             {
@@ -142,14 +145,13 @@ namespace CalendarToSlack
                 if (userInfo != null)
                 {
                     user.SlackUserInfo = userInfo;
-                    Out.WriteDebug("Associated Exchange user {0} with Slack User {1} {2} {3} {4}",
+                    Log.DebugFormat("Associated Exchange user {0} with Slack User {1} {2} {3} {4}",
                         email, userInfo.UserId, userInfo.Username, userInfo.FirstName, userInfo.LastName);
                 }
                 else
                 {
-                    Out.WriteInfo("Couldn't find Slack user with email {0}", email);
+                    Log.WarnFormat("Couldn't find Slack user with email {0}", email);
                 }
-                
             }
         }
 
@@ -166,7 +168,7 @@ namespace CalendarToSlack
                 lines.Add(line);
             }
             
-            Console.WriteLine("[db] Rewriting database file");
+            Log.DebugFormat("Rewriting database file");
 
             File.WriteAllLines(_file, lines);
         }
@@ -196,7 +198,7 @@ namespace CalendarToSlack
                 var existing = _registeredUsers.FirstOrDefault(u => u.Email == user.Email);
                 if (existing != null)
                 {
-                    Console.WriteLine("Modifying existing user {0}", user.Email);
+                    Log.DebugFormat("Modifying existing user {0}", user.Email);
 
                     existing.SlackUserInfo = user;
                     existing.SlackApplicationAuthToken = slackAuthToken;
@@ -209,7 +211,7 @@ namespace CalendarToSlack
                         throw new InvalidOperationException("Too many users, this is a safeguard while the app is being prototyped");
                     }
 
-                    Console.WriteLine("Adding new user {0}", user.Email);
+                    Log.DebugFormat("Adding new user {0}", user.Email);
 
                     _registeredUsers.Add(new RegisteredUser
                     {
@@ -234,7 +236,7 @@ namespace CalendarToSlack
         // reload the user database without restarting the app. Hack job, but works for now.
         public void ManualReload()
         {
-            Console.WriteLine("Manually reloading user database");
+            Log.DebugFormat("Manually reloading user database");
             lock (_lock)
             {
                 var previous = _registeredUsers;

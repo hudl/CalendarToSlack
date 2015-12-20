@@ -6,11 +6,14 @@ using System.Threading.Tasks;
 using Amazon;
 using Amazon.SQS;
 using Amazon.SQS.Model;
+using log4net;
 
 namespace CalendarToSlack
 {
     class SlackCommandConsumer
     {
+        private static readonly ILog Log = LogManager.GetLogger(typeof (SlackCommandConsumer).Name);
+
         private readonly AmazonSQSClient _client;
         private readonly string _slackCommandVerificationToken;
         private readonly string _queueUrl;
@@ -61,7 +64,7 @@ namespace CalendarToSlack
 
         public void Consume()
         {
-            Console.WriteLine("Starting SQS consumer thread");
+            Log.DebugFormat("Starting SQS consumer thread");
             while (true)
             {
                 List<Message> messages = null;
@@ -73,11 +76,8 @@ namespace CalendarToSlack
                         MaxNumberOfMessages = 10, // SQS max = 10
                     };
 
-                    //Console.WriteLine("Polling {0}", _queueUrl);
                     var res = _client.ReceiveMessage(req);
                     messages = res.Messages;
-
-                    //Console.WriteLine("Got {0} messages", messages.Count);
 
                     foreach (var message in res.Messages)
                     {
@@ -89,8 +89,8 @@ namespace CalendarToSlack
                             var token = fields["token"];
                             if (token != _slackCommandVerificationToken)
                             {
-                                Console.WriteLine(message.Body);
-                                Console.WriteLine("WARN: token mismatch (received {0})", token);
+                                Log.DebugFormat(message.Body);
+                                Log.ErrorFormat("Token mismatch (received {0})", token);
                                 continue; // On to the next message, maybe it's okay.
                             }
 
@@ -99,14 +99,14 @@ namespace CalendarToSlack
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine(message.Body);
-                            Console.WriteLine(e);
+                            Log.DebugFormat(message.Body);
+                            Log.Error("Error handling slack command", e);
                         }
                     }
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e);
+                    Log.Error("Error consuming slack command messages", e);
                 }
                 finally
                 {
@@ -127,12 +127,12 @@ namespace CalendarToSlack
                             var res = _client.DeleteMessageBatch(req);
                             if (res.Failed != null && res.Failed.Any())
                             {
-                                Console.WriteLine("Error deleting {0} messages", res.Failed.Count);
+                                Log.ErrorFormat("Error deleting {0} messages", res.Failed.Count);
                             }
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine(e);
+                            Log.Error("Error deleting messages", e);
                         }
                     }
                 }

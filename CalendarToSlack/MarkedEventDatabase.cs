@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Timers;
+using log4net;
 
 namespace CalendarToSlack
 {
@@ -12,6 +13,8 @@ namespace CalendarToSlack
     {
         // TODO edge case where a user calls /back between startup and the first poll
         // - there's no latest CalendarEvent for the user, so nothing gets marked, even if the user's "| Away"
+
+        private static readonly ILog Log = LogManager.GetLogger(typeof (MarkedEventDatabase).Name);
 
         private HashSet<MarkedEvent> _markedBack = new HashSet<MarkedEvent>();
 
@@ -63,7 +66,7 @@ namespace CalendarToSlack
         // Caller should ensure they've acquired _lock;
         private HashSet<MarkedEvent> ReadFile()
         {
-            Console.WriteLine("Loading marked event database from file {0}", _file);
+            Log.DebugFormat("Loading marked event database from file {0}", _file);
 
             var lines = File.ReadAllLines(_file);
             var result = new HashSet<MarkedEvent>();
@@ -77,7 +80,7 @@ namespace CalendarToSlack
                 result.Add(new MarkedEvent(email, hashcode, date));
             }
 
-            Console.WriteLine("Loaded {0} marked-back events", result.Count);
+            Log.DebugFormat("Loaded {0} marked-back events", result.Count);
             return result;
         }
 
@@ -118,10 +121,10 @@ namespace CalendarToSlack
         // Caller should ensure they've acquired _lock;
         private void CleanupOldEvents()
         {
-            Console.WriteLine("Cleaning up old marked-back events");
+            Log.DebugFormat("Cleaning up old marked-back events");
             var twelveHoursAgo = DateTime.UtcNow.AddHours(-12);
             var recent = _markedBack.Where(e => e.MarkedBackOn > twelveHoursAgo).ToList();
-            Console.WriteLine("Pruned {0} events down to {1} recent ones", _markedBack.Count, recent.Count());
+            Log.DebugFormat("Pruned {0} events down to {1} recent ones", _markedBack.Count, recent.Count());
             _markedBack = new HashSet<MarkedEvent>(recent);
             WriteFile();
         }

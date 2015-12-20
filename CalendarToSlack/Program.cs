@@ -16,7 +16,7 @@ namespace CalendarToSlack
 
     class Program
     {
-        private static readonly ILog Log = LogManager.GetLogger(typeof (Program));
+        private static readonly ILog Log = LogManager.GetLogger(typeof (Program).Name);
 
         static void Main(string[] args)
         {
@@ -82,7 +82,7 @@ namespace CalendarToSlack
 
         private static void SetupLogging(string file)
         {
-            var layout = new PatternLayout("%utcdate [%-5level] [%-20.30logger] %message%newline");
+            var layout = new PatternLayout("%utcdate [%-5level] [%20.30logger] %message%newline");
 
             var appender = new RollingFileAppender
             {
@@ -96,37 +96,39 @@ namespace CalendarToSlack
                 Layout = layout,
             };
 
+            var console = new ColoredConsoleAppender
+            {
+                Threshold = Level.Debug,
+                Layout = layout,
+            };
+            
+            console.AddMapping(new ColoredConsoleAppender.LevelColors
+            {
+                ForeColor = ColoredConsoleAppender.Colors.Green,
+                Level = Level.Info,
+            });
+
+            console.AddMapping(new ColoredConsoleAppender.LevelColors
+            {
+                ForeColor = ColoredConsoleAppender.Colors.Yellow,
+                Level = Level.Warn,
+            });
+
+            console.AddMapping(new ColoredConsoleAppender.LevelColors
+            {
+                ForeColor = ColoredConsoleAppender.Colors.Red,
+                Level = Level.Error,
+            });
+
+            console.AddMapping(new ColoredConsoleAppender.LevelColors
+            {
+                ForeColor = ColoredConsoleAppender.Colors.Red,
+                Level = Level.Fatal,
+            });
             appender.ActivateOptions();
+            console.ActivateOptions();
 
-            BasicConfigurator.Configure(appender);
-        }
-    }
-
-    public static class Out
-    {
-        public static void WriteDebug(string line, params object[] args)
-        {
-            Write(ConsoleColor.Gray, line, args);
-        }
-
-        public static void WriteInfo(string line, params object[] args)
-        {
-            Write(ConsoleColor.Green, line, args);
-        }
-
-
-        public static void WriteStatus(string line, params object[] args)
-        {
-            Write(ConsoleColor.Cyan, line, args);
-        }
-
-        private static void Write(ConsoleColor color, string line, params object[] args)
-        {
-            var orig = Console.ForegroundColor;
-            Console.ForegroundColor = color;
-            var l = string.Format("[{0}] {1}", DateTime.UtcNow.ToString("yyyy'-'MM'-'dd HH':'mm':'ss fffffff K"), line);
-            Console.WriteLine(l, args);
-            Console.ForegroundColor = orig;
+            BasicConfigurator.Configure(appender, console);
         }
     }
 }

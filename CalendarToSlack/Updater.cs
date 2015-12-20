@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Timers;
+using log4net;
 using Microsoft.Exchange.WebServices.Data;
 
 namespace CalendarToSlack
 {
     class Updater
     {
+        private static readonly ILog Log = LogManager.GetLogger(typeof (Updater).Name);
+
         private readonly UserDatabase _userdb;
         private readonly MarkedEventDatabase _markdb;
         private readonly Calendar _calendar;
@@ -43,8 +46,8 @@ namespace CalendarToSlack
         public void Start()
         {
             _lastCheck = CurrentMinuteWithSecondsTruncated();
-            Out.WriteDebug("Starting poll with last check time of {0}", _lastCheck);
-            Out.WriteInfo("Started up and ready to rock");
+            Log.DebugFormat("Starting poll with last check time of {0}", _lastCheck);
+            Log.DebugFormat("Started up and ready to rock");
 
             _timer.Start();
         }
@@ -98,25 +101,25 @@ namespace CalendarToSlack
             var user = _userdb.Users.FirstOrDefault(u => u.SlackUserInfo.UserId == userid);
             if (user == null)
             {
-                Console.WriteLine("WARN: No user with id {0} to mark /back", userid);
+                Log.WarnFormat("No user with id {0} to mark /back", userid);
                 return;
             }
 
             var eventToMark = user.CurrentEvent;
             if (eventToMark == null)
             {
-                Console.WriteLine("INFO: Received /back message, but no current calendar event to mark");
+                Log.DebugFormat("Received /back message, but no current calendar event to mark");
                 // They're not in an event, nothing to mark.
                 return;
             }
 
             if (!IsEligibleForMarkBack(eventToMark.FreeBusyStatus))
             {
-                Console.WriteLine("INFO: Not marking /back for ineligible event \"{0}\" with status {1}", eventToMark.Subject, eventToMark.FreeBusyStatus);
+                Log.DebugFormat("Not marking /back for ineligible event \"{0}\" with status {1}", eventToMark.Subject, eventToMark.FreeBusyStatus);
                 return;
             }
 
-            Console.WriteLine("Marking {0} /back from \"{1}\"", user.SlackUserInfo.Username, eventToMark.Subject);
+            Log.InfoFormat("Marking {0} /back from \"{1}\"", user.SlackUserInfo.Username, eventToMark.Subject);
             _markdb.MarkBack(user, eventToMark);
 
             // Since this happens off of the normal timer/poll loop, we lock around this
@@ -149,7 +152,7 @@ namespace CalendarToSlack
             if (busiestEvent == null)
             {
                 // Status changed to Free.
-                Out.WriteStatus("{0} is now {1}", user.Email, Presence.Auto);
+                Log.InfoFormat("{0} is now {1}", user.Email, Presence.Auto);
                 var message = "Changed your status to Auto";
                 if (previousEvent != null)
                 {
@@ -165,7 +168,7 @@ namespace CalendarToSlack
             var statusMessage = GetUserMessage(busiestEvent, user);
             var withMessage = (string.IsNullOrWhiteSpace(statusMessage) ? "(with no message)" : string.Format("(with message \"| {0}\")", statusMessage));
             var slackbotMessage = string.Format("Changed your status to {0} {1} for \"{2}\"", presenceToSet, withMessage, busiestEvent.Subject);
-            Out.WriteStatus("{0} is now {1} ({2}) for \"{3}\" ({4}) ", user.Email, presenceToSet, statusMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
+            Log.InfoFormat("{0} is now {1} ({2}) for \"{3}\" ({4}) ", user.Email, presenceToSet, statusMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
             MakeSlackApiCalls(user, presenceToSet, statusMessage, slackbotMessage);
         }
 

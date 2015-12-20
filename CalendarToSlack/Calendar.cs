@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using log4net;
 using Microsoft.Exchange.WebServices.Data;
 
 namespace CalendarToSlack
 {
     class Calendar
     {
+        private static readonly ILog Log = LogManager.GetLogger(typeof (Calendar).Name);
+
         private readonly ExchangeService _exchange;
 
         public Calendar(string username, string password)
@@ -18,7 +21,7 @@ namespace CalendarToSlack
                 throw new ArgumentException("username");
             }
 
-            Out.WriteInfo("Connecting to Exchange. This may take 30-60s.");
+            Log.Info("Connecting to Exchange. This may take 30-60s.");
 
             var stopwatch = Stopwatch.StartNew();
             _exchange = new ExchangeService(TimeZoneInfo.Utc)
@@ -30,7 +33,7 @@ namespace CalendarToSlack
                 Timeout = 30000,
             };
             _exchange.AutodiscoverUrl(username, url => true);
-            Console.WriteLine("Exchange discovery took {0}ms", stopwatch.Elapsed.TotalMilliseconds);
+            Log.DebugFormat("Exchange discovery took {0}ms", stopwatch.Elapsed.TotalMilliseconds);
         }
 
         public Dictionary<string, List<CalendarEvent>> GetEventsHappeningNow(List<string> usernames)
@@ -65,7 +68,7 @@ namespace CalendarToSlack
                 // probably on your way to it (or preparing).
                 var happeningNow = events.Where(e => e.StartTime <= ninetySecondsFromNow && now < e.EndTime).ToList();
 
-                //Out.WriteDebug("Found {0} events starting/happening in the next 90 seconds for {1} (i.e. starting before {2}):", happeningNow.Count, username, ninetySecondsFromNow);
+                //Log.DebugFormat("Found {0} events starting/happening in the next 90 seconds for {1} (i.e. starting before {2}):", happeningNow.Count, username, ninetySecondsFromNow);
                 var result = new List<CalendarEvent>();
                 foreach (var e in happeningNow)
                 {
@@ -76,7 +79,7 @@ namespace CalendarToSlack
                 results[username] = result;
             }
 
-            //Console.WriteLine("Exchange lookup took {0}ms", stopwatch.Elapsed.TotalMilliseconds);
+            //Log.DebugFormat("Exchange lookup took {0}ms", stopwatch.Elapsed.TotalMilliseconds);
             
             return results;
         }

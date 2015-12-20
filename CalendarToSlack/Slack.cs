@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Web.Helpers;
+using log4net;
 
 namespace CalendarToSlack
 {
     class Slack
     {
+        private static readonly ILog Log = LogManager.GetLogger(typeof (Slack).Name);
+
         private readonly HttpClient _http;
 
         public Slack()
@@ -74,7 +77,7 @@ namespace CalendarToSlack
 
         public void PostSlackbotMessage(string authToken, string username, string message)
         {
-            Out.WriteInfo("Posting message to @{0}'s slackbot: {1}", username, message);
+            Log.InfoFormat("Posting message to @{0}'s slackbot: {1}", username, message);
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 { "token", authToken },
@@ -114,7 +117,7 @@ namespace CalendarToSlack
 
             var profile = string.Format("{{\"first_name\":\"{0}\",\"last_name\":\"{1}\"}}", user.SlackUserInfo.FirstName, newLastName);
 
-            Out.WriteInfo("Changed profile last name to {0}", newLastName);
+            Log.InfoFormat("Changed profile last name to {0}", newLastName);
             
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {

@@ -7,11 +7,14 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Helpers;
+using log4net;
 
 namespace CalendarToSlack.Http
 {
     class HttpServer
     {
+        private static readonly ILog Log = LogManager.GetLogger(typeof (HttpServer).Name);
+
         private bool _keepRunning = true;
 
         private readonly string _slackClientId;
@@ -55,7 +58,7 @@ namespace CalendarToSlack.Http
             listener.Prefixes.Add("http://+:40042/");
             listener.Start();
 
-            Console.WriteLine("[http] HTTP server started");
+            Log.DebugFormat("HTTP server started");
 
             Task.Run(() => Listen(listener));
         }
@@ -91,7 +94,7 @@ namespace CalendarToSlack.Http
             {
                 var req = context.Request;
 
-                Console.WriteLine("[http] Requested {0}", req.RawUrl);
+                Log.DebugFormat("Requested {0}", req.RawUrl);
 
                 var path = req.RawUrl.Split('?')[0].TrimEnd('/');
                 if (path == "")
@@ -159,7 +162,7 @@ namespace CalendarToSlack.Http
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                Log.Error("Error handling HTTP request", e);
                 SendHtml(context.Response, 500, "<pre>" + e + "</pre>");
             }
         }
