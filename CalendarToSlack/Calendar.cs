@@ -92,11 +92,6 @@ namespace CalendarToSlack
         public LegacyFreeBusyStatus FreeBusyStatus { get { return _freeBusyStatus; } }
         public string Subject { get { return _subject; } }
 
-        // If we marked an event "back" via a slash command, this is when we did it. Events that
-        // got marked are stored for a while and then purged, and this date is how we determine
-        // when to purge an event.
-        public DateTime MarkedBackOn { get; set; }
-
         public CalendarEvent(DateTime startTime, DateTime endTime, LegacyFreeBusyStatus freeBusyStatus, string subject)
         {
             _startTime = startTime;

@@ -15,9 +15,6 @@ namespace CalendarToSlack
         private readonly object _lock = new { };
         private List<RegisteredUser> _registeredUsers = new List<RegisteredUser>();
 
-        // TODO make "away updating" more immediate
-        // - cache last queried events to avoid a re-query from exchange
-        // - lock around update logic to avoid concurrent modifications/checks
         // TODO more sane logging
         // TODO avoid setting status on startup if it matches
 

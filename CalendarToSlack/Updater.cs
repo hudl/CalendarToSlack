@@ -13,7 +13,16 @@ namespace CalendarToSlack
         private readonly Calendar _calendar;
         private readonly Slack _slack;
         private readonly Timer _timer;
+
+        private readonly object _updateLock = new { };
+
         private DateTime _lastCheck;
+
+        // When we call MarkBack, we need to re-query the events for the user to see if
+        // we should change them to a different status for another event going on. Rather
+        // than re-querying exchange, let's just use the events we got on the last poll.
+        // This'll take some query load off the exchange server.
+        private Dictionary<string, List<CalendarEvent>> _eventsFromLastPoll;
 
         public Updater(UserDatabase userdb, MarkedEventDatabase markdb, Calendar calendar, Slack slack)
         {
@@ -52,17 +61,21 @@ namespace CalendarToSlack
             // This is a naive attempt to avoid drift (by checking every second and comparing time).
             if (DateTime.UtcNow >= _lastCheck.AddMinutes(1))
             {
-                _lastCheck = CurrentMinuteWithSecondsTruncated();
-
-                var enabledUsers = _userdb.Users.Where(user => user.IsEnabled).ToList();
-
-                var usernames = enabledUsers.Select(u => u.Email).ToList();
-                var allEvents = _calendar.GetEventsHappeningNow(usernames);
-
-                foreach (var user in enabledUsers)
+                lock (_updateLock)
                 {
-                    var events = allEvents[user.Email];
-                    CheckUserStatusAndUpdate(user, events);
+                    _lastCheck = CurrentMinuteWithSecondsTruncated();
+
+                    var enabledUsers = _userdb.Users.Where(user => user.IsEnabled).ToList();
+
+                    var usernames = enabledUsers.Select(u => u.Email).ToList();
+                    var allEvents = _calendar.GetEventsHappeningNow(usernames);
+                    _eventsFromLastPoll = allEvents;
+
+                    foreach (var user in enabledUsers)
+                    {
+                        var events = allEvents[user.Email];
+                        CheckUserStatusAndUpdate(user, events);
+                    }
                 }
             }
         }
@@ -85,34 +98,35 @@ namespace CalendarToSlack
             var user = _userdb.Users.FirstOrDefault(u => u.SlackUserInfo.UserId == userid);
             if (user == null)
             {
-                Console.WriteLine("WARN: No user with id {0} to mark back", userid);
+                Console.WriteLine("WARN: No user with id {0} to mark /back", userid);
                 return;
             }
 
             var eventToMark = user.CurrentEvent;
             if (eventToMark == null)
             {
-                Console.WriteLine("INFO: Received 'back' message, but no current calendar event to mark");
+                Console.WriteLine("INFO: Received /back message, but no current calendar event to mark");
                 // They're not in an event, nothing to mark.
                 return;
             }
 
             if (!IsEligibleForMarkBack(eventToMark.FreeBusyStatus))
             {
-                Console.WriteLine("INFO: Not marking 'back' for ineligible event {0} with status {1}", eventToMark.Subject, eventToMark.FreeBusyStatus);
+                Console.WriteLine("INFO: Not marking /back for ineligible event \"{0}\" with status {1}", eventToMark.Subject, eventToMark.FreeBusyStatus);
                 return;
             }
 
-            Console.WriteLine("Marking {0} 'back' from {1}", user.SlackUserInfo.Username, eventToMark.Subject);
+            Console.WriteLine("Marking {0} /back from \"{1}\"", user.SlackUserInfo.Username, eventToMark.Subject);
             _markdb.MarkBack(user, eventToMark);
-            // For now, we'll wait until the next minute, where CheckUserStatusAndUpdate() will
-            // realize we've added this event and it'll omit it. If we need more responsiveness,
-            // a call to CheckUserStatusAndUpdate() could be forced here. Just didn't want to
-            // re-query exchange too frequently.
-            // 
-            // Also note: if we force the re-update here, consider adding a lock to help avoid
-            // situations where the "/busy" came on the :00 of the minute and the updater
-            // is already running.
+
+            // Since this happens off of the normal timer/poll loop, we lock around this
+            // and within the timer callback. This helps avoid possible weirdness that could
+            // happen if the user marks themselves /back right at the same time we're
+            // attempting to update them on the normal interval.
+            lock (_updateLock)
+            {
+                CheckUserStatusAndUpdate(user, _eventsFromLastPoll[user.Email]);
+            }
         }
 
         private void CheckUserStatusAndUpdate(RegisteredUser user, List<CalendarEvent> events)
