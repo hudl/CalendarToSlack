@@ -1,11 +1,11 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using CalendarToSlack.Http;
 using System;
 
 namespace CalendarToSlack
 {
     // TODO error handling, move beyond a prototype
-    // TODO consider a "business hours" rule to just auto-away anytime outside of business hours
     // TODO convert to a service?
 
     class Program
@@ -26,7 +26,7 @@ namespace CalendarToSlack
             Out.WriteInfo("Loading user database from {0}", dbfile);
 
             var database = new UserDatabase(dbfile, slack);
-            
+
             var calendar = new Calendar(args[0], args[1]);
 
             var updater = new Updater(database, calendar, slack);

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Timers;
+using Amazon.SQS.Model;
 using Microsoft.Exchange.WebServices.Data;
 
 namespace CalendarToSlack
@@ -137,7 +138,7 @@ namespace CalendarToSlack
                 var message = "Changed your status to Auto";
                 if (previousEvent != null)
                 {
-                    message = string.Format("{0} after finishing {1}", message, previousEvent.Subject);
+                    message = string.Format("{0} after finishing \"{1}\"", message, previousEvent.Subject);
                 }
                 MakeSlackApiCalls(user, Presence.Auto, null, message);
                 return;
@@ -147,7 +148,8 @@ namespace CalendarToSlack
 
             var presenceToSet = GetPresenceForAvailability(busiestEvent.FreeBusyStatus);
             var statusMessage = GetUserMessage(busiestEvent, user);
-            var slackbotMessage = string.Format("Changed your status to {0} ({1}) for {2}", presenceToSet, statusMessage, busiestEvent.Subject);
+            var withMessage = (string.IsNullOrWhiteSpace(statusMessage) ? "(with no message)" : string.Format("(with message \"| {0}\")", statusMessage));
+            var slackbotMessage = string.Format("Changed your status to {0} {1} for \"{2}\"", presenceToSet, withMessage, busiestEvent.Subject);
             Out.WriteStatus("{0} is now {1} ({2}) for \"{3}\" ({4}) ", user.Email, presenceToSet, statusMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
             MakeSlackApiCalls(user, presenceToSet, statusMessage, slackbotMessage);
         }

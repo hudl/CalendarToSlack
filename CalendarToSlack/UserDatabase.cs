@@ -26,8 +26,6 @@ namespace CalendarToSlack
         // TODO make "away updating" more immediate
         // - cache last queried events to avoid a re-query from exchange
         // - lock around update logic to avoid concurrent modifications/checks
-        // TODO batch-query exchange up front. do some timing first
-        // TODO run as a service
         // TODO more sane logging
 
         public UserDatabase(string file, Slack slack)

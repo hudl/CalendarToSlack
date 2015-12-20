@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using Microsoft.Exchange.WebServices.Data;
@@ -19,6 +20,7 @@ namespace CalendarToSlack
 
             Out.WriteInfo("Connecting to Exchange. This may take 30-60s.");
 
+            var stopwatch = Stopwatch.StartNew();
             _exchange = new ExchangeService(TimeZoneInfo.Utc)
             {
                 Credentials = new NetworkCredential(username, password),
@@ -28,6 +30,7 @@ namespace CalendarToSlack
                 Timeout = 30000,
             };
             _exchange.AutodiscoverUrl(username, url => true);
+            Console.WriteLine("Exchange discovery took {0}ms", stopwatch.Elapsed.TotalMilliseconds);
         }
 
         public Dictionary<string, List<CalendarEvent>> GetEventsHappeningNow(List<string> usernames)
@@ -40,15 +43,24 @@ namespace CalendarToSlack
             var now = DateTime.UtcNow;
             var ninetySecondsFromNow = now.AddSeconds(90);
 
-            // TODO batch this call instead of looping
             var results = new Dictionary<string, List<CalendarEvent>>();
-            foreach (var username in usernames)
+
+            var availabilities = _exchange.GetUserAvailability(
+                usernames.Select(username => (AttendeeInfo) username).ToList(),
+                new TimeWindow(today, tomorrow),
+                AvailabilityData.FreeBusy);
+
+            var stopwatch = Stopwatch.StartNew();
+            var index = 0;
+
+            // When querying multiple usernames, the returned availability list has an entry for
+            // each username queried, in order. We have to use the index to associate because the
+            // actual username isn't present anywhere in the results.
+            foreach (var availability in availabilities.AttendeesAvailability)
             {
-                var availability = _exchange.GetUserAvailability(new List<AttendeeInfo> { username },
-                    new TimeWindow(today, tomorrow),
-                    AvailabilityData.FreeBusy);
-                var events = availability.AttendeesAvailability.SelectMany(a => a.CalendarEvents).ToList();
-                
+                var username = usernames[index++];
+                var events = availability.CalendarEvents;
+
                 // Look a bit into the future. If there's an event starting in 90 seconds, you're
                 // probably on your way to it (or preparing).
                 var happeningNow = events.Where(e => e.StartTime <= ninetySecondsFromNow && now < e.EndTime).ToList();
@@ -63,6 +75,8 @@ namespace CalendarToSlack
 
                 results[username] = result;
             }
+
+            //Console.WriteLine("Exchange lookup took {0}ms", stopwatch.Elapsed.TotalMilliseconds);
             
             return results;
         }
