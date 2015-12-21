@@ -73,10 +73,7 @@ namespace CalendarToSlack.Http
             _keepRunning = true;
         }
 
-        // TODO
-        // - configurable startup port
-        // - landing page with description of behavior, screenshots
-        //   - instructions on how to disable (is it manual for now?)
+        // TODO configurable startup port
 
         private void Listen(HttpListener listener)
         {

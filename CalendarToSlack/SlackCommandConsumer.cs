@@ -173,7 +173,6 @@ namespace CalendarToSlack
                 if (options.Length == 0 || (options.Length == 1 && (string.IsNullOrWhiteSpace(options[0]) || string.Equals(options[0], "show", StringComparison.OrdinalIgnoreCase))))
                 {
                     _userdb.EchoWhitelistToSlackbot(userId);
-                    // TODO show();
                     return;
                 }
 
@@ -202,9 +201,6 @@ namespace CalendarToSlack
                     }
                 }
                 
-                // TODO see how easy it'll be to have whitelist changes affect current events
-                // TODO how to do a null/empty response to the command
-
                 return;
             }
 
