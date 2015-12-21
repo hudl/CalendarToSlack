@@ -115,22 +115,22 @@ namespace CalendarToSlack
             }
 
             var eventToMark = user.CurrentEvent;
-            if (eventToMark == null)
-            {
-                Log.DebugFormat("Received /back message, but no current calendar event to mark");
-                // They're not in an event, nothing to mark.
-                return;
-            }
-
-            if (!IsEligibleForMarkBack(eventToMark.FreeBusyStatus))
+            if (eventToMark != null && !IsEligibleForMarkBack(eventToMark.FreeBusyStatus))
             {
                 Log.DebugFormat("Not marking /back for ineligible event \"{0}\" with status {1}", eventToMark.Subject, eventToMark.FreeBusyStatus);
                 return;
             }
 
-            Log.InfoFormat("Marking {0} /back from \"{1}\"", user.SlackUserInfo.Username, eventToMark.Subject);
-            _markdb.MarkBack(user, eventToMark);
-
+            if (eventToMark == null)
+            {
+                Log.InfoFormat("Marking {0} /back (even though there's no current event)", user.SlackUserInfo.Username);
+            }
+            else
+            {
+                Log.InfoFormat("Marking {0} /back from \"{1}\"", user.SlackUserInfo.Username, eventToMark.Subject);
+                _markdb.MarkBack(user, eventToMark);
+            }
+            
             // Since this happens off of the normal timer/poll loop, we lock around this
             // and within the timer callback. This helps avoid possible weirdness that could
             // happen if the user marks themselves /back right at the same time we're
