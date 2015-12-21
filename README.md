@@ -1,4 +1,4 @@
-[See the Wiki for features and documentation.](https://github.com/robhruska/CalendarToSlack/wiki#the-back-slash-command)
+[See the Wiki for features and documentation.](https://github.com/robhruska/CalendarToSlack/wiki)
 
 -----
 
