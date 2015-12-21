@@ -35,7 +35,12 @@ namespace CalendarToSlack
             
             var config = LoadConfig(configPath);
 
-            var slack = new Slack();
+            var iconUrl = (string) null;
+            if (config.ContainsKey(Config.SlackbotPostIconUrl))
+            {
+                iconUrl = config[Config.SlackbotPostIconUrl];
+            }
+            var slack = new Slack(iconUrl);
 
             var userdbfile = Path.Combine(datadir, "db-users.txt");
             var markdbfile = Path.Combine(datadir, "db-marks.txt");
@@ -53,7 +58,8 @@ namespace CalendarToSlack
                 config[Config.AwsAccessKey],
                 config[Config.AwsSecretKey],
                 config[Config.AwsSqsQueueUrl],
-                updater);
+                updater,
+                userdb);
             consumer.Start();
 
             var server = new HttpServer(config[Config.SlackApplicationClientId], config[Config.SlackApplicationClientSecret], slack, userdb);
@@ -78,6 +84,7 @@ namespace CalendarToSlack
             AwsAccessKey,
             AwsSecretKey,
             AwsSqsQueueUrl,
+            SlackbotPostIconUrl,
         }
 
         private static void SetupLogging(string file)

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon;
@@ -18,8 +19,9 @@ namespace CalendarToSlack
         private readonly string _slackCommandVerificationToken;
         private readonly string _queueUrl;
         private readonly Updater _updater;
+        private readonly UserDatabase _userdb;
 
-        public SlackCommandConsumer(string slackCommandVerificationToken, string awsAccessKey, string awsSecretKey, string queueUrl, Updater updater)
+        public SlackCommandConsumer(string slackCommandVerificationToken, string awsAccessKey, string awsSecretKey, string queueUrl, Updater updater, UserDatabase userdb)
         {
             if (string.IsNullOrWhiteSpace(slackCommandVerificationToken))
             {
@@ -46,15 +48,22 @@ namespace CalendarToSlack
                 throw new ArgumentNullException("updater");
             }
 
+            if (userdb == null)
+            {
+                throw new ArgumentNullException("userdb");
+            }
+
             _client = new AmazonSQSClient(awsAccessKey, awsSecretKey, new AmazonSQSConfig
             {
-                Timeout = TimeSpan.FromSeconds(2),
-                ReadWriteTimeout = TimeSpan.FromSeconds(2),
+                // 20s timeout is greater than our WaitTimeSeconds for long-polling
+                Timeout = TimeSpan.FromSeconds(20),
+                ReadWriteTimeout = TimeSpan.FromSeconds(20),
                 RegionEndpoint = RegionEndpoint.USEast1,
             });
             _slackCommandVerificationToken = slackCommandVerificationToken;
             _queueUrl = queueUrl;
             _updater = updater;
+            _userdb = userdb;
         }
 
         public void Start()
@@ -67,6 +76,7 @@ namespace CalendarToSlack
             Log.DebugFormat("Starting SQS consumer thread");
             while (true)
             {
+                //Log.DebugFormat("Polling SQS");
                 List<Message> messages = null;
                 try
                 {
@@ -74,11 +84,17 @@ namespace CalendarToSlack
                     {
                         QueueUrl = _queueUrl,
                         MaxNumberOfMessages = 10, // SQS max = 10
+                        WaitTimeSeconds = 10,
                     };
 
                     var res = _client.ReceiveMessage(req);
                     messages = res.Messages;
 
+                    if (messages.Count > 0)
+                    {
+                        Log.DebugFormat("Received {0} SQS message(s)", res.Messages.Count);
+                    }
+                    
                     foreach (var message in res.Messages)
                     {
                         try
@@ -94,8 +110,7 @@ namespace CalendarToSlack
                                 continue; // On to the next message, maybe it's okay.
                             }
 
-                            var userId = fields["user_id"];
-                            _updater.MarkBack(userId);
+                            HandleMessage(fields);
                         }
                         catch (Exception e)
                         {
@@ -107,6 +122,7 @@ namespace CalendarToSlack
                 catch (Exception e)
                 {
                     Log.Error("Error consuming slack command messages", e);
+                    Thread.Sleep(TimeSpan.FromSeconds(5)); // Back off a bit.
                 }
                 finally
                 {
@@ -136,9 +152,65 @@ namespace CalendarToSlack
                         }
                     }
                 }
-
-                Thread.Sleep(TimeSpan.FromSeconds(5));
             }
         }
+
+        private void HandleMessage(Dictionary<string, string> fields)
+        {
+            var command = fields["slashcommand"];
+            var userId = fields["user_id"];
+            if (command == "back")
+            {
+                _updater.MarkBack(userId);
+
+                return;
+            }
+
+            if (command == "whitelist")
+            {
+                var text = WebUtility.UrlDecode(fields["text"]);
+                var options = text.Split();
+                if (options.Length == 0 || (options.Length == 1 && (string.IsNullOrWhiteSpace(options[0]) || string.Equals(options[0], "show", StringComparison.OrdinalIgnoreCase))))
+                {
+                    _userdb.EchoWhitelistToSlackbot(userId);
+                    // TODO show();
+                    return;
+                }
+
+                if (options.Length >= 2)
+                {
+                    if (string.Equals(options[0], "add", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var combined = new HashSet<string>();
+                        for (var i = 1; i < options.Length; i++)
+                        {
+                            combined.Add(options[i]);
+                        }
+                        _userdb.AddToWhitelist(userId, string.Join("|", combined));
+                        return;
+                    }
+
+                    if (string.Equals(options[0], "remove", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var combined = new HashSet<string>();
+                        for (var i = 1; i < options.Length; i++)
+                        {
+                            combined.Add(options[i]);
+                        }
+                        _userdb.RemoveFromWhitelist(userId, string.Join("|", combined));
+                        return;
+                    }
+                }
+                
+                // TODO see how easy it'll be to have whitelist changes affect current events
+                // TODO how to do a null/empty response to the command
+
+                return;
+            }
+
+            Log.ErrorFormat("Unrecognized slash command {0} from user {1}", command, userId);
+        }
+
+
     }
 }

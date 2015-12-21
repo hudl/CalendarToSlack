@@ -11,9 +11,11 @@ namespace CalendarToSlack
         private static readonly ILog Log = LogManager.GetLogger(typeof (Slack).Name);
 
         private readonly HttpClient _http;
+        private readonly string _slackbotPostIconurl;
 
-        public Slack()
+        public Slack(string slackbotPostIconUrl = null)
         {
+            _slackbotPostIconurl = slackbotPostIconUrl;
             _http = new HttpClient
             {
                 Timeout = TimeSpan.FromSeconds(5),
@@ -78,14 +80,23 @@ namespace CalendarToSlack
         public void PostSlackbotMessage(string authToken, string username, string message)
         {
             Log.InfoFormat("Posting message to @{0}'s slackbot: {1}", username, message);
-            var content = new FormUrlEncodedContent(new Dictionary<string, string>
+
+            var options = new Dictionary<string, string>
             {
                 { "token", authToken },
                 { "channel", "@" + username },
                 { "as_user", "false" },
                 { "text", message },
-                { "username", "CalendarToSlack" }
-            });
+                { "username", "Calendar To Slack" },
+            };
+
+            if (!string.IsNullOrWhiteSpace(_slackbotPostIconurl))
+            {
+                options["icon_url"] = _slackbotPostIconurl;
+            }
+
+            var content = new FormUrlEncodedContent(options);
+
             var result = _http.PostAsync("https://slack.com/api/chat.postMessage", content).Result;
             result.EnsureSuccessStatusCode();
         }

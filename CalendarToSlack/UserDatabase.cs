@@ -164,7 +164,7 @@ namespace CalendarToSlack
             foreach (var user in _registeredUsers)
             {
                 var options = string.Join("|", user.Options.Select(option => option.ToString()));
-                var filters = string.Join("|", user.StatusMessageFilters.Select(kvp => (kvp.Key == kvp.Value ? kvp.Key : kvp.Key + ">" + kvp.Value)));
+                var filters = SerializeMessageFilters(user.StatusMessageFilters);
                 var line = string.Format("{0},{1},{2},{3},{4}", user.Email, user.SlackApplicationAuthToken ?? "", user.HackyPersonalFullAccessSlackToken ?? "", options, filters);
                 lines.Add(line);
             }
@@ -172,6 +172,11 @@ namespace CalendarToSlack
             Log.DebugFormat("Rewriting database file");
 
             File.WriteAllLines(_file, lines);
+        }
+
+        private string SerializeMessageFilters(Dictionary<string, string> filters)
+        {
+            return string.Join("|", filters.Select(kvp => (kvp.Key == kvp.Value ? kvp.Key : kvp.Key + ">" + kvp.Value)));
         }
 
         public List<RegisteredUser> Users
@@ -256,6 +261,103 @@ namespace CalendarToSlack
                 }
 
                 _registeredUsers = reloaded;
+            }
+        }
+
+        public void AddToWhitelist(string userId, string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                Log.WarnFormat("No token provided by {0} to add to whitelist", userId);
+                return;
+            }
+
+            var user = FindUserById(userId);
+            if (user == null)
+            {
+                Log.WarnFormat("Cannot find user id {0} to add to their whitelist", userId);
+                return;
+            }
+
+            var dictionary = ParseStatusMessageFilter(token);
+
+            lock (_lock)
+            {
+                Log.DebugFormat("Adding whitelist tokens to user {0}, tokens = {1}", user.Email, token);
+                foreach (var item in dictionary)
+                {
+                    user.StatusMessageFilters[item.Key] = item.Value;
+                }
+
+                WriteFile();
+
+                var addedTokenString = GetTokenListForSlackbot(dictionary);
+                var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
+                var message = string.Format("Added token(s):\n{0}\nWhitelist:\n{1}", addedTokenString, whitelistTokenString);
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
+            }
+        }
+
+        public void RemoveFromWhitelist(string userId, string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                Log.WarnFormat("No token provided by {0} to remove from whitelist", userId);
+                return;
+            }
+
+            var user = FindUserById(userId);
+            if (user == null)
+            {
+                Log.WarnFormat("Cannot find user id {0} to remove from their whitelist", userId);
+                return;
+            }
+
+            var remove = ParseStatusMessageFilter(token).Keys;
+
+            lock (_lock)
+            {
+                Log.DebugFormat("Removing whitelist tokens from user {0}, tokens = {1}", user.Email, string.Join("|", remove));
+                foreach (var item in remove)
+                {
+                    user.StatusMessageFilters.Remove(item);
+                }
+
+                WriteFile();
+
+                var removedTokenString = GetTokenListForSlackbot(remove.ToDictionary(item => item, item => item));
+                var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
+                var message = string.Format("Removed token(s):\n{0}\nWhitelist:\n{1}", removedTokenString, whitelistTokenString);
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
+            }
+        }
+
+        private static string GetTokenListForSlackbot(Dictionary<string, string> filters)
+        {
+            var tokens = filters.Select(kvp =>
+            {
+                if (kvp.Key == kvp.Value)
+                {
+                    return string.Format("`{0}`", kvp.Key);
+                }
+                return string.Format("`{0}>{1}`", kvp.Key, kvp.Value);
+            });
+            return string.Join(" ", tokens);
+        }
+
+        public void EchoWhitelistToSlackbot(string userId)
+        {
+            var user = FindUserById(userId);
+            var tokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
+            var message = string.Format("Whitelist:\n{0}", tokenString);
+            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
+        }
+
+        private RegisteredUser FindUserById(string userId)
+        {
+            lock (_lock)
+            {
+                return _registeredUsers.FirstOrDefault(u => u.SlackUserInfo != null && u.SlackUserInfo.UserId == userId);
             }
         }
     }
