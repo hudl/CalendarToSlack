@@ -279,10 +279,12 @@ namespace CalendarToSlack
                 return;
             }
 
-            var dictionary = ParseStatusMessageFilter(token);
-
             lock (_lock)
             {
+                var dictionary = ParseStatusMessageFilter(token);
+                    //.Where(entry => !user.StatusMessageFilters.Keys.Contains(entry.Key, StringComparer.InvariantCultureIgnoreCase))
+                    //.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
                 Log.DebugFormat("Adding whitelist tokens to user {0}, tokens = {1}", user.Email, token);
                 foreach (var item in dictionary)
                 {
@@ -318,11 +320,15 @@ namespace CalendarToSlack
             lock (_lock)
             {
                 Log.DebugFormat("Removing whitelist tokens from user {0}, tokens = {1}", user.Email, string.Join("|", remove));
+                //user.StatusMessageFilters = user.StatusMessageFilters
+                    //.Where(entry => !remove.Contains(entry.Key, StringComparer.InvariantCultureIgnoreCase))
+                    //.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
                 foreach (var item in remove)
                 {
                     user.StatusMessageFilters.Remove(item);
                 }
-
+                
                 WriteFile();
 
                 var removedTokenString = GetTokenListForSlackbot(remove.ToDictionary(item => item, item => item));

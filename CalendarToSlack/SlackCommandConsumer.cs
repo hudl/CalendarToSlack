@@ -210,7 +210,5 @@ namespace CalendarToSlack
 
             Log.ErrorFormat("Unrecognized slash command {0} from user {1}", command, userId);
         }
-
-
     }
 }
