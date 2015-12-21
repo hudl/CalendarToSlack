@@ -145,11 +145,14 @@ namespace CalendarToSlack
         {
             // Will return null if there are no events currently happening.
             var busiestEvent = GetBusiestEvent(user, events);
+            var statusMessage = GetUserMessage(busiestEvent, user);
+
+            var isDifferentMessage = (statusMessage != user.CurrentCustomMessage);
 
             // Only check if we've set a current event previously. Otherwise,
             // on the first check after startup, we don't "correct" the value
             // if the user became Free while this app was stopped.
-            if (user.HasSetCurrentEvent && busiestEvent == user.CurrentEvent)
+            if (user.HasSetCurrentEvent && busiestEvent == user.CurrentEvent && !isDifferentMessage)
             {
                 // User is still in the same event, no change.
                 return;
@@ -157,6 +160,7 @@ namespace CalendarToSlack
 
             var previousEvent = user.CurrentEvent;
             user.CurrentEvent = busiestEvent;
+            user.CurrentCustomMessage = statusMessage;
 
             if (busiestEvent == null)
             {
@@ -167,6 +171,10 @@ namespace CalendarToSlack
                 {
                     message = string.Format("{0} after finishing \"{1}\"", message, previousEvent.Subject);
                 }
+                else if (isDifferentMessage)
+                {
+                    message = string.Format("{0} after your whitelist was updated", message);
+                }
                 MakeSlackApiCalls(user, Presence.Auto, null, message);
                 return;
             }
@@ -174,7 +182,6 @@ namespace CalendarToSlack
             // Otherwise, we're transitioning into an event that's coming up (or just got added).
 
             var presenceToSet = GetPresenceForAvailability(busiestEvent.FreeBusyStatus);
-            var statusMessage = GetUserMessage(busiestEvent, user);
             var withMessage = (string.IsNullOrWhiteSpace(statusMessage) ? "(with no message)" : string.Format("(with message \"| {0}\")", statusMessage));
             var slackbotMessage = string.Format("Changed your status to {0} {1} for \"{2}\"", presenceToSet, withMessage, busiestEvent.Subject);
             Log.InfoFormat("{0} is now {1} {2} for \"{3}\" (event status \"{4}\") ", user.Email, presenceToSet, withMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
@@ -201,9 +208,14 @@ namespace CalendarToSlack
             LegacyFreeBusyStatus.Free,
         };
 
-        // Returns null if the user shoudl have no status message.
+        // Returns null if the user should have no status message.
         private static string GetUserMessage(CalendarEvent ev, RegisteredUser user)
         {
+            if (ev == null)
+            {
+                return null;
+            }
+
             // Will be null if no matches.
             var filterMatch = MatchFilter(ev.Subject, user.StatusMessageFilters);
 

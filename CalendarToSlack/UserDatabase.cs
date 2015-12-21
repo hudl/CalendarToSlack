@@ -396,6 +396,8 @@ namespace CalendarToSlack
 
         public bool HasSetCurrentEvent { get { return _hasSetCurrentEvent; } }
 
+        public string CurrentCustomMessage { get; set; }
+
         public SlackUserInfo SlackUserInfo { get; set; }
 
         public bool IsEnabled
