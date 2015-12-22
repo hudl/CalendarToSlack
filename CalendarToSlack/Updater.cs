@@ -265,6 +265,11 @@ namespace CalendarToSlack
 
         private static string MatchFilter(string subject, Dictionary<string, string> filters)
         {
+            if (string.IsNullOrWhiteSpace(subject))
+            {
+                return null;
+            }
+
             foreach (var filter in filters)
             {
                 if (subject.IndexOf(filter.Key, StringComparison.OrdinalIgnoreCase) >= 0)
