@@ -25,6 +25,7 @@ namespace CalendarToSlack
         public Presence GetPresence(string authToken)
         {
             var result = _http.GetAsync(string.Format("https://slack.com/api/users.getPresence?token={0}", authToken)).Result;
+            LogSlackApiResult("users.getPresence", result);
             result.EnsureSuccessStatusCode();
 
             var content = result.Content.ReadAsStringAsync().Result;
@@ -40,6 +41,7 @@ namespace CalendarToSlack
                 { "presence", (presence == Presence.Auto ? "auto" : "away") }
             });
             var result = _http.PostAsync("https://slack.com/api/users.setPresence", content).Result;
+            LogSlackApiResult("users.setPresence", result);
             result.EnsureSuccessStatusCode();
         }
 
@@ -49,6 +51,7 @@ namespace CalendarToSlack
         public SlackUserInfo GetUserInfo(string authToken)
         {
             var result = _http.GetAsync(string.Format("https://slack.com/api/auth.test?token={0}", authToken)).Result;
+            LogSlackApiResult("auth.test", result);
             result.EnsureSuccessStatusCode();
 
             var content = result.Content.ReadAsStringAsync().Result;
@@ -62,6 +65,7 @@ namespace CalendarToSlack
         public SlackUserInfo GetUserInfo(string authToken, string userId)
         {
             var result = _http.GetAsync(string.Format("https://slack.com/api/users.info?token={0}&user={1}", authToken, userId)).Result;
+            LogSlackApiResult("users.info " + userId, result);
             result.EnsureSuccessStatusCode();
 
             var content = result.Content.ReadAsStringAsync().Result;
@@ -98,6 +102,7 @@ namespace CalendarToSlack
             var content = new FormUrlEncodedContent(options);
 
             var result = _http.PostAsync("https://slack.com/api/chat.postMessage", content).Result;
+            LogSlackApiResult("chat.postMessage " + username, result);
             result.EnsureSuccessStatusCode();
         }
 
@@ -135,8 +140,9 @@ namespace CalendarToSlack
                 { "profile", profile },
                 { "token", user.HackyPersonalFullAccessSlackToken } // TODO switch to auth token. see comments above in this method
             });
+            
             var result = _http.PostAsync("https://slack.com/api/users.profile.set", content).Result;
-
+            LogSlackApiResult("users.profile.set " + user.SlackUserInfo.Username, result);
             result.EnsureSuccessStatusCode();
         }
 
@@ -156,6 +162,7 @@ namespace CalendarToSlack
         public List<SlackUserInfo> ListUsers(string authToken)
         {
             var result = _http.GetAsync(string.Format("https://slack.com/api/users.list?token={0}&presence=1", authToken)).Result;
+            LogSlackApiResult("users.list", result);
             result.EnsureSuccessStatusCode();
 
             var content = result.Content.ReadAsStringAsync().Result;
@@ -177,6 +184,18 @@ namespace CalendarToSlack
                 });
             }
             return results;
+        }
+
+        private static void LogSlackApiResult(string action, HttpResponseMessage response)
+        {
+            try
+            {
+                Log.DebugFormat("Slack API result ({0}): Status={1} Content={2}", action, response.StatusCode, response.Content.ReadAsStringAsync().Result);
+            }
+            catch (Exception e)
+            {
+                Log.ErrorFormat("Error logging Slack API result: " + e.Message);
+            }
         }
     }
 
