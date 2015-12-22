@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Threading;
 using System.Web.Helpers;
 using log4net;
 
@@ -22,16 +23,21 @@ namespace CalendarToSlack
             };
         }
 
-        public Presence GetPresence(string authToken)
-        {
-            var result = _http.GetAsync(string.Format("https://slack.com/api/users.getPresence?token={0}", authToken)).Result;
-            LogSlackApiResult("users.getPresence", result);
-            result.EnsureSuccessStatusCode();
+        //public Presence GetPresence(string authToken)
+        //{
+        //    var result = _http.GetAsync(string.Format("https://slack.com/api/users.getPresence?token={0}", authToken)).Result;
+        //    LogSlackApiResult("users.getPresence", result);
 
-            var content = result.Content.ReadAsStringAsync().Result;
-            var data = Json.Decode(content);
-            return (string.Equals(data.presence, "away", StringComparison.OrdinalIgnoreCase) ? Presence.Away : Presence.Auto);
-        }
+        //    if (!result.IsSuccessStatusCode)
+        //    {
+        //        Log.ErrorFormat("Unsuccessful response status for users.getPresence: {0}", result.StatusCode);
+        //        return;
+        //    }
+
+        //    var content = result.Content.ReadAsStringAsync().Result;
+        //    var data = Json.Decode(content);
+        //    return (string.Equals(data.presence, "away", StringComparison.OrdinalIgnoreCase) ? Presence.Away : Presence.Auto);
+        //}
 
         public void SetPresence(string authToken, Presence presence)
         {
@@ -42,7 +48,14 @@ namespace CalendarToSlack
             });
             var result = _http.PostAsync("https://slack.com/api/users.setPresence", content).Result;
             LogSlackApiResult("users.setPresence", result);
-            result.EnsureSuccessStatusCode();
+            
+            if (!result.IsSuccessStatusCode)
+            {
+                Log.ErrorFormat("Unsuccessful response status for users.setPresence: {0}", result.StatusCode);
+            }
+
+            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
+            Thread.Sleep(1000);
         }
 
 
@@ -53,8 +66,11 @@ namespace CalendarToSlack
             var result = _http.GetAsync(string.Format("https://slack.com/api/auth.test?token={0}", authToken)).Result;
             LogSlackApiResult("auth.test", result);
             result.EnsureSuccessStatusCode();
-
+            
             var content = result.Content.ReadAsStringAsync().Result;
+
+            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
+            Thread.Sleep(1000);
 
             var data = Json.Decode(content);
             var info = GetUserInfo(authToken, data.user_id);
@@ -67,8 +83,11 @@ namespace CalendarToSlack
             var result = _http.GetAsync(string.Format("https://slack.com/api/users.info?token={0}&user={1}", authToken, userId)).Result;
             LogSlackApiResult("users.info " + userId, result);
             result.EnsureSuccessStatusCode();
-
+            
             var content = result.Content.ReadAsStringAsync().Result;
+
+            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
+            Thread.Sleep(1000);
 
             var data = Json.Decode(content);
             return new SlackUserInfo
@@ -103,7 +122,14 @@ namespace CalendarToSlack
 
             var result = _http.PostAsync("https://slack.com/api/chat.postMessage", content).Result;
             LogSlackApiResult("chat.postMessage " + username, result);
-            result.EnsureSuccessStatusCode();
+
+            if (!result.IsSuccessStatusCode)
+            {
+                Log.ErrorFormat("Unsuccessful response status for chat.postMessage: {0}", result.StatusCode);
+            }
+
+            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
+            Thread.Sleep(1000);
         }
 
         public void UpdateProfileWithStatusMessage(RegisteredUser user, string message)
@@ -143,7 +169,14 @@ namespace CalendarToSlack
             
             var result = _http.PostAsync("https://slack.com/api/users.profile.set", content).Result;
             LogSlackApiResult("users.profile.set " + user.SlackUserInfo.Username, result);
-            result.EnsureSuccessStatusCode();
+
+            if (!result.IsSuccessStatusCode)
+            {
+                Log.ErrorFormat("Unsuccessful response status for users.profile.set: {0}", result.StatusCode);
+            }
+
+            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
+            Thread.Sleep(1000);
         }
 
         private static string GetLastNameWithAppendedMessage(RegisteredUser user, string message)
@@ -162,10 +195,13 @@ namespace CalendarToSlack
         public List<SlackUserInfo> ListUsers(string authToken)
         {
             var result = _http.GetAsync(string.Format("https://slack.com/api/users.list?token={0}&presence=1", authToken)).Result;
-            LogSlackApiResult("users.list", result);
+            LogSlackApiResult("users.list", result, false);
             result.EnsureSuccessStatusCode();
 
             var content = result.Content.ReadAsStringAsync().Result;
+
+            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
+            Thread.Sleep(1000);
 
             var results = new List<SlackUserInfo>();
 
@@ -186,11 +222,11 @@ namespace CalendarToSlack
             return results;
         }
 
-        private static void LogSlackApiResult(string action, HttpResponseMessage response)
+        private static void LogSlackApiResult(string action, HttpResponseMessage response, bool logContent = true)
         {
             try
             {
-                Log.DebugFormat("Slack API result ({0}): Status={1} Content={2}", action, response.StatusCode, response.Content.ReadAsStringAsync().Result);
+                Log.DebugFormat("Slack API result ({0}): Status={1} Content={2}", action, response.StatusCode, (logContent ? response.Content.ReadAsStringAsync().Result : "<omitted>"));
             }
             catch (Exception e)
             {
