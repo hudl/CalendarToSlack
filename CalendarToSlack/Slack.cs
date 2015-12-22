@@ -55,7 +55,7 @@ namespace CalendarToSlack
             }
 
             // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1000);
+            Thread.Sleep(1500);
         }
 
 
@@ -70,7 +70,7 @@ namespace CalendarToSlack
             var content = result.Content.ReadAsStringAsync().Result;
 
             // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1000);
+            Thread.Sleep(1500);
 
             var data = Json.Decode(content);
             var info = GetUserInfo(authToken, data.user_id);
@@ -87,7 +87,7 @@ namespace CalendarToSlack
             var content = result.Content.ReadAsStringAsync().Result;
 
             // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1000);
+            Thread.Sleep(1500);
 
             var data = Json.Decode(content);
             return new SlackUserInfo
@@ -129,7 +129,7 @@ namespace CalendarToSlack
             }
 
             // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1000);
+            Thread.Sleep(1500);
         }
 
         public void UpdateProfileWithStatusMessage(RegisteredUser user, string message)
@@ -176,7 +176,7 @@ namespace CalendarToSlack
             }
 
             // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1000);
+            Thread.Sleep(1500);
         }
 
         private static string GetLastNameWithAppendedMessage(RegisteredUser user, string message)
@@ -201,7 +201,7 @@ namespace CalendarToSlack
             var content = result.Content.ReadAsStringAsync().Result;
 
             // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1000);
+            Thread.Sleep(1500);
 
             var results = new List<SlackUserInfo>();
 
