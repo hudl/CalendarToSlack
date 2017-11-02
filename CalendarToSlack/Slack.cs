@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Web.Helpers;
 using log4net;
+using Newtonsoft.Json;
 
 namespace CalendarToSlack
 {
@@ -204,8 +205,8 @@ namespace CalendarToSlack
             Thread.Sleep(1500);
 
             var results = new List<SlackUserInfo>();
-
-            var data = Json.Decode(content);
+            
+            var data = (dynamic)JsonConvert.DeserializeObject(content);
             var members = data.members;
             foreach (var member in members)
             {

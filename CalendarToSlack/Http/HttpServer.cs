@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web.Helpers;
 using log4net;
+using Newtonsoft.Json;
 
 namespace CalendarToSlack.Http
 {
@@ -120,7 +121,7 @@ namespace CalendarToSlack.Http
                     if (response.IsSuccessStatusCode)
                     {
                         var responseContent = response.Content.ReadAsStringAsync().Result;
-                        var json = Json.Decode(responseContent);
+                        var json = (dynamic)JsonConvert.DeserializeObject(responseContent);
 
                         if (!json.ok)
                         {
