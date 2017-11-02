@@ -70,6 +70,11 @@ namespace CalendarToSlack
 
         private static Dictionary<Config, string> LoadConfig(string path)
         {
+            // ensure file exists
+            if (!File.Exists(path))
+            {
+                throw new ApplicationException("A config file at '" + path + "' was not found. See https://github.com/robhruska/CalendarToSlack/wiki/Installing for instructions on setting up this slackbot");
+            }
             var lines = File.ReadAllLines(path);
             return lines.Where(line => !line.StartsWith("#")).ToDictionary(line => (Config) Enum.Parse(typeof(Config), line.Split('=')[0]), line => line.Split('=')[1]);
         }
