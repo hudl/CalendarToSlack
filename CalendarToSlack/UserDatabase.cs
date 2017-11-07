@@ -106,17 +106,47 @@ namespace CalendarToSlack
             return new HashSet<Option>(options);
         }
 
-        private static List<StatusMessageFilter> ParseStatusMessageFilter(string raw)
+        private static Dictionary<string, CustomStatus> ParseStatusMessageFilter(string raw)
         {
-            var result = new List<StatusMessageFilter>();
+            var result = new Dictionary<string, CustomStatus>();
             if (string.IsNullOrWhiteSpace(raw))
             {
                 return result;
             }
 
             var filters = raw.Split('|');
+            foreach (var filter in filters)
+            {
+                var customStatus = new CustomStatus
+                {
+                    StatusText = filter,
+                    StatusEmoji = "",
+                };
+                var filterKey = filter;
+
+                // First, check for an emoji and remove it from the filter
+                if (filter.Contains(';'))
+                {
+                    var split = filter.Split(';');
+
+                    filterKey = split[0];
+                    customStatus.StatusText = split[0];
+                    customStatus.StatusEmoji = split[1];
+                }
+
+                // Second, check for a custom text mapping
+                if (filterKey.Contains('>'))
+                {
+                    var split = filterKey.Split('>');
+
+                    filterKey = split[0];
+                    customStatus.StatusText = split[1];
+                }
+
+                result[filterKey] = customStatus;
+            }
             
-            return filters.Select(StatusMessageFilter.Parse).ToList();
+            return result;
         }
 
         // Caller should ensure they've acquired _lock.
@@ -163,9 +193,9 @@ namespace CalendarToSlack
             File.WriteAllLines(_file, lines);
         }
 
-        private string SerializeMessageFilters(List<StatusMessageFilter> filters)
+        private string SerializeMessageFilters(Dictionary<string, CustomStatus> filters)
         {
-            return string.Join("|", filters.Select(filter => filter.ToString()));
+            return string.Join("|", filters.Select(f => f.Key == f.Value.StatusText ? f.Value.ToString() : $"{f.Key}>{f.Value}"));
         }
 
         public List<RegisteredUser> Users
@@ -270,16 +300,18 @@ namespace CalendarToSlack
 
             lock (_lock)
             {
-                var messageFilters = ParseStatusMessageFilter(token);
+                var dictionary = ParseStatusMessageFilter(token);
 
                 Log.DebugFormat("Adding whitelist tokens to user {0}, tokens = {1}", user.Email, token);
 
-                user.StatusMessageFilters.RemoveAll(filter => messageFilters.Any(mf => mf.Key == filter.Key));
-                user.StatusMessageFilters.AddRange(messageFilters);
+                foreach (var item in dictionary)
+                {
+                    user.StatusMessageFilters[item.Key] = item.Value;
+                }
 
                 WriteFile();
 
-                var addedTokenString = GetTokenListForSlackbot(messageFilters);
+                var addedTokenString = GetTokenListForSlackbot(dictionary);
                 var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
                 var message = string.Format("Added token(s):\n{0}\nWhitelist:\n{1}", addedTokenString, whitelistTokenString);
                 _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
@@ -307,7 +339,10 @@ namespace CalendarToSlack
             {
                 Log.DebugFormat("Removing whitelist tokens from user {0}, tokens = {1}", user.Email, string.Join("|", remove));
 
-                user.StatusMessageFilters.RemoveAll(filter => remove.Any(r => r.Key == filter.Key));
+                foreach (var item in remove.Keys)
+                {
+                    user.StatusMessageFilters.Remove(item);
+                }
                 
                 WriteFile();
 
@@ -318,9 +353,9 @@ namespace CalendarToSlack
             }
         }
 
-        private static string GetTokenListForSlackbot(List<StatusMessageFilter> filters)
+        private static string GetTokenListForSlackbot(Dictionary<string, CustomStatus> filters)
         {
-            return string.Join(" ", filters.ConvertAll(filter => filter.ToString()));
+            return string.Join(" ", filters.Select(f => f.Key == f.Value.StatusText ? f.Value.ToString() : $"{f.Key}>{f.Value}"));
         }
 
         public void EchoWhitelistToSlackbot(string userId)
@@ -348,7 +383,7 @@ namespace CalendarToSlack
 
         public string SlackApplicationAuthToken { get; set; }
         public string HackyPersonalFullAccessSlackToken { get; set; } // Will be removed.
-        public List<StatusMessageFilter> StatusMessageFilters { get; set; }
+        public Dictionary<string, CustomStatus> StatusMessageFilters { get; set; }
         public HashSet<Option> Options { get; set; } 
 
         // These fields aren't persisted, but get set/modified during runtime.
@@ -381,57 +416,6 @@ namespace CalendarToSlack
         }
 
         public bool SendSlackbotMessageOnChange { get { return Options != null && Options.Contains(Option.SlackbotNotify); } }
-    }
-
-    class StatusMessageFilter
-    {
-        public string Key { get; set; }
-        public string StatusText { get; set; }
-        public string StatusEmoji { get; set; }
-
-        public static StatusMessageFilter Parse(string filter)
-        {
-            if (string.IsNullOrWhiteSpace(filter))
-            {
-                return null;
-            }
-
-            var resultFilter = new StatusMessageFilter
-            {
-                Key = filter,
-                StatusText = filter,
-                StatusEmoji = "",
-            };
-
-            // First, check for an emoji and remove it from the filter
-            if (resultFilter.StatusText.Contains(';'))
-            {
-                var split = resultFilter.StatusText.Split(';');
-
-                resultFilter.Key = split[0];
-                resultFilter.StatusText = split[0];
-                resultFilter.StatusEmoji = split[1];
-            }
-
-            // Second, check for a custom text mapping
-            if (resultFilter.Key.Contains('>'))
-            {
-                var split = resultFilter.Key.Split('>');
-
-                resultFilter.Key = split[0];
-                resultFilter.StatusText = split[1];
-            }
-
-            return resultFilter;
-        }
-
-        public override string ToString()
-        {
-            var baseString = Key == StatusText ? Key : $"{Key}>{StatusText}";
-            var emojiString = StatusEmoji != null ? $";{StatusEmoji}" : "";
-
-            return $"{baseString}{emojiString}";
-        }
     }
 
     // Don't rename these, they're persisted 1:1 in the database and parsed back in.

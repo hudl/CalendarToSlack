@@ -240,6 +240,17 @@ namespace CalendarToSlack
         public string DefaultStatusEmoji { get; set; }
     }
 
+    class CustomStatus
+    {
+        public string StatusText { get; set; }
+        public string StatusEmoji { get; set; }
+
+        public override string ToString()
+        {
+            return !string.IsNullOrWhiteSpace(StatusEmoji) ? $"{StatusText};{StatusEmoji}" : StatusText;
+        }
+    }
+
     enum Presence
     {
         Away,

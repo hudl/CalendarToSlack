@@ -286,14 +286,22 @@ namespace CalendarToSlack
             return true;
         }
 
-        private static StatusMessageFilter MatchFilter(string subject, List<StatusMessageFilter> filters)
+        private static CustomStatus MatchFilter(string subject, Dictionary<string, CustomStatus> filters)
         {
             if (string.IsNullOrWhiteSpace(subject))
             {
                 return null;
             }
 
-            return filters.Find(f => subject.IndexOf(f.Key, StringComparison.OrdinalIgnoreCase) >= 0);
+            foreach (var filter in filters)
+            {
+                if (subject.IndexOf(filter.Key, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return filter.Value;
+                }
+            }
+
+            return null;
         }
 
         private static LegacyFreeBusyStatus GetBusiestStatus(List<CalendarEvent> events)
