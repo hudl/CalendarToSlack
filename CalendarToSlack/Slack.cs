@@ -178,19 +178,6 @@ namespace CalendarToSlack
             Thread.Sleep(1500);
         }
 
-        private static string GetLastNameWithAppendedMessage(RegisteredUser user, string message)
-        {
-            const int maxLastName = 35;
-            const string separator = " | ";
-
-            var newLastName = user.SlackUserInfo.ActualLastName;
-            if (!string.IsNullOrWhiteSpace(message))
-            {
-                newLastName = user.SlackUserInfo.ActualLastName + separator + message.Substring(0, Math.Min(message.Length, maxLastName - (user.SlackUserInfo.ActualLastName.Length + separator.Length)));
-            }
-            return newLastName;
-        }
-
         public List<SlackUserInfo> ListUsers(string authToken)
         {
             var result = _http.GetAsync(string.Format("https://slack.com/api/users.list?token={0}&presence=1", authToken)).Result;
