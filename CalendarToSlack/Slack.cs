@@ -203,6 +203,8 @@ namespace CalendarToSlack
                     FirstName = member.profile.first_name,
                     LastName = member.profile.last_name,
                     Email = member.profile.email,
+                    DefaultStatusText = member.profile.status_text,
+                    DefaultStatusEmoji = member.profile.status_emoji,
                 });
             }
             return results;
@@ -229,6 +231,9 @@ namespace CalendarToSlack
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string Email { get; set; }
+
+        public string DefaultStatusText { get; set; }
+        public string DefaultStatusEmoji { get; set; }
 
         public string ActualLastName { get { return LastName.Split('|')[0].Trim(); } }
     }
