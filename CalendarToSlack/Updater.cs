@@ -216,7 +216,7 @@ namespace CalendarToSlack
             LegacyFreeBusyStatus.Free,
         };
 
-        // Returns an empty string if the user should have no status message.
+        // Returns null if the user's status should not be updated.
         private static CustomStatus GetCustomStatusForCalendarEvent(CalendarEvent ev, RegisteredUser user)
         {
             if (ev == null)
