@@ -73,7 +73,7 @@ namespace CalendarToSlack
                 foreach (var e in happeningNow)
                 {
                     //Out.WriteDebug("> {0} {1} {2} {3}", e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject);
-                    result.Add(new CalendarEvent(e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject));
+                    result.Add(new CalendarEvent(e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject, e.Details.Location));
                 }
 
                 results[username] = result;
@@ -91,23 +91,26 @@ namespace CalendarToSlack
         private readonly DateTime _endTime;
         private readonly LegacyFreeBusyStatus _freeBusyStatus;
         private readonly string _subject;
+        private readonly string _location;
 
         public LegacyFreeBusyStatus FreeBusyStatus { get { return _freeBusyStatus; } }
         public string Subject { get { return _subject; } }
+        public string Location { get { return _location; } }
 
-        public CalendarEvent(DateTime startTime, DateTime endTime, LegacyFreeBusyStatus freeBusyStatus, string subject)
+        public CalendarEvent(DateTime startTime, DateTime endTime, LegacyFreeBusyStatus freeBusyStatus, string subject, string location)
         {
             _startTime = startTime;
             _endTime = endTime;
             _freeBusyStatus = freeBusyStatus;
             _subject = subject;
+            _location = location;
         }
 
         public bool Equals(CalendarEvent other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return _startTime.Equals(other._startTime) && _endTime.Equals(other._endTime) && _freeBusyStatus == other._freeBusyStatus && string.Equals(_subject, other._subject);
+            return _startTime.Equals(other._startTime) && _endTime.Equals(other._endTime) && _freeBusyStatus == other._freeBusyStatus && string.Equals(_subject, other._subject) && string.Equals(_location, other._location);
         }
 
         public override bool Equals(object obj)
@@ -126,6 +129,7 @@ namespace CalendarToSlack
                 hashCode = (hashCode * 397) ^ _endTime.GetHashCode();
                 hashCode = (hashCode * 397) ^ (int)_freeBusyStatus;
                 hashCode = (hashCode * 397) ^ (_subject != null ? _subject.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (_location != null ? _location.GetHashCode() : 0);
                 return hashCode;
             }
         }
