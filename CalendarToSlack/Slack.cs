@@ -238,8 +238,6 @@ namespace CalendarToSlack
 
         public string DefaultStatusText { get; set; }
         public string DefaultStatusEmoji { get; set; }
-
-        public string ActualLastName { get { return LastName.Split('|')[0].Trim(); } }
     }
 
     enum Presence

@@ -106,28 +106,17 @@ namespace CalendarToSlack
             return new HashSet<Option>(options);
         }
 
-        private static Dictionary<string, string> ParseStatusMessageFilter(string raw)
+        private static List<StatusMessageFilter> ParseStatusMessageFilter(string raw)
         {
-            var result = new Dictionary<string, string>();
+            var result = new List<StatusMessageFilter>();
             if (string.IsNullOrWhiteSpace(raw))
             {
                 return result;
             }
 
             var filters = raw.Split('|');
-            foreach (var filter in filters)
-            {
-                if (filter.Contains('>'))
-                {
-                    var split = filter.Split('>');
-                    result[split[0]] = split[1];
-                }
-                else
-                {
-                    result[filter] = filter;
-                }
-            }
-            return result;
+            
+            return filters.Select(StatusMessageFilter.Parse).ToList();
         }
 
         // Caller should ensure they've acquired _lock.
@@ -174,9 +163,9 @@ namespace CalendarToSlack
             File.WriteAllLines(_file, lines);
         }
 
-        private string SerializeMessageFilters(Dictionary<string, string> filters)
+        private string SerializeMessageFilters(List<StatusMessageFilter> filters)
         {
-            return string.Join("|", filters.Select(kvp => (kvp.Key == kvp.Value ? kvp.Key : kvp.Key + ">" + kvp.Value)));
+            return string.Join("|", filters.Select(filter => filter.ToString()));
         }
 
         public List<RegisteredUser> Users
@@ -281,19 +270,16 @@ namespace CalendarToSlack
 
             lock (_lock)
             {
-                var dictionary = ParseStatusMessageFilter(token);
-                    //.Where(entry => !user.StatusMessageFilters.Keys.Contains(entry.Key, StringComparer.InvariantCultureIgnoreCase))
-                    //.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                var messageFilters = ParseStatusMessageFilter(token);
 
                 Log.DebugFormat("Adding whitelist tokens to user {0}, tokens = {1}", user.Email, token);
-                foreach (var item in dictionary)
-                {
-                    user.StatusMessageFilters[item.Key] = item.Value;
-                }
+
+                user.StatusMessageFilters.RemoveAll(filter => messageFilters.Any(mf => mf.Key == filter.Key));
+                user.StatusMessageFilters.AddRange(messageFilters);
 
                 WriteFile();
 
-                var addedTokenString = GetTokenListForSlackbot(dictionary);
+                var addedTokenString = GetTokenListForSlackbot(messageFilters);
                 var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
                 var message = string.Format("Added token(s):\n{0}\nWhitelist:\n{1}", addedTokenString, whitelistTokenString);
                 _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
@@ -315,40 +301,26 @@ namespace CalendarToSlack
                 return;
             }
 
-            var remove = ParseStatusMessageFilter(token).Keys;
+            var remove = ParseStatusMessageFilter(token);
 
             lock (_lock)
             {
                 Log.DebugFormat("Removing whitelist tokens from user {0}, tokens = {1}", user.Email, string.Join("|", remove));
-                //user.StatusMessageFilters = user.StatusMessageFilters
-                    //.Where(entry => !remove.Contains(entry.Key, StringComparer.InvariantCultureIgnoreCase))
-                    //.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
-                foreach (var item in remove)
-                {
-                    user.StatusMessageFilters.Remove(item);
-                }
+                user.StatusMessageFilters.RemoveAll(filter => remove.Any(r => r.Key == filter.Key));
                 
                 WriteFile();
 
-                var removedTokenString = GetTokenListForSlackbot(remove.ToDictionary(item => item, item => item));
+                var removedTokenString = GetTokenListForSlackbot(remove);
                 var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
-                var message = string.Format("Removed token(s):\n{0}\nWhitelist:\n{1}", removedTokenString, whitelistTokenString);
+                var message = $"Removed token(s):\n{removedTokenString}\nWhitelist:\n{whitelistTokenString}";
                 _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
             }
         }
 
-        private static string GetTokenListForSlackbot(Dictionary<string, string> filters)
+        private static string GetTokenListForSlackbot(List<StatusMessageFilter> filters)
         {
-            var tokens = filters.Select(kvp =>
-            {
-                if (kvp.Key == kvp.Value)
-                {
-                    return string.Format("`{0}`", kvp.Key);
-                }
-                return string.Format("`{0}>{1}`", kvp.Key, kvp.Value);
-            });
-            return string.Join(" ", tokens);
+            return string.Join(" ", filters.ConvertAll(filter => filter.ToString()));
         }
 
         public void EchoWhitelistToSlackbot(string userId)
@@ -376,7 +348,7 @@ namespace CalendarToSlack
 
         public string SlackApplicationAuthToken { get; set; }
         public string HackyPersonalFullAccessSlackToken { get; set; } // Will be removed.
-        public Dictionary<string, string> StatusMessageFilters { get; set; }
+        public List<StatusMessageFilter> StatusMessageFilters { get; set; }
         public HashSet<Option> Options { get; set; } 
 
         // These fields aren't persisted, but get set/modified during runtime.
@@ -409,6 +381,57 @@ namespace CalendarToSlack
         }
 
         public bool SendSlackbotMessageOnChange { get { return Options != null && Options.Contains(Option.SlackbotNotify); } }
+    }
+
+    class StatusMessageFilter
+    {
+        public string Key { get; set; }
+        public string StatusText { get; set; }
+        public string StatusEmoji { get; set; }
+
+        public static StatusMessageFilter Parse(string filter)
+        {
+            if (string.IsNullOrWhiteSpace(filter))
+            {
+                return null;
+            }
+
+            var resultFilter = new StatusMessageFilter
+            {
+                Key = filter,
+                StatusText = filter,
+                StatusEmoji = "",
+            };
+
+            // First, check for an emoji and remove it from the filter
+            if (resultFilter.StatusText.Contains(';'))
+            {
+                var split = resultFilter.StatusText.Split(';');
+
+                resultFilter.Key = split[0];
+                resultFilter.StatusText = split[0];
+                resultFilter.StatusEmoji = split[1];
+            }
+
+            // Second, check for a custom text mapping
+            if (resultFilter.Key.Contains('>'))
+            {
+                var split = resultFilter.Key.Split('>');
+
+                resultFilter.Key = split[0];
+                resultFilter.StatusText = split[1];
+            }
+
+            return resultFilter;
+        }
+
+        public override string ToString()
+        {
+            var baseString = Key == StatusText ? Key : $"{Key}>{StatusText}";
+            var emojiString = StatusEmoji != null ? $";{StatusEmoji}" : "";
+
+            return $"{baseString}{emojiString}";
+        }
     }
 
     // Don't rename these, they're persisted 1:1 in the database and parsed back in.

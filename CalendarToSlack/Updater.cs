@@ -153,7 +153,7 @@ namespace CalendarToSlack
             // Will return null if there are no events currently happening.
             var busiestEvent = GetBusiestEvent(user, events);
             var statusMessage = GetUserMessage(busiestEvent, user);
-            var statusEmoji = GetEmojiForCalendarEvent(busiestEvent);
+            var statusEmoji = GetEmojiForCalendarEvent(busiestEvent, user);
 
             var isDifferentMessage = (statusMessage != user.CurrentCustomMessage);
 
@@ -239,19 +239,19 @@ namespace CalendarToSlack
                 case LegacyFreeBusyStatus.Tentative:
                 case LegacyFreeBusyStatus.WorkingElsewhere:
                 case LegacyFreeBusyStatus.Free:
-                    return filterMatch;
+                    return filterMatch.StatusText;
                 
                     // ReSharper disable RedundantCaseLabel - Not a fan of this RS check. Leaving these here to show intent (i.e. that they're explicitly and not accidentally considered "Away").
                 case LegacyFreeBusyStatus.NoData:
                 case LegacyFreeBusyStatus.Busy:
                 default:
-                    return filterMatch ?? "Away";
+                    return filterMatch?.StatusText ?? "Away";
                     // ReSharper restore RedundantCaseLabel
             }
         }
 
         // Returns an empty string if the user should have no status emoji.
-        private static string GetEmojiForCalendarEvent(CalendarEvent ev)
+        private static string GetEmojiForCalendarEvent(CalendarEvent ev, RegisteredUser user)
         {
             string statusEmoji;
             if (ev == null || !StatusEmojiMap.TryGetValue(ev.FreeBusyStatus, out statusEmoji))
@@ -259,7 +259,9 @@ namespace CalendarToSlack
                 statusEmoji = "";
             }
 
-            return statusEmoji;
+            var filterMatch = MatchFilter(ev?.Subject, user.StatusMessageFilters);
+
+            return !string.IsNullOrWhiteSpace(filterMatch?.StatusEmoji) ? filterMatch.StatusEmoji : statusEmoji;
         }
 
         private static bool IsEligibleForMarkBack(LegacyFreeBusyStatus status)
@@ -284,22 +286,14 @@ namespace CalendarToSlack
             return true;
         }
 
-        private static string MatchFilter(string subject, Dictionary<string, string> filters)
+        private static StatusMessageFilter MatchFilter(string subject, List<StatusMessageFilter> filters)
         {
             if (string.IsNullOrWhiteSpace(subject))
             {
                 return null;
             }
 
-            foreach (var filter in filters)
-            {
-                if (subject.IndexOf(filter.Key, StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    return filter.Value;
-                }
-            }
-
-            return null;
+            return filters.Find(f => subject.IndexOf(f.Key, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         private static LegacyFreeBusyStatus GetBusiestStatus(List<CalendarEvent> events)
