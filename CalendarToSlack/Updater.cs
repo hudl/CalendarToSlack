@@ -27,6 +27,13 @@ namespace CalendarToSlack
         // This'll take some query load off the exchange server.
         private Dictionary<string, List<CalendarEvent>> _eventsFromLastPoll;
 
+        private static readonly Dictionary<LegacyFreeBusyStatus, string> StatusEmojiMap = new Dictionary<LegacyFreeBusyStatus, string>
+        {
+            { LegacyFreeBusyStatus.OOF, ":palm_tree:" },
+            { LegacyFreeBusyStatus.Busy, ":spiral_calendar_pad:" },
+            { LegacyFreeBusyStatus.NoData, ":spiral_calendar_pad:" }
+        };
+
         public Updater(UserDatabase userdb, MarkedEventDatabase markdb, Calendar calendar, Slack slack)
         {
             _userdb = userdb;
@@ -146,6 +153,7 @@ namespace CalendarToSlack
             // Will return null if there are no events currently happening.
             var busiestEvent = GetBusiestEvent(user, events);
             var statusMessage = GetUserMessage(busiestEvent, user);
+            var statusEmoji = GetEmojiForCalendarEvent(busiestEvent);
 
             var isDifferentMessage = (statusMessage != user.CurrentCustomMessage);
 
@@ -169,32 +177,33 @@ namespace CalendarToSlack
                 var message = "Changed your status to Auto";
                 if (previousEvent != null)
                 {
-                    message = string.Format("{0} after finishing \"{1}\"", message, previousEvent.Subject);
+                    message = $"{message} after finishing \"{previousEvent.Subject}\"";
                 }
                 else if (isDifferentMessage)
                 {
-                    message = string.Format("{0} after your whitelist was updated", message);
+                    message = $"{message} after your whitelist was updated";
                 }
-                MakeSlackApiCalls(user, Presence.Auto, null, message);
+                MakeSlackApiCalls(user, Presence.Auto, "", "", message);
                 return;
             }
 
             // Otherwise, we're transitioning into an event that's coming up (or just got added).
 
             var presenceToSet = GetPresenceForAvailability(busiestEvent.FreeBusyStatus);
-            var withMessage = (string.IsNullOrWhiteSpace(statusMessage) ? "(with no message)" : string.Format("(with message \"| {0}\")", statusMessage));
-            var slackbotMessage = string.Format("Changed your status to {0} {1} for \"{2}\"", presenceToSet, withMessage, busiestEvent.Subject);
+            var withMessage = (string.IsNullOrWhiteSpace(statusMessage) ? "(with no message)" :
+                $"(with message \"| {statusMessage}\")");
+            var slackbotMessage = $"Changed your status to {presenceToSet} {withMessage} for \"{busiestEvent.Subject}\"";
             Log.InfoFormat("{0} is now {1} {2} for \"{3}\" (event status \"{4}\") ", user.Email, presenceToSet, withMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
-            MakeSlackApiCalls(user, presenceToSet, statusMessage, slackbotMessage);
+            MakeSlackApiCalls(user, presenceToSet, statusMessage, statusEmoji, slackbotMessage);
         }
 
-        private void MakeSlackApiCalls(RegisteredUser user, Presence presence, string statusMessage, string slackbotMessage)
+        private void MakeSlackApiCalls(RegisteredUser user, Presence presence, string statusMessage, string statusEmoji, string slackbotMessage)
         {
             if (user.SendSlackbotMessageOnChange)
             {
                 _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotMessage);
             }
-            _slack.UpdateProfileWithStatusMessage(user, statusMessage);
+            _slack.UpdateProfileWithStatus(user, statusMessage, statusEmoji);
             _slack.SetPresence(user.SlackApplicationAuthToken, presence);
         }
 
@@ -208,12 +217,12 @@ namespace CalendarToSlack
             LegacyFreeBusyStatus.Free,
         };
 
-        // Returns null if the user should have no status message.
+        // Returns an empty string if the user should have no status message.
         private static string GetUserMessage(CalendarEvent ev, RegisteredUser user)
         {
             if (ev == null)
             {
-                return null;
+                return string.Empty;
             }
 
             // Will be null if no matches.
@@ -239,6 +248,18 @@ namespace CalendarToSlack
                     return filterMatch ?? "Away";
                     // ReSharper restore RedundantCaseLabel
             }
+        }
+
+        // Returns an empty string if the user should have no status emoji.
+        private static string GetEmojiForCalendarEvent(CalendarEvent ev)
+        {
+            string statusEmoji;
+            if (ev == null || !StatusEmojiMap.TryGetValue(ev.FreeBusyStatus, out statusEmoji))
+            {
+                statusEmoji = "";
+            }
+
+            return statusEmoji;
         }
 
         private static bool IsEligibleForMarkBack(LegacyFreeBusyStatus status)

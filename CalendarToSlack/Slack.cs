@@ -133,7 +133,7 @@ namespace CalendarToSlack
             Thread.Sleep(1500);
         }
 
-        public void UpdateProfileWithStatusMessage(RegisteredUser user, string message)
+        public void UpdateProfileWithStatus(RegisteredUser user, string message, string emoji)
         {
             // Slack's support for status/presence (i.e. only auto/away) is limited, and one of
             // our conventions for broadcasting more precise status is to change our last name
@@ -156,11 +156,9 @@ namespace CalendarToSlack
                 return;
             }
 
-            var newLastName = GetLastNameWithAppendedMessage(user, message);
+            var profile = $"{{\"status_text\":\"{message}\",\"status_emoji\":\"{emoji}\"}}";
 
-            var profile = string.Format("{{\"first_name\":\"{0}\",\"last_name\":\"{1}\"}}", user.SlackUserInfo.FirstName, newLastName);
-
-            Log.InfoFormat("Changed profile last name to \"{0}\"", newLastName);
+            Log.Info($"Changed profile status text to {message} and emoji to {emoji}");
             
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
