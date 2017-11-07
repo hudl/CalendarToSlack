@@ -152,10 +152,9 @@ namespace CalendarToSlack
         {
             // Will return null if there are no events currently happening.
             var busiestEvent = GetBusiestEvent(user, events);
-            var statusMessage = GetUserMessage(busiestEvent, user);
-            var statusEmoji = GetEmojiForCalendarEvent(busiestEvent, user);
+            var customStatus = GetCustomStatusForCalendarEvent(busiestEvent, user);
 
-            var isDifferentMessage = (statusMessage != user.CurrentCustomMessage);
+            var isDifferentMessage = (customStatus?.StatusText != user.CurrentCustomStatus?.StatusText);
 
             // Only check if we've set a current event previously. Otherwise,
             // on the first check after startup, we don't "correct" the value
@@ -168,7 +167,7 @@ namespace CalendarToSlack
 
             var previousEvent = user.CurrentEvent;
             user.CurrentEvent = busiestEvent;
-            user.CurrentCustomMessage = statusMessage;
+            user.CurrentCustomStatus = customStatus;
 
             if (busiestEvent == null)
             {
@@ -183,27 +182,27 @@ namespace CalendarToSlack
                 {
                     message = $"{message} after your whitelist was updated";
                 }
-                MakeSlackApiCalls(user, Presence.Auto, user.SlackUserInfo.DefaultStatusText, user.SlackUserInfo.DefaultStatusEmoji, message);
+                MakeSlackApiCalls(user, Presence.Auto, user.SlackUserInfo.DefaultCustomStatus, message);
                 return;
             }
 
             // Otherwise, we're transitioning into an event that's coming up (or just got added).
 
             var presenceToSet = GetPresenceForAvailability(busiestEvent.FreeBusyStatus);
-            var withMessage = (string.IsNullOrWhiteSpace(statusMessage) && string.IsNullOrWhiteSpace(statusEmoji)) ? "(with no status)" :
-                $"with status text \"{statusMessage}\" and emoji \"{statusEmoji}\"";
+            var withMessage = customStatus == null ? "(with no status)" : $"with status text \"{customStatus.StatusText}\" and emoji \"{customStatus.StatusEmoji}\"";
             var slackbotMessage = $"Changed your status to {presenceToSet} {withMessage} for \"{busiestEvent.Subject}\"";
+
             Log.InfoFormat("{0} is now {1} {2} for \"{3}\" (event status \"{4}\") ", user.Email, presenceToSet, withMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
-            MakeSlackApiCalls(user, presenceToSet, statusMessage, statusEmoji, slackbotMessage);
+            MakeSlackApiCalls(user, presenceToSet, customStatus, slackbotMessage);
         }
 
-        private void MakeSlackApiCalls(RegisteredUser user, Presence presence, string statusMessage, string statusEmoji, string slackbotMessage)
+        private void MakeSlackApiCalls(RegisteredUser user, Presence presence, CustomStatus customStatus, string slackbotMessage)
         {
             if (user.SendSlackbotMessageOnChange)
             {
                 _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotMessage);
             }
-            _slack.UpdateProfileWithStatus(user, statusMessage, statusEmoji);
+            _slack.UpdateProfileWithStatus(user, customStatus);
             _slack.SetPresence(user.SlackApplicationAuthToken, presence);
         }
 
@@ -218,20 +217,24 @@ namespace CalendarToSlack
         };
 
         // Returns an empty string if the user should have no status message.
-        private static string GetUserMessage(CalendarEvent ev, RegisteredUser user)
+        private static CustomStatus GetCustomStatusForCalendarEvent(CalendarEvent ev, RegisteredUser user)
         {
             if (ev == null)
             {
-                return "";
+                return user.SlackUserInfo.DefaultCustomStatus;
             }
 
             // Will be null if no matches.
             var filterMatch = MatchFilter(ev.Subject, user.StatusMessageFilters);
+            if (filterMatch != null && string.IsNullOrWhiteSpace(filterMatch.StatusEmoji) && StatusEmojiMap.ContainsKey(ev.FreeBusyStatus))
+            {
+                filterMatch.StatusEmoji = StatusEmojiMap[ev.FreeBusyStatus];
+            }
 
             switch (ev.FreeBusyStatus)
             {
                 case LegacyFreeBusyStatus.OOF:
-                    return "OOO";
+                    return filterMatch ?? new CustomStatus { StatusText = "OOO", StatusEmoji = ":palm_tree:" };
                 
                     // With the non-away statuses, we'll still update the user's message
                     // but keep their status as Auto. This works for things like "Lunch"
@@ -239,29 +242,15 @@ namespace CalendarToSlack
                 case LegacyFreeBusyStatus.Tentative:
                 case LegacyFreeBusyStatus.WorkingElsewhere:
                 case LegacyFreeBusyStatus.Free:
-                    return filterMatch.StatusText;
+                    return filterMatch;
                 
                     // ReSharper disable RedundantCaseLabel - Not a fan of this RS check. Leaving these here to show intent (i.e. that they're explicitly and not accidentally considered "Away").
                 case LegacyFreeBusyStatus.NoData:
                 case LegacyFreeBusyStatus.Busy:
                 default:
-                    return filterMatch?.StatusText ?? "Away";
+                    return filterMatch ?? new CustomStatus { StatusText = "Away", StatusEmoji = ":spiral_calendar_pad:" };
                     // ReSharper restore RedundantCaseLabel
             }
-        }
-
-        // Returns an empty string if the user should have no status emoji.
-        private static string GetEmojiForCalendarEvent(CalendarEvent ev, RegisteredUser user)
-        {
-            string statusEmoji;
-            if (ev == null || !StatusEmojiMap.TryGetValue(ev.FreeBusyStatus, out statusEmoji))
-            {
-                statusEmoji = "";
-            }
-
-            var filterMatch = MatchFilter(ev?.Subject, user.StatusMessageFilters);
-
-            return !string.IsNullOrWhiteSpace(filterMatch?.StatusEmoji) ? filterMatch.StatusEmoji : statusEmoji;
         }
 
         private static bool IsEligibleForMarkBack(LegacyFreeBusyStatus status)

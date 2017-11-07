@@ -403,7 +403,7 @@ namespace CalendarToSlack
 
         public bool HasSetCurrentEvent { get { return _hasSetCurrentEvent; } }
 
-        public string CurrentCustomMessage { get; set; }
+        public CustomStatus CurrentCustomStatus { get; set; }
 
         public SlackUserInfo SlackUserInfo { get; set; }
 

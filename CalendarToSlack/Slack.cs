@@ -133,7 +133,7 @@ namespace CalendarToSlack
             Thread.Sleep(1500);
         }
 
-        public void UpdateProfileWithStatus(RegisteredUser user, string message, string emoji)
+        public void UpdateProfileWithStatus(RegisteredUser user, CustomStatus status)
         {
             // Slack's support for status/presence (i.e. only auto/away) is limited, and one of
             // our conventions for broadcasting more precise status is to change our last name
@@ -156,9 +156,14 @@ namespace CalendarToSlack
                 return;
             }
 
-            var profile = $"{{\"status_text\":\"{message}\",\"status_emoji\":\"{emoji}\"}}";
+            if (status == null)
+            {
+                return;
+            }
 
-            Log.Info($"Changed profile status text to {message} and emoji to {emoji}");
+            var profile = $"{{\"status_text\":\"{status.StatusText}\",\"status_emoji\":\"{status.StatusEmoji}\"}}";
+
+            Log.Info($"Changed profile status text to {status.StatusText} and emoji to {status.StatusEmoji}");
             
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -207,8 +212,7 @@ namespace CalendarToSlack
                     FirstName = member.profile.first_name,
                     LastName = member.profile.last_name,
                     Email = member.profile.email,
-                    DefaultStatusText = member.profile.status_text,
-                    DefaultStatusEmoji = member.profile.status_emoji,
+                    DefaultCustomStatus = new CustomStatus { StatusText = member.profile.status_text, StatusEmoji = member.profile.status_emoji }
                 });
             }
             return results;
@@ -236,8 +240,7 @@ namespace CalendarToSlack
         public string LastName { get; set; }
         public string Email { get; set; }
 
-        public string DefaultStatusText { get; set; }
-        public string DefaultStatusEmoji { get; set; }
+        public CustomStatus DefaultCustomStatus { get; set; }
     }
 
     class CustomStatus
