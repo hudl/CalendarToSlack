@@ -196,6 +196,10 @@ namespace CalendarToSlack
             foreach (var member in members)
             {
                 // startup presence = member.presence
+                // 
+                // This assumes that the custom status of the user at startup is their desired default, 
+                // but if the app starts when the user has a meeting or OOO-related status set, that will be
+                // used as the default. TODO: add manual default status setting: https://github.com/robhruska/CalendarToSlack/issues/17
                 results.Add(new SlackUserInfo
                 {
                     UserId = member.id,
