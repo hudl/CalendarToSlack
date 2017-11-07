@@ -190,8 +190,8 @@ namespace CalendarToSlack
             // Otherwise, we're transitioning into an event that's coming up (or just got added).
 
             var presenceToSet = GetPresenceForAvailability(busiestEvent.FreeBusyStatus);
-            var withMessage = (string.IsNullOrWhiteSpace(statusMessage) ? "(with no message)" :
-                $"(with message \"| {statusMessage}\")");
+            var withMessage = (string.IsNullOrWhiteSpace(statusMessage) && string.IsNullOrWhiteSpace(statusEmoji)) ? "(with no status)" :
+                $"with status text \"{statusMessage}\" and emoji \"{statusEmoji}\"";
             var slackbotMessage = $"Changed your status to {presenceToSet} {withMessage} for \"{busiestEvent.Subject}\"";
             Log.InfoFormat("{0} is now {1} {2} for \"{3}\" (event status \"{4}\") ", user.Email, presenceToSet, withMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
             MakeSlackApiCalls(user, presenceToSet, statusMessage, statusEmoji, slackbotMessage);
