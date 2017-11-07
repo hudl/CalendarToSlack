@@ -222,7 +222,7 @@ namespace CalendarToSlack
         {
             if (ev == null)
             {
-                return string.Empty;
+                return "";
             }
 
             // Will be null if no matches.
