@@ -132,7 +132,7 @@ namespace CalendarToSlack
             Thread.Sleep(1500);
         }
 
-        public void UpdateProfileWithStatusMessage(RegisteredUser user, string message)
+        public void UpdateProfileWithStatus(RegisteredUser user, CustomStatus status)
         {
             // Slack's support for status/presence (i.e. only auto/away) is limited, and one of
             // our conventions for broadcasting more precise status is to change our last name
@@ -155,11 +155,14 @@ namespace CalendarToSlack
                 return;
             }
 
-            var newLastName = GetLastNameWithAppendedMessage(user, message);
+            if (status == null)
+            {
+                return;
+            }
 
-            var profile = string.Format("{{\"first_name\":\"{0}\",\"last_name\":\"{1}\"}}", user.SlackUserInfo.FirstName, newLastName);
+            var profile = $"{{\"status_text\":\"{status.StatusText}\",\"status_emoji\":\"{status.StatusEmoji}\"}}";
 
-            Log.InfoFormat("Changed profile last name to \"{0}\"", newLastName);
+            Log.Info($"Changed profile status text to {status.StatusText} and emoji to {status.StatusEmoji}");
             
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -177,19 +180,6 @@ namespace CalendarToSlack
 
             // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
             Thread.Sleep(1500);
-        }
-
-        private static string GetLastNameWithAppendedMessage(RegisteredUser user, string message)
-        {
-            const int maxLastName = 35;
-            const string separator = " | ";
-
-            var newLastName = user.SlackUserInfo.ActualLastName;
-            if (!string.IsNullOrWhiteSpace(message))
-            {
-                newLastName = user.SlackUserInfo.ActualLastName + separator + message.Substring(0, Math.Min(message.Length, maxLastName - (user.SlackUserInfo.ActualLastName.Length + separator.Length)));
-            }
-            return newLastName;
         }
 
         public List<SlackUserInfo> ListUsers(string authToken)
@@ -210,6 +200,10 @@ namespace CalendarToSlack
             foreach (var member in members)
             {
                 // startup presence = member.presence
+                // 
+                // This assumes that the custom status of the user at startup is their desired default, 
+                // but if the app starts when the user has a meeting or OOO-related status set, that will be
+                // used as the default. TODO: add manual default status setting: https://github.com/robhruska/CalendarToSlack/issues/17
                 results.Add(new SlackUserInfo
                 {
                     UserId = member.id,
@@ -217,6 +211,7 @@ namespace CalendarToSlack
                     FirstName = member.profile.first_name,
                     LastName = member.profile.last_name,
                     Email = member.profile.email,
+                    DefaultCustomStatus = new CustomStatus { StatusText = member.profile.status_text, StatusEmoji = member.profile.status_emoji }
                 });
             }
             return results;
@@ -244,7 +239,18 @@ namespace CalendarToSlack
         public string LastName { get; set; }
         public string Email { get; set; }
 
-        public string ActualLastName { get { return LastName.Split('|')[0].Trim(); } }
+        public CustomStatus DefaultCustomStatus { get; set; }
+    }
+
+    class CustomStatus
+    {
+        public string StatusText { get; set; }
+        public string StatusEmoji { get; set; }
+
+        public override string ToString()
+        {
+            return !string.IsNullOrWhiteSpace(StatusEmoji) ? $"{StatusText};{StatusEmoji}" : StatusText;
+        }
     }
 
     enum Presence

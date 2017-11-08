@@ -28,6 +28,13 @@ namespace CalendarToSlack
         // This'll take some query load off the exchange server.
         private Dictionary<string, List<CalendarEvent>> _eventsFromLastPoll;
 
+        private static readonly Dictionary<LegacyFreeBusyStatus, string> StatusEmojiMap = new Dictionary<LegacyFreeBusyStatus, string>
+        {
+            { LegacyFreeBusyStatus.OOF, ":palm_tree:" },
+            { LegacyFreeBusyStatus.Busy, ":spiral_calendar_pad:" },
+            { LegacyFreeBusyStatus.NoData, ":spiral_calendar_pad:" }
+        };
+
         public Updater(UserDatabase userdb, MarkedEventDatabase markdb, Calendar calendar, Slack slack)
         {
             _userdb = userdb;
@@ -146,9 +153,9 @@ namespace CalendarToSlack
         {
             // Will return null if there are no events currently happening.
             var busiestEvent = GetBusiestEvent(user, events);
-            var statusMessage = GetUserMessage(busiestEvent, user);
+            var customStatus = GetCustomStatusForCalendarEvent(busiestEvent, user);
 
-            var isDifferentMessage = (statusMessage != user.CurrentCustomMessage);
+            var isDifferentMessage = (customStatus?.StatusText != user.CurrentCustomStatus?.StatusText);
 
             // Only check if we've set a current event previously. Otherwise,
             // on the first check after startup, we don't "correct" the value
@@ -161,7 +168,7 @@ namespace CalendarToSlack
 
             var previousEvent = user.CurrentEvent;
             user.CurrentEvent = busiestEvent;
-            user.CurrentCustomMessage = statusMessage;
+            user.CurrentCustomStatus = customStatus;
 
             if (busiestEvent == null)
             {
@@ -170,41 +177,44 @@ namespace CalendarToSlack
                 var message = "Changed your status to Auto";
                 if (previousEvent != null)
                 {
-                    message = string.Format("{0} after finishing \"{1}\"", message, previousEvent.Subject);
+                    message = $"{message} after finishing \"{previousEvent.Subject}\"";
                 }
                 else if (isDifferentMessage)
                 {
-                    message = string.Format("{0} after your whitelist was updated", message);
+                    message = $"{message} after your whitelist was updated";
                 }
-                MakeSlackApiCalls(user, Presence.Auto, null, message, null);
+
+                MakeSlackApiCalls(user, Presence.Auto, user.SlackUserInfo.DefaultCustomStatus, message, null);
                 return;
             }
 
             // Otherwise, we're transitioning into an event that's coming up (or just got added).
 
             var presenceToSet = GetPresenceForAvailability(busiestEvent.FreeBusyStatus);
-            var withMessage = (string.IsNullOrWhiteSpace(statusMessage) ? "(with no message)" : string.Format("(with message \"| {0}\")", statusMessage));
-            var slackbotMessage = string.Format("Changed your status to {0} {1} for \"{2}\"", presenceToSet, withMessage, busiestEvent.Subject);
+            var withMessage = customStatus == null ? "(with no status)" : $"with status text \"{customStatus.StatusText}\" and emoji \"{customStatus.StatusEmoji}\"";
+            var slackbotMessage = $"Changed your status to {presenceToSet} {withMessage} for \"{busiestEvent.Subject}\"";
+
             string locationDM = null;
-            if (!String.IsNullOrWhiteSpace(busiestEvent.Location) && Regex.IsMatch(busiestEvent.Location, "^http[s]?://"))
+            if (!string.IsNullOrWhiteSpace(busiestEvent.Location) && Regex.IsMatch(busiestEvent.Location, "^http[s]?://"))
             {
                 locationDM = string.Format("Join *{0}* at: <{1}|{1}>", busiestEvent.Subject, busiestEvent.Location);
             }
+
             Log.InfoFormat("{0} is now {1} {2} for \"{3}\" (event status \"{4}\") ", user.Email, presenceToSet, withMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
-            MakeSlackApiCalls(user, presenceToSet, statusMessage, slackbotMessage, locationDM);
+            MakeSlackApiCalls(user, presenceToSet, customStatus, slackbotMessage, locationDM);
         }
 
-        private void MakeSlackApiCalls(RegisteredUser user, Presence presence, string statusMessage, string slackbotDebugMessage, string slackbotLocationLinkMessage)
+        private void MakeSlackApiCalls(RegisteredUser user, Presence presence, CustomStatus customStatus, string slackbotDebugMessage, string slackbotLocationLinkMessage)
         {
             if (user.SendSlackbotMessageOnChange)
             {
                 _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotDebugMessage);
             }
-            if (!String.IsNullOrWhiteSpace(slackbotLocationLinkMessage))
+            if (!string.IsNullOrWhiteSpace(slackbotLocationLinkMessage))
             {
                 _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotLocationLinkMessage);
             }
-            _slack.UpdateProfileWithStatusMessage(user, statusMessage);
+            _slack.UpdateProfileWithStatus(user, customStatus);
             _slack.SetPresence(user.SlackApplicationAuthToken, presence);
         }
 
@@ -218,8 +228,8 @@ namespace CalendarToSlack
             LegacyFreeBusyStatus.Free,
         };
 
-        // Returns null if the user should have no status message.
-        private static string GetUserMessage(CalendarEvent ev, RegisteredUser user)
+        // Returns null if the user's status should not be updated.
+        private static CustomStatus GetCustomStatusForCalendarEvent(CalendarEvent ev, RegisteredUser user)
         {
             if (ev == null)
             {
@@ -228,11 +238,15 @@ namespace CalendarToSlack
 
             // Will be null if no matches.
             var filterMatch = MatchFilter(ev.Subject, user.StatusMessageFilters);
+            if (filterMatch != null && string.IsNullOrWhiteSpace(filterMatch.StatusEmoji) && StatusEmojiMap.ContainsKey(ev.FreeBusyStatus))
+            {
+                filterMatch.StatusEmoji = StatusEmojiMap[ev.FreeBusyStatus];
+            }
 
             switch (ev.FreeBusyStatus)
             {
                 case LegacyFreeBusyStatus.OOF:
-                    return "OOO";
+                    return filterMatch ?? new CustomStatus { StatusText = "OOO", StatusEmoji = ":palm_tree:" };
                 
                     // With the non-away statuses, we'll still update the user's message
                     // but keep their status as Auto. This works for things like "Lunch"
@@ -246,7 +260,7 @@ namespace CalendarToSlack
                 case LegacyFreeBusyStatus.NoData:
                 case LegacyFreeBusyStatus.Busy:
                 default:
-                    return filterMatch ?? "Away";
+                    return filterMatch ?? new CustomStatus { StatusText = "Away", StatusEmoji = ":spiral_calendar_pad:" };
                     // ReSharper restore RedundantCaseLabel
             }
         }
@@ -273,7 +287,7 @@ namespace CalendarToSlack
             return true;
         }
 
-        private static string MatchFilter(string subject, Dictionary<string, string> filters)
+        private static CustomStatus MatchFilter(string subject, Dictionary<string, CustomStatus> filters)
         {
             if (string.IsNullOrWhiteSpace(subject))
             {

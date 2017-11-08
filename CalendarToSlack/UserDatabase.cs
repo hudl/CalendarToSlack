@@ -106,9 +106,9 @@ namespace CalendarToSlack
             return new HashSet<Option>(options);
         }
 
-        private static Dictionary<string, string> ParseStatusMessageFilter(string raw)
+        private static Dictionary<string, CustomStatus> ParseStatusMessageFilter(string raw)
         {
-            var result = new Dictionary<string, string>();
+            var result = new Dictionary<string, CustomStatus>();
             if (string.IsNullOrWhiteSpace(raw))
             {
                 return result;
@@ -117,16 +117,35 @@ namespace CalendarToSlack
             var filters = raw.Split('|');
             foreach (var filter in filters)
             {
-                if (filter.Contains('>'))
+                var customStatus = new CustomStatus
                 {
-                    var split = filter.Split('>');
-                    result[split[0]] = split[1];
-                }
-                else
+                    StatusText = filter,
+                    StatusEmoji = "",
+                };
+                var filterKey = filter;
+
+                // First, check for an emoji and remove it from the filter
+                if (filter.Contains(';'))
                 {
-                    result[filter] = filter;
+                    var split = filter.Split(';');
+
+                    filterKey = split[0];
+                    customStatus.StatusText = split[0];
+                    customStatus.StatusEmoji = split[1];
                 }
+
+                // Second, check for a custom text mapping
+                if (filterKey.Contains('>'))
+                {
+                    var split = filterKey.Split('>');
+
+                    filterKey = split[0];
+                    customStatus.StatusText = split[1];
+                }
+
+                result[filterKey] = customStatus;
             }
+            
             return result;
         }
 
@@ -174,9 +193,9 @@ namespace CalendarToSlack
             File.WriteAllLines(_file, lines);
         }
 
-        private string SerializeMessageFilters(Dictionary<string, string> filters)
+        private string SerializeMessageFilters(Dictionary<string, CustomStatus> filters)
         {
-            return string.Join("|", filters.Select(kvp => (kvp.Key == kvp.Value ? kvp.Key : kvp.Key + ">" + kvp.Value)));
+            return string.Join("|", filters.Select(f => f.Key == f.Value.StatusText ? f.Value.ToString() : $"{f.Key}>{f.Value}"));
         }
 
         public List<RegisteredUser> Users
@@ -282,10 +301,9 @@ namespace CalendarToSlack
             lock (_lock)
             {
                 var dictionary = ParseStatusMessageFilter(token);
-                    //.Where(entry => !user.StatusMessageFilters.Keys.Contains(entry.Key, StringComparer.InvariantCultureIgnoreCase))
-                    //.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
                 Log.DebugFormat("Adding whitelist tokens to user {0}, tokens = {1}", user.Email, token);
+
                 foreach (var item in dictionary)
                 {
                     user.StatusMessageFilters[item.Key] = item.Value;
@@ -315,40 +333,29 @@ namespace CalendarToSlack
                 return;
             }
 
-            var remove = ParseStatusMessageFilter(token).Keys;
+            var remove = ParseStatusMessageFilter(token);
 
             lock (_lock)
             {
                 Log.DebugFormat("Removing whitelist tokens from user {0}, tokens = {1}", user.Email, string.Join("|", remove));
-                //user.StatusMessageFilters = user.StatusMessageFilters
-                    //.Where(entry => !remove.Contains(entry.Key, StringComparer.InvariantCultureIgnoreCase))
-                    //.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
-                foreach (var item in remove)
+                foreach (var item in remove.Keys)
                 {
                     user.StatusMessageFilters.Remove(item);
                 }
                 
                 WriteFile();
 
-                var removedTokenString = GetTokenListForSlackbot(remove.ToDictionary(item => item, item => item));
+                var removedTokenString = GetTokenListForSlackbot(remove);
                 var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
-                var message = string.Format("Removed token(s):\n{0}\nWhitelist:\n{1}", removedTokenString, whitelistTokenString);
+                var message = $"Removed token(s):\n{removedTokenString}\nWhitelist:\n{whitelistTokenString}";
                 _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
             }
         }
 
-        private static string GetTokenListForSlackbot(Dictionary<string, string> filters)
+        private static string GetTokenListForSlackbot(Dictionary<string, CustomStatus> filters)
         {
-            var tokens = filters.Select(kvp =>
-            {
-                if (kvp.Key == kvp.Value)
-                {
-                    return string.Format("`{0}`", kvp.Key);
-                }
-                return string.Format("`{0}>{1}`", kvp.Key, kvp.Value);
-            });
-            return string.Join(" ", tokens);
+            return string.Join(" ", filters.Select(f => f.Key == f.Value.StatusText ? f.Value.ToString() : $"{f.Key}>{f.Value}"));
         }
 
         public void EchoWhitelistToSlackbot(string userId)
@@ -376,7 +383,7 @@ namespace CalendarToSlack
 
         public string SlackApplicationAuthToken { get; set; }
         public string HackyPersonalFullAccessSlackToken { get; set; } // Will be removed.
-        public Dictionary<string, string> StatusMessageFilters { get; set; }
+        public Dictionary<string, CustomStatus> StatusMessageFilters { get; set; }
         public HashSet<Option> Options { get; set; } 
 
         // These fields aren't persisted, but get set/modified during runtime.
@@ -396,7 +403,7 @@ namespace CalendarToSlack
 
         public bool HasSetCurrentEvent { get { return _hasSetCurrentEvent; } }
 
-        public string CurrentCustomMessage { get; set; }
+        public CustomStatus CurrentCustomStatus { get; set; }
 
         public SlackUserInfo SlackUserInfo { get; set; }
 
