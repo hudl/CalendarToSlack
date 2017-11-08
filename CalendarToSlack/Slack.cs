@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
-using System.Web.Helpers;
 using log4net;
 using Newtonsoft.Json;
 
@@ -73,7 +72,7 @@ namespace CalendarToSlack
             // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
             Thread.Sleep(1500);
 
-            var data = Json.Decode(content);
+            var data = (dynamic)JsonConvert.DeserializeObject(content);
             var info = GetUserInfo(authToken, data.user_id);
 
             return info;
@@ -90,7 +89,7 @@ namespace CalendarToSlack
             // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
             Thread.Sleep(1500);
 
-            var data = Json.Decode(content);
+            var data = (dynamic)JsonConvert.DeserializeObject(content);
             return new SlackUserInfo
             {
                 FirstName = data.user.profile.first_name,
