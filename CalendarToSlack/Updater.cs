@@ -4,6 +4,7 @@ using System.Linq;
 using System.Timers;
 using log4net;
 using Microsoft.Exchange.WebServices.Data;
+using System.Text.RegularExpressions;
 
 namespace CalendarToSlack
 {
@@ -182,7 +183,8 @@ namespace CalendarToSlack
                 {
                     message = $"{message} after your whitelist was updated";
                 }
-                MakeSlackApiCalls(user, Presence.Auto, user.SlackUserInfo.DefaultCustomStatus, message);
+
+                MakeSlackApiCalls(user, Presence.Auto, user.SlackUserInfo.DefaultCustomStatus, message, null);
                 return;
             }
 
@@ -192,15 +194,25 @@ namespace CalendarToSlack
             var withMessage = customStatus == null ? "(with no status)" : $"with status text \"{customStatus.StatusText}\" and emoji \"{customStatus.StatusEmoji}\"";
             var slackbotMessage = $"Changed your status to {presenceToSet} {withMessage} for \"{busiestEvent.Subject}\"";
 
+            string locationDM = null;
+            if (!string.IsNullOrWhiteSpace(busiestEvent.Location) && Regex.IsMatch(busiestEvent.Location, "^http[s]?://"))
+            {
+                locationDM = string.Format("Join *{0}* at: <{1}|{1}>", busiestEvent.Subject, busiestEvent.Location);
+            }
+
             Log.InfoFormat("{0} is now {1} {2} for \"{3}\" (event status \"{4}\") ", user.Email, presenceToSet, withMessage, busiestEvent.Subject, busiestEvent.FreeBusyStatus);
-            MakeSlackApiCalls(user, presenceToSet, customStatus, slackbotMessage);
+            MakeSlackApiCalls(user, presenceToSet, customStatus, slackbotMessage, locationDM);
         }
 
-        private void MakeSlackApiCalls(RegisteredUser user, Presence presence, CustomStatus customStatus, string slackbotMessage)
+        private void MakeSlackApiCalls(RegisteredUser user, Presence presence, CustomStatus customStatus, string slackbotDebugMessage, string slackbotLocationLinkMessage)
         {
             if (user.SendSlackbotMessageOnChange)
             {
-                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotMessage);
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotDebugMessage);
+            }
+            if (!string.IsNullOrWhiteSpace(slackbotLocationLinkMessage))
+            {
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotLocationLinkMessage);
             }
             _slack.UpdateProfileWithStatus(user, customStatus);
             _slack.SetPresence(user.SlackApplicationAuthToken, presence);
