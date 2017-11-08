@@ -221,7 +221,7 @@ namespace CalendarToSlack
         {
             if (ev == null)
             {
-                return user.SlackUserInfo.DefaultCustomStatus;
+                return null;
             }
 
             // Will be null if no matches.
