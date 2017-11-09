@@ -70,7 +70,6 @@ namespace CalendarToSlack
                 {
                     Email = fields[0],
                     SlackApplicationAuthToken = fields[1],
-                    HackyPersonalFullAccessSlackToken = fields[2],
                     StatusMessageFilters = filters,
                     Options = options,
                 };
@@ -184,7 +183,7 @@ namespace CalendarToSlack
             {
                 var options = string.Join("|", user.Options.Select(option => option.ToString()));
                 var filters = SerializeMessageFilters(user.StatusMessageFilters);
-                var line = string.Format("{0},{1},{2},{3},{4}", user.Email, user.SlackApplicationAuthToken ?? "", user.HackyPersonalFullAccessSlackToken ?? "", options, filters);
+                var line = string.Format("{0},{1},{2},{3},{4}", user.Email, user.SlackApplicationAuthToken ?? "", "", options, filters);
                 lines.Add(line);
             }
             
@@ -314,7 +313,7 @@ namespace CalendarToSlack
                 var addedTokenString = GetTokenListForSlackbot(dictionary);
                 var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
                 var message = string.Format("Added token(s):\n{0}\nWhitelist:\n{1}", addedTokenString, whitelistTokenString);
-                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, message);
             }
         }
 
@@ -349,7 +348,7 @@ namespace CalendarToSlack
                 var removedTokenString = GetTokenListForSlackbot(remove);
                 var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
                 var message = $"Removed token(s):\n{removedTokenString}\nWhitelist:\n{whitelistTokenString}";
-                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, message);
             }
         }
 
@@ -363,7 +362,7 @@ namespace CalendarToSlack
             var user = FindUserById(userId);
             var tokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
             var message = string.Format("Whitelist:\n{0}", tokenString);
-            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
+            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, message);
         }
 
         private RegisteredUser FindUserById(string userId)
@@ -382,7 +381,6 @@ namespace CalendarToSlack
         public string Email { get; set; }
 
         public string SlackApplicationAuthToken { get; set; }
-        public string HackyPersonalFullAccessSlackToken { get; set; } // Will be removed.
         public Dictionary<string, CustomStatus> StatusMessageFilters { get; set; }
         public HashSet<Option> Options { get; set; } 
 

@@ -208,13 +208,13 @@ namespace CalendarToSlack
         {
             if (user.SendSlackbotMessageOnChange)
             {
-                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotDebugMessage);
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, slackbotDebugMessage);
             }
             if (!string.IsNullOrWhiteSpace(slackbotLocationLinkMessage))
             {
-                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotLocationLinkMessage, false);
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, slackbotLocationLinkMessage, false);
             }
-            _slack.UpdateProfileWithStatus(user, customStatus);
+            _slack.UpdateProfileWithStatus(user.SlackApplicationAuthToken, user.SlackUserInfo, customStatus);
             _slack.SetPresence(user.SlackApplicationAuthToken, presence);
         }
 

@@ -53,9 +53,8 @@ namespace CalendarToSlack
             {
                 Log.ErrorFormat("Unsuccessful response status for users.setPresence: {0}", result.StatusCode);
             }
-
-            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1500);
+            
+            Throttle();
         }
 
 
@@ -69,8 +68,7 @@ namespace CalendarToSlack
             
             var content = result.Content.ReadAsStringAsync().Result;
 
-            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1500);
+            Throttle();
 
             var data = (dynamic)JsonConvert.DeserializeObject(content);
             var info = GetUserInfo(authToken, (string)data.user_id);
@@ -86,8 +84,7 @@ namespace CalendarToSlack
             
             var content = result.Content.ReadAsStringAsync().Result;
 
-            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1500);
+            Throttle();
 
             var data = (dynamic)JsonConvert.DeserializeObject(content);
             return new SlackUserInfo
@@ -100,14 +97,14 @@ namespace CalendarToSlack
             };
         }
 
-        public void PostSlackbotMessage(string authToken, string username, string message, bool unfurlLinks = true)
+        public void PostSlackbotMessage(string authToken, SlackUserInfo user, string message, bool unfurlLinks = true)
         {
-            Log.InfoFormat("Posting message to @{0}'s slackbot: {1}", username, message);
+            Log.InfoFormat("Posting message to @{0}'s slackbot: {1}", user.Username, message);
 
             var options = new Dictionary<string, string>
             {
                 { "token", authToken },
-                { "channel", "@" + username },
+                { "channel", "@" + user.Username },
                 { "as_user", "false" },
                 { "text", message },
                 { "unfurl_links", unfurlLinks ? "true" : "false" },
@@ -122,40 +119,18 @@ namespace CalendarToSlack
             var content = new FormUrlEncodedContent(options);
 
             var result = _http.PostAsync("https://slack.com/api/chat.postMessage", content).Result;
-            LogSlackApiResult("chat.postMessage " + username, result);
+            LogSlackApiResult("chat.postMessage " + user.Username, result);
 
             if (!result.IsSuccessStatusCode)
             {
                 Log.ErrorFormat("Unsuccessful response status for chat.postMessage: {0}", result.StatusCode);
             }
 
-            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1500);
+            Throttle();
         }
 
-        public void UpdateProfileWithStatus(RegisteredUser user, CustomStatus status)
-        {
-            // Slack's support for status/presence (i.e. only auto/away) is limited, and one of
-            // our conventions for broadcasting more precise status is to change our last name
-            // to something like "Rob Hruska | Busy" or "Rob Hruska | OOO til Mon".
-
-            // The users.profile.set API endpoint (which isn't public, but is used by the webapp
-            // version of Slack) requires the `post` scope, but applications can't request/authorize
-            // that scope because it's deprecated.
-            // 
-            // The "full access" token (from the Web API test page) does support post, but I don't
-            // want to manage those within the app here. I've temporarily allowed it for myself,
-            // but it'll be removed in the future.
-            //
-            // The current plan is to wait for Slack to either 1) expose a formal users.profile.set
-            // API, or 2) introduce custom away status messages.
-
-            if (string.IsNullOrWhiteSpace(user.HackyPersonalFullAccessSlackToken))
-            {
-                // Can't update without the full token.
-                return;
-            }
-
+        public void UpdateProfileWithStatus(string authToken, SlackUserInfo user, CustomStatus status)
+        {            
             if (status == null)
             {
                 return;
@@ -167,20 +142,19 @@ namespace CalendarToSlack
             
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
+                { "token", authToken },
                 { "profile", profile },
-                { "token", user.HackyPersonalFullAccessSlackToken } // TODO switch to auth token. see comments above in this method
             });
             
             var result = _http.PostAsync("https://slack.com/api/users.profile.set", content).Result;
-            LogSlackApiResult("users.profile.set " + user.SlackUserInfo.Username, result);
+            LogSlackApiResult("users.profile.set " + user.Username, result);
 
             if (!result.IsSuccessStatusCode)
             {
                 Log.ErrorFormat("Unsuccessful response status for users.profile.set: {0}", result.StatusCode);
             }
 
-            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1500);
+            Throttle();
         }
 
         public List<SlackUserInfo> ListUsers(string authToken)
@@ -191,8 +165,7 @@ namespace CalendarToSlack
 
             var content = result.Content.ReadAsStringAsync().Result;
 
-            // TODO temporary hack to avoid Slack's rate limit. a longer-term solution is being investigated.
-            Thread.Sleep(1500);
+            Throttle();
 
             var results = new List<SlackUserInfo>();
             
@@ -228,6 +201,14 @@ namespace CalendarToSlack
             {
                 Log.ErrorFormat("Error logging Slack API result: " + e.Message);
             }
+        }
+
+        private void Throttle()
+        {
+            // To avoid Slack's rate limit. This is a carryover from when this app used a different API; it may
+            // not be needed anymore. It used to be 1500. I dropped it to 100 just to keep a bit of a throttle
+            // in place.
+            Thread.Sleep(100);
         }
     }
 
