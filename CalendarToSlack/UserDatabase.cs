@@ -70,7 +70,6 @@ namespace CalendarToSlack
                 {
                     Email = fields[0],
                     SlackApplicationAuthToken = fields[1],
-                    HackyPersonalFullAccessSlackToken = fields[2],
                     StatusMessageFilters = filters,
                     Options = options,
                 };
@@ -184,7 +183,7 @@ namespace CalendarToSlack
             {
                 var options = string.Join("|", user.Options.Select(option => option.ToString()));
                 var filters = SerializeMessageFilters(user.StatusMessageFilters);
-                var line = string.Format("{0},{1},{2},{3},{4}", user.Email, user.SlackApplicationAuthToken ?? "", user.HackyPersonalFullAccessSlackToken ?? "", options, filters);
+                var line = string.Format("{0},{1},{2},{3},{4}", user.Email, user.SlackApplicationAuthToken ?? "", "", options, filters);
                 lines.Add(line);
             }
             
@@ -382,7 +381,6 @@ namespace CalendarToSlack
         public string Email { get; set; }
 
         public string SlackApplicationAuthToken { get; set; }
-        public string HackyPersonalFullAccessSlackToken { get; set; } // Will be removed.
         public Dictionary<string, CustomStatus> StatusMessageFilters { get; set; }
         public HashSet<Option> Options { get; set; } 
 
