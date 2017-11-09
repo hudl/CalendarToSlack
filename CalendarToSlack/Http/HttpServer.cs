@@ -128,7 +128,7 @@ namespace CalendarToSlack.Http
                             return;
                         }
 
-                        var token = json.access_token;
+                        var token = (string)json.access_token;
                         var user = _slack.GetUserInfo(token);
 
                         if (_database.AddUser(user, token))
