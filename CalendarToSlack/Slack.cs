@@ -97,14 +97,14 @@ namespace CalendarToSlack
             };
         }
 
-        public void PostSlackbotMessage(string authToken, string username, string message, bool unfurlLinks = true)
+        public void PostSlackbotMessage(string authToken, SlackUserInfo user, string message, bool unfurlLinks = true)
         {
-            Log.InfoFormat("Posting message to @{0}'s slackbot: {1}", username, message);
+            Log.InfoFormat("Posting message to @{0}'s slackbot: {1}", user.Username, message);
 
             var options = new Dictionary<string, string>
             {
                 { "token", authToken },
-                { "channel", "@" + username },
+                { "channel", "@" + user.Username },
                 { "as_user", "false" },
                 { "text", message },
                 { "unfurl_links", unfurlLinks ? "true" : "false" },
@@ -119,7 +119,7 @@ namespace CalendarToSlack
             var content = new FormUrlEncodedContent(options);
 
             var result = _http.PostAsync("https://slack.com/api/chat.postMessage", content).Result;
-            LogSlackApiResult("chat.postMessage " + username, result);
+            LogSlackApiResult("chat.postMessage " + user.Username, result);
 
             if (!result.IsSuccessStatusCode)
             {
@@ -129,7 +129,7 @@ namespace CalendarToSlack
             Throttle();
         }
 
-        public void UpdateProfileWithStatus(string authToken, RegisteredUser user, CustomStatus status)
+        public void UpdateProfileWithStatus(string authToken, SlackUserInfo user, CustomStatus status)
         {            
             if (status == null)
             {
@@ -147,7 +147,7 @@ namespace CalendarToSlack
             });
             
             var result = _http.PostAsync("https://slack.com/api/users.profile.set", content).Result;
-            LogSlackApiResult("users.profile.set " + user.SlackUserInfo.Username, result);
+            LogSlackApiResult("users.profile.set " + user.Username, result);
 
             if (!result.IsSuccessStatusCode)
             {

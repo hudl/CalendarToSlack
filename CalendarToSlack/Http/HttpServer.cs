@@ -129,14 +129,14 @@ namespace CalendarToSlack.Http
                         }
 
                         var token = (string)json.access_token;
-                        var user = _slack.GetUserInfo(token);
+                        var slackUser = _slack.GetUserInfo(token);
 
-                        if (_database.AddUser(user, token))
+                        if (_database.AddUser(slackUser, token))
                         {
-                            _slack.PostSlackbotMessage(token, user.Username, "Hey there! I'll be modifying your Slack free/away status when events come up on your calendar. How neat is that?\nSee https://github.com/robhruska/CalendarToSlack/wiki for all the cool things I can do.");
+                            _slack.PostSlackbotMessage(token, slackUser, "Hey there! I'll be modifying your Slack free/away status when events come up on your calendar. How neat is that?\nSee https://github.com/robhruska/CalendarToSlack/wiki for all the cool things I can do.");
                         }
 
-                        SendHtml(context.Response, 200, "Added " + user.Email + ". Check out <a href=\"https://github.com/robhruska/CalendarToSlack/wiki\">the wiki</a>.");
+                        SendHtml(context.Response, 200, "Added " + slackUser.Email + ". Check out <a href=\"https://github.com/robhruska/CalendarToSlack/wiki\">the wiki</a>.");
                     }
                     else
                     {

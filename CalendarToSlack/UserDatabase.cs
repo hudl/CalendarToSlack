@@ -313,7 +313,7 @@ namespace CalendarToSlack
                 var addedTokenString = GetTokenListForSlackbot(dictionary);
                 var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
                 var message = string.Format("Added token(s):\n{0}\nWhitelist:\n{1}", addedTokenString, whitelistTokenString);
-                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, message);
             }
         }
 
@@ -348,7 +348,7 @@ namespace CalendarToSlack
                 var removedTokenString = GetTokenListForSlackbot(remove);
                 var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
                 var message = $"Removed token(s):\n{removedTokenString}\nWhitelist:\n{whitelistTokenString}";
-                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, message);
             }
         }
 
@@ -362,7 +362,7 @@ namespace CalendarToSlack
             var user = FindUserById(userId);
             var tokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
             var message = string.Format("Whitelist:\n{0}", tokenString);
-            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, message);
+            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, message);
         }
 
         private RegisteredUser FindUserById(string userId)
