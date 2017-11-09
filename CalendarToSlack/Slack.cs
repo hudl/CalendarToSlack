@@ -100,7 +100,7 @@ namespace CalendarToSlack
             };
         }
 
-        public void PostSlackbotMessage(string authToken, string username, string message)
+        public void PostSlackbotMessage(string authToken, string username, string message, bool unfurlLinks = true)
         {
             Log.InfoFormat("Posting message to @{0}'s slackbot: {1}", username, message);
 
@@ -110,6 +110,7 @@ namespace CalendarToSlack
                 { "channel", "@" + username },
                 { "as_user", "false" },
                 { "text", message },
+                { "unfurl_links", unfurlLinks ? "true" : "false" },
                 { "username", "Calendar To Slack" },
             };
 

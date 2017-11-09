@@ -212,7 +212,7 @@ namespace CalendarToSlack
             }
             if (!string.IsNullOrWhiteSpace(slackbotLocationLinkMessage))
             {
-                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotLocationLinkMessage);
+                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo.Username, slackbotLocationLinkMessage, false);
             }
             _slack.UpdateProfileWithStatus(user, customStatus);
             _slack.SetPresence(user.SlackApplicationAuthToken, presence);
