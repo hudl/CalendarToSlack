@@ -73,7 +73,7 @@ namespace CalendarToSlack
             Thread.Sleep(1500);
 
             var data = (dynamic)JsonConvert.DeserializeObject(content);
-            var info = GetUserInfo(authToken, data.user_id);
+            var info = GetUserInfo(authToken, (string)data.user_id);
 
             return info;
         }
@@ -92,11 +92,11 @@ namespace CalendarToSlack
             var data = (dynamic)JsonConvert.DeserializeObject(content);
             return new SlackUserInfo
             {
-                FirstName = data.user.profile.first_name,
-                LastName = data.user.profile.last_name,
-                Username = data.user.name,
-                Email = data.user.profile.email,
-                UserId = data.user.id,
+                FirstName = (string) data.user.profile.first_name,
+                LastName = (string) data.user.profile.last_name,
+                Username = (string) data.user.name,
+                Email = (string) data.user.profile.email,
+                UserId = (string) data.user.id,
             };
         }
 

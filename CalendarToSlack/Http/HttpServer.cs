@@ -122,13 +122,13 @@ namespace CalendarToSlack.Http
                         var responseContent = response.Content.ReadAsStringAsync().Result;
                         var json = (dynamic)JsonConvert.DeserializeObject(responseContent);
 
-                        if (!json.ok)
+                        if (!(bool)json.ok)
                         {
                             SendHtml(context.Response, 500, "Non-ok response from OAuth access request");
                             return;
                         }
 
-                        var token = json.access_token;
+                        var token = (string)json.access_token;
                         var user = _slack.GetUserInfo(token);
 
                         if (_database.AddUser(user, token))
