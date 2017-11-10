@@ -360,9 +360,19 @@ namespace CalendarToSlack
         public void EchoWhitelistToSlackbot(string userId)
         {
             var user = FindUserById(userId);
-            var tokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
-            var message = string.Format("Whitelist:\n{0}", tokenString);
-            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, message);
+
+            // TODO implement
+            var text = "*Your default status is: :whiskeyrob: `Not yet implemented!`*\n";
+            text += "_This is used when you don't have an active calendar event. To change your default status, use_ `/c2s-default-status`\n\n";
+            text += "*Your whitelisted &amp; mapped statuses:*\n_If a calendar event name matches these, they'll be used as your Slack status. Matching events can be transformed to different Slack statuses (shown with `>`). If unmatched, a generic Slack status (e.g. \"Away\" or \"OOO\") will be used. Use `/c2s-whitelist` to manage this list._\n\n";
+            foreach (var filter in user.StatusMessageFilters.OrderBy(filter => filter.Key))
+            {
+                var emoji = (string.IsNullOrWhiteSpace(filter.Value.StatusEmoji) ? ":transparent:" : filter.Value.StatusEmoji);
+                var mapping = (filter.Key == filter.Value.StatusText ? "" : $" uses status `{filter.Value.StatusText}`");
+                text += $"{emoji} `{filter.Key}`{mapping}\n";
+            }
+            
+            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, text);
         }
 
         private RegisteredUser FindUserById(string userId)
