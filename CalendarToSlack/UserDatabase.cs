@@ -286,14 +286,14 @@ namespace CalendarToSlack
         {
             if (string.IsNullOrWhiteSpace(token))
             {
-                Log.WarnFormat("No token provided by {0} to add to whitelist", userId);
+                Log.Warn($"No token provided by {userId} to add to whitelist");
                 return;
             }
 
             var user = FindUserById(userId);
             if (user == null)
             {
-                Log.WarnFormat("Cannot find user id {0} to add to their whitelist", userId);
+                Log.Warn($"Cannot find user id {userId} to add to their whitelist");
                 return;
             }
 
@@ -309,11 +309,9 @@ namespace CalendarToSlack
                 }
 
                 WriteFile();
-
-                var addedTokenString = GetTokenListForSlackbot(dictionary);
-                var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
-                var message = string.Format("Added token(s):\n{0}\nWhitelist:\n{1}", addedTokenString, whitelistTokenString);
-                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, message);
+                
+                var message = $"Added `{token}`";
+                EchoWhitelistToSlackbot(userId, false, message);
             }
         }
 
@@ -344,25 +342,66 @@ namespace CalendarToSlack
                 }
                 
                 WriteFile();
-
-                var removedTokenString = GetTokenListForSlackbot(remove);
-                var whitelistTokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
-                var message = $"Removed token(s):\n{removedTokenString}\nWhitelist:\n{whitelistTokenString}";
-                _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, message);
+                
+                var message = $"Removed `{token}`";
+                EchoWhitelistToSlackbot(userId, false, message);
             }
         }
 
-        private static string GetTokenListForSlackbot(Dictionary<string, CustomStatus> filters)
-        {
-            return string.Join(" ", filters.Select(f => f.Key == f.Value.StatusText ? f.Value.ToString() : $"{f.Key}>{f.Value}"));
-        }
-
-        public void EchoWhitelistToSlackbot(string userId)
+        public void EchoWhitelistSyntaxToSlackbot(string userId)
         {
             var user = FindUserById(userId);
-            var tokenString = GetTokenListForSlackbot(user.StatusMessageFilters);
-            var message = string.Format("Whitelist:\n{0}", tokenString);
-            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, message);
+
+            var text = "*Usage:*\n";
+            text += "`/c2s-whitelist` - Show current whitelist.\n";
+            text += "`/c2s-whitelist help` - Show this message.\n";
+            text += "`/c2s-whitelist set \"Working From Home\"` - Show status as `Working From Home` when event matches \"Working From Home\".\n";
+            text += "`/c2s-whitelist set \"Working From Home\" :home:` - Show status as `Working From Home :home:` when event matches \"Working From Home\".\n";
+            text += "`/c2s-whitelist set \"Working From Home\" WFH` - Show status as `WFH` when event matches \"Working From Home\".\n";
+            text += "`/c2s-whitelist set \"Working From Home\" WFH :home:` - Show status as `WFH :home:` when event matches \"Working From Home\".\n";
+            text += "`/c2s-whitelist remove \"Working From Home\"` - Remove \"Working From Home\" entry.\n";
+            text += "\n";
+            text += "More detail at https://github.com/robhruska/CalendarToSlack/wiki";
+
+            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, text);
+        }
+
+        public void EchoWhitelistToSlackbot(string userId, bool withCommentary = true, string flashMessage = null)
+        {
+            var user = FindUserById(userId);
+
+            var text = "";
+            text += "--------------------\n";
+
+            if (!string.IsNullOrWhiteSpace(flashMessage))
+            {
+                text += $":white_check_mark: *Ok!* {flashMessage}\n";
+                text += "--------------------\n\n";
+            }
+            
+            // TODO implement defaults
+            text += "*Your default status is: :whiskeyrob: `Not yet implemented!`*\n";
+            if (withCommentary)
+            {
+                text += "_This is used when you don't have an active calendar event. To change your default status, use_ `/c2s-default-status`\n";
+            }
+            text += "\n";
+
+            text += "*Your whitelisted &amp; mapped statuses:*\n";
+            if (withCommentary)
+            {
+                text += "_If a calendar event name matches these, they'll be used as your Slack status. Matching events can be transformed to different Slack statuses (shown with `>`). If unmatched, a generic Slack status (e.g. \"Away\" or \"OOO\") will be used. Use `/c2s-whitelist` to manage this list._\n";
+            }
+            text += "\n";
+            
+            foreach (var filter in user.StatusMessageFilters.OrderBy(filter => filter.Key))
+            {
+                var emoji = (string.IsNullOrWhiteSpace(filter.Value.StatusEmoji) ? ":transparent:" : filter.Value.StatusEmoji);
+                var mapping = (filter.Key == filter.Value.StatusText ? "" : $" uses status `{filter.Value.StatusText}`");
+                text += $"{emoji} `{filter.Key}`{mapping}\n";
+            }
+            
+            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, text);
         }
 
         private RegisteredUser FindUserById(string userId)

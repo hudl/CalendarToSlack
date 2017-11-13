@@ -1,13 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
-using Amazon;
+﻿using Amazon;
 using Amazon.SQS;
 using Amazon.SQS.Model;
 using log4net;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CalendarToSlack
 {
@@ -165,46 +166,119 @@ namespace CalendarToSlack
 
                 return;
             }
+            
+            // TODO case sensitivity
+            // TODO manage default status
 
             if (command == "whitelist")
             {
                 var text = WebUtility.UrlDecode(fields["text"]);
-                var options = text.Split();
-                if (options.Length == 0 || (options.Length == 1 && (string.IsNullOrWhiteSpace(options[0]) || string.Equals(options[0], "show", StringComparison.OrdinalIgnoreCase))))
+                var options = Regex.Matches(text.Trim(), @"[\""].+?[\""]|[^ ]+")
+                    .Cast<Match>()
+                    .Select(m => m.Value.Replace("\"", ""))
+                    .ToList();
+                
+                // /c2s-whitelist
+                if (options.Count == 0)
                 {
                     _userdb.EchoWhitelistToSlackbot(userId);
                     return;
                 }
 
-                if (options.Length >= 2)
+                var subcommand = options[0];
+                var args = (options.Count > 1 ? options.Skip(1).ToList() : new List<string>());
+                
+                Log.DebugFormat($"subcommand = {subcommand}, args = {string.Join("|", args)}");
+
+                // /c2s-whitelist help
+                if (subcommand.Equals("help", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (string.Equals(options[0], "add", StringComparison.OrdinalIgnoreCase))
+                    _userdb.EchoWhitelistSyntaxToSlackbot(userId);
+                    return;
+                }
+
+                // /c2s-whitelist set "Working From Home"
+                // /c2s-whitelist set "Working From Home" :home:
+                // /c2s-whitelist set "Working From Home" "WFH"
+                // /c2s-whitelist set "Working From Home" "WFH" :home:
+                // /c2s-whitelist set Plan
+                // /c2s-whitelist set Plan :calendar:
+                // /c2s-whitelist set Plan Meeting
+                // /c2s-whitelist set Plan Meeting :calendar:
+                if (subcommand.Equals("set", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (args.Count == 0) return;
+
+                    if (args.Any(ContainsIllegalCharacters)) return;
+
+                    var token = args[0];
+                    
+                    if (args.Count == 2)
                     {
-                        var combined = new HashSet<string>();
-                        for (var i = 1; i < options.Length; i++)
+                        if (IsEmoji(args[1]))
                         {
-                            combined.Add(options[i]);
+                            token += $";{args[1]}";
                         }
-                        _userdb.AddToWhitelist(userId, string.Join("|", combined));
-                        return;
+                        else
+                        {
+                            token += $">{args[1]}";
+                        }
+                    }
+                    else if (args.Count >= 3)
+                    {
+                        token += $">{args[1]};{args[2]}";
                     }
 
-                    if (string.Equals(options[0], "remove", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var combined = new HashSet<string>();
-                        for (var i = 1; i < options.Length; i++)
-                        {
-                            combined.Add(options[i]);
-                        }
-                        _userdb.RemoveFromWhitelist(userId, string.Join("|", combined));
-                        return;
-                    }
+                    _userdb.AddToWhitelist(userId, token);
+                    return;
                 }
-                
-                return;
+
+                // /c2s-whitelist remove "Working From Home"
+                // /c2s-whitelist remove NSS
+                if (subcommand.Equals("remove", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (args.Count == 0) return;
+
+                    if (args.Any(ContainsIllegalCharacters)) return;
+
+                    var token = args[0];
+                    _userdb.RemoveFromWhitelist(userId, token);
+                    return;
+                }
+
+                // /c2s-whitelist set-default Marvel
+                // /c2s-whitelist set-default Marvel :marvel:
+                // /c2s-whitelist set-default :marvel:
+                // /c2s-whitelist set-default "Project Marvel" :marvel:
+                if (subcommand.Equals("set-default", StringComparison.OrdinalIgnoreCase))
+                {
+                    // TODO implement
+                    return;
+                }
+
+                // /c2s-whitelist remove-default
+                if (subcommand.Equals("remove-default", StringComparison.OrdinalIgnoreCase))
+                {
+                    // TODO implement
+                    return;
+                }
             }
 
             Log.ErrorFormat("Unrecognized slash command {0} from user {1}", command, userId);
+        }
+
+        private static bool IsEmoji(string arg)
+        {
+            if (string.IsNullOrWhiteSpace(arg)) return false;
+            
+            return arg.StartsWith(":") && arg.EndsWith(":");
+        }
+
+        private static bool ContainsIllegalCharacters(string arg)
+        {
+            if (string.IsNullOrWhiteSpace(arg)) return false;
+
+            return arg.Contains(";") || arg.Contains(">") || arg.Contains("|");
         }
     }
 }
