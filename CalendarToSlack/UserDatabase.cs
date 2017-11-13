@@ -348,6 +348,24 @@ namespace CalendarToSlack
             }
         }
 
+        public void EchoWhitelistSyntaxToSlackbot(string userId)
+        {
+            var user = FindUserById(userId);
+
+            var text = "*Usage:*\n";
+            text += "`/c2s-whitelist` - Show current whitelist.\n";
+            text += "`/c2s-whitelist help` - Show this message.\n";
+            text += "`/c2s-whitelist set \"Working From Home\"` - Show status as `Working From Home` when event matches \"Working From Home\".\n";
+            text += "`/c2s-whitelist set \"Working From Home\" :home:` - Show status as `Working From Home :home:` when event matches \"Working From Home\".\n";
+            text += "`/c2s-whitelist set \"Working From Home\" WFH` - Show status as `WFH` when event matches \"Working From Home\".\n";
+            text += "`/c2s-whitelist set \"Working From Home\" WFH :home:` - Show status as `WFH :home:` when event matches \"Working From Home\".\n";
+            text += "`/c2s-whitelist remove \"Working From Home\"` - Remove \"Working From Home\" entry.\n";
+            text += "\n";
+            text += "More detail at https://github.com/robhruska/CalendarToSlack/wiki";
+
+            _slack.PostSlackbotMessage(user.SlackApplicationAuthToken, user.SlackUserInfo, text);
+        }
+
         public void EchoWhitelistToSlackbot(string userId, bool withCommentary = true, string flashMessage = null)
         {
             var user = FindUserById(userId);

@@ -178,6 +178,7 @@ namespace CalendarToSlack
                     .Select(m => m.Value.Replace("\"", ""))
                     .ToList();
                 
+                // /c2s-whitelist
                 if (options.Count == 0)
                 {
                     _userdb.EchoWhitelistToSlackbot(userId);
@@ -188,6 +189,13 @@ namespace CalendarToSlack
                 var args = (options.Count > 1 ? options.Skip(1).ToList() : new List<string>());
                 
                 Log.DebugFormat($"subcommand = {subcommand}, args = {string.Join("|", args)}");
+
+                // /c2s-whitelist help
+                if (subcommand.Equals("help", StringComparison.OrdinalIgnoreCase))
+                {
+                    _userdb.EchoWhitelistSyntaxToSlackbot(userId);
+                    return;
+                }
 
                 // /c2s-whitelist set "Working From Home"
                 // /c2s-whitelist set "Working From Home" :home:
@@ -227,7 +235,7 @@ namespace CalendarToSlack
 
                 // /c2s-whitelist remove "Working From Home"
                 // /c2s-whitelist remove NSS
-                else if (subcommand.Equals("remove", StringComparison.OrdinalIgnoreCase))
+                if (subcommand.Equals("remove", StringComparison.OrdinalIgnoreCase))
                 {
                     if (args.Count == 0) return;
 
@@ -242,14 +250,14 @@ namespace CalendarToSlack
                 // /c2s-whitelist set-default Marvel :marvel:
                 // /c2s-whitelist set-default :marvel:
                 // /c2s-whitelist set-default "Project Marvel" :marvel:
-                else if (subcommand.Equals("set-default", StringComparison.OrdinalIgnoreCase))
+                if (subcommand.Equals("set-default", StringComparison.OrdinalIgnoreCase))
                 {
                     // TODO implement
                     return;
                 }
 
                 // /c2s-whitelist remove-default
-                else if (subcommand.Equals("remove-default", StringComparison.OrdinalIgnoreCase))
+                if (subcommand.Equals("remove-default", StringComparison.OrdinalIgnoreCase))
                 {
                     // TODO implement
                     return;
