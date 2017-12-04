@@ -173,20 +173,30 @@ namespace CalendarToSlack
             var members = data.members;
             foreach (var member in members)
             {
-                // startup presence = member.presence
-                // 
-                // This assumes that the custom status of the user at startup is their desired default, 
-                // but if the app starts when the user has a meeting or OOO-related status set, that will be
-                // used as the default. TODO: add manual default status setting: https://github.com/robhruska/CalendarToSlack/issues/17
-                results.Add(new SlackUserInfo
+                var slackUserInfo = new SlackUserInfo
                 {
                     UserId = member.id,
                     Username = member.name,
                     FirstName = member.profile.first_name,
                     LastName = member.profile.last_name,
-                    Email = member.profile.email,
-                    DefaultCustomStatus = new CustomStatus { StatusText = member.profile.status_text, StatusEmoji = member.profile.status_emoji }
-                });
+                    Email = member.profile.email
+                };
+
+                // startup presence = member.presence
+                // 
+                // This assumes that the custom status of the user at startup is their desired default, 
+                // but if the app starts when the user has a meeting or OOO-related status set, that will be
+                // used as the default. TODO: add manual default status setting: https://github.com/robhruska/CalendarToSlack/issues/17
+                if (member.profile.status_emoji != ":spiral_calendar_pad:")
+                {
+                    slackUserInfo.DefaultCustomStatus = new CustomStatus
+                    {
+                        StatusText = member.profile.status_text,
+                        StatusEmoji = member.profile.status_emoji
+                    };
+                }
+
+                results.Add(slackUserInfo);
             }
             return results;
         }
