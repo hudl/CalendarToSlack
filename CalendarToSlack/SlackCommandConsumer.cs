@@ -207,29 +207,9 @@ namespace CalendarToSlack
                 // /c2s-whitelist set Plan Meeting :calendar:
                 if (subcommand.Equals("set", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (args.Count == 0) return;
+                    if (args.Count == 0 || args.Any(ContainsIllegalCharacters)) return;
 
-                    if (args.Any(ContainsIllegalCharacters)) return;
-
-                    var token = args[0];
-                    
-                    if (args.Count == 2)
-                    {
-                        if (IsEmoji(args[1]))
-                        {
-                            token += $";{args[1]}";
-                        }
-                        else
-                        {
-                            token += $">{args[1]}";
-                        }
-                    }
-                    else if (args.Count >= 3)
-                    {
-                        token += $">{args[1]};{args[2]}";
-                    }
-
-                    _userdb.AddToWhitelist(userId, token);
+                    _userdb.AddToWhitelist(userId, TokenizeArgs(args[0], args.GetRange(1, 2)));
                     return;
                 }
 
@@ -237,9 +217,7 @@ namespace CalendarToSlack
                 // /c2s-whitelist remove NSS
                 if (subcommand.Equals("remove", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (args.Count == 0) return;
-
-                    if (args.Any(ContainsIllegalCharacters)) return;
+                    if (args.Count == 0 || args.Any(ContainsIllegalCharacters)) return;
 
                     var token = args[0];
                     _userdb.RemoveFromWhitelist(userId, token);
@@ -252,19 +230,41 @@ namespace CalendarToSlack
                 // /c2s-whitelist set-default "Project Marvel" :marvel:
                 if (subcommand.Equals("set-default", StringComparison.OrdinalIgnoreCase))
                 {
-                    // TODO implement
+                    if (args.Count == 0 || args.Any(ContainsIllegalCharacters)) return;
+
+                    _userdb.AddToWhitelist(userId, TokenizeArgs(StatusConstants.DefaultStatus, args));
                     return;
                 }
 
                 // /c2s-whitelist remove-default
                 if (subcommand.Equals("remove-default", StringComparison.OrdinalIgnoreCase))
                 {
-                    // TODO implement
+                    _userdb.RemoveFromWhitelist(userId, StatusConstants.DefaultStatus);
                     return;
                 }
             }
 
             Log.ErrorFormat("Unrecognized slash command {0} from user {1}", command, userId);
+        }
+
+        private static string TokenizeArgs(string token, List<string> args)
+        {
+            if (args.Count == 1)
+            {
+                if (IsEmoji(args[0]))
+                {
+                    token += $";{args[0]}";
+                }
+                else
+                {
+                    token += $">{args[0]}";
+                }
+            }
+            else if (args.Count > 1)
+            {
+                token += $">{args[0]};{args[1]}";
+            }
+            return token;
         }
 
         private static bool IsEmoji(string arg)
@@ -278,7 +278,11 @@ namespace CalendarToSlack
         {
             if (string.IsNullOrWhiteSpace(arg)) return false;
 
-            return arg.Contains(";") || arg.Contains(">") || arg.Contains("|");
+            return arg.Contains(";") 
+                || arg.Contains(">") 
+                || arg.Contains("|") 
+                || arg.Contains("[") 
+                || arg.Contains("]");
         }
     }
 }
