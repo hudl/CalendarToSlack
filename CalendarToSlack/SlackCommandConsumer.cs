@@ -209,7 +209,7 @@ namespace CalendarToSlack
                 {
                     if (args.Count == 0 || args.Any(ContainsIllegalCharacters)) return;
 
-                    _userdb.AddToWhitelist(userId, TokenizeArgs(args[0], args.GetRange(1, 2)));
+                    _userdb.AddToWhitelist(userId, TokenizeArgs(args[0], args.Skip(1).ToList()));
                     return;
                 }
 
@@ -219,8 +219,7 @@ namespace CalendarToSlack
                 {
                     if (args.Count == 0 || args.Any(ContainsIllegalCharacters)) return;
 
-                    var token = args[0];
-                    _userdb.RemoveFromWhitelist(userId, token);
+                    _userdb.RemoveFromWhitelist(userId, args[0]);
                     return;
                 }
 
@@ -249,6 +248,8 @@ namespace CalendarToSlack
 
         private static string TokenizeArgs(string token, List<string> args)
         {
+            if (!args.Any()) return token;
+
             if (args.Count == 1)
             {
                 if (IsEmoji(args[0]))
@@ -264,6 +265,7 @@ namespace CalendarToSlack
             {
                 token += $">{args[0]};{args[1]}";
             }
+
             return token;
         }
 
