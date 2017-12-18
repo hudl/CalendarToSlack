@@ -184,7 +184,7 @@ namespace CalendarToSlack
                     message = $"{message} after your whitelist was updated";
                 }
 
-                MakeSlackApiCalls(user, Presence.Auto, user.SlackUserInfo.DefaultCustomStatus, message, null);
+                MakeSlackApiCalls(user, Presence.Auto, user.DefaultCustomStatus, message, null);
                 return;
             }
 

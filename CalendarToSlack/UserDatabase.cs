@@ -421,7 +421,11 @@ namespace CalendarToSlack
 
         public string SlackApplicationAuthToken { get; set; }
         public Dictionary<string, CustomStatus> StatusMessageFilters { get; set; }
-        public HashSet<Option> Options { get; set; } 
+        public HashSet<Option> Options { get; set; }
+
+        public CustomStatus DefaultCustomStatus => StatusMessageFilters.ContainsKey(StatusConstants.DefaultStatus)
+            ? StatusMessageFilters[StatusConstants.DefaultStatus]
+            : new CustomStatus {StatusText = "", StatusEmoji = ""};
 
         // These fields aren't persisted, but get set/modified during runtime.
 

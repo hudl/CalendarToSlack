@@ -136,9 +136,13 @@ namespace CalendarToSlack
                 return;
             }
 
-            var profile = $"{{\"status_text\":\"{status.StatusText}\",\"status_emoji\":\"{status.StatusEmoji}\"}}";
+            // If no text is specified in a user's default status in the DB, it will default to [default] -- so change
+            // to an empty string for Slack
+            var statusText = status.StatusText != StatusConstants.DefaultStatus ? status.StatusText : "";
 
-            Log.Info($"Changed profile status text to {status.StatusText} and emoji to {status.StatusEmoji}");
+            var profile = $"{{\"status_text\":\"{statusText}\",\"status_emoji\":\"{status.StatusEmoji}\"}}";
+
+            Log.Info($"Changed profile status text to {statusText} and emoji to {status.StatusEmoji}");
             
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
@@ -182,20 +186,6 @@ namespace CalendarToSlack
                     Email = member.profile.email
                 };
 
-                // startup presence = member.presence
-                // 
-                // This assumes that the custom status of the user at startup is their desired default, 
-                // but if the app starts when the user has a meeting or OOO-related status set, that will be
-                // used as the default. TODO: add manual default status setting: https://github.com/robhruska/CalendarToSlack/issues/17
-                if (member.profile.status_emoji != ":spiral_calendar_pad:")
-                {
-                    slackUserInfo.DefaultCustomStatus = new CustomStatus
-                    {
-                        StatusText = member.profile.status_text,
-                        StatusEmoji = member.profile.status_emoji
-                    };
-                }
-
                 results.Add(slackUserInfo);
             }
             return results;
@@ -230,8 +220,6 @@ namespace CalendarToSlack
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string Email { get; set; }
-
-        public CustomStatus DefaultCustomStatus { get; set; }
     }
 
     class CustomStatus
