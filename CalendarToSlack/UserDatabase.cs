@@ -359,7 +359,10 @@ namespace CalendarToSlack
             text += "`/c2s-whitelist set \"Working From Home\" :home:` - Show status as `Working From Home :home:` when event matches \"Working From Home\".\n";
             text += "`/c2s-whitelist set \"Working From Home\" WFH` - Show status as `WFH` when event matches \"Working From Home\".\n";
             text += "`/c2s-whitelist set \"Working From Home\" WFH :home:` - Show status as `WFH :home:` when event matches \"Working From Home\".\n";
+            text +=
+                "`/c2s-whitelist set-default \"SYD Lounge\" :hq:` - Show status as `SYD Lounge :hq:` when there is no active event (can provide text, emoji, or both).\n";
             text += "`/c2s-whitelist remove \"Working From Home\"` - Remove \"Working From Home\" entry.\n";
+            text += "`/c2s-whitelist remove-default` - Remove default entry.\n";
             text += "\n";
             text += "More detail at https://github.com/robhruska/CalendarToSlack/wiki";
 
@@ -379,8 +382,25 @@ namespace CalendarToSlack
                 text += "--------------------\n\n";
             }
             
-            // TODO implement defaults
-            text += "*Your default status is: :whiskeyrob: `Not yet implemented!`*\n";
+            var defaultStatus = user.StatusMessageFilters.ContainsKey(StatusConstants.DefaultStatus)
+                ? user.StatusMessageFilters[StatusConstants.DefaultStatus]
+                : null;
+            if (defaultStatus != null)
+            {
+                var statusEmoji = !string.IsNullOrWhiteSpace(defaultStatus.StatusEmoji)
+                    ? defaultStatus.StatusEmoji
+                    : ":speech_balloon:";
+                var statusText = !string.IsNullOrWhiteSpace(defaultStatus.StatusText)
+                    ? defaultStatus.StatusText
+                    : "(no text set)";
+
+                text += $"*Your default status is:* {statusEmoji} `{statusText}`\n";
+            }
+            else
+            {
+                text += "*Your default status is:* `(not set)`\n";
+            }
+
             if (withCommentary)
             {
                 text += "_This is used when you don't have an active calendar event. To change your default status, use_ `/c2s-default-status`\n";
@@ -394,7 +414,7 @@ namespace CalendarToSlack
             }
             text += "\n";
             
-            foreach (var filter in user.StatusMessageFilters.OrderBy(filter => filter.Key))
+            foreach (var filter in user.StatusMessageFilters.Where(filter => filter.Key != StatusConstants.DefaultStatus).OrderBy(filter => filter.Key))
             {
                 var emoji = (string.IsNullOrWhiteSpace(filter.Value.StatusEmoji) ? ":transparent:" : filter.Value.StatusEmoji);
                 var mapping = (filter.Key == filter.Value.StatusText ? "" : $" uses status `{filter.Value.StatusText}`");
