@@ -73,7 +73,7 @@ namespace CalendarToSlack
                 foreach (var e in happeningNow)
                 {
                     //Out.WriteDebug("> {0} {1} {2} {3}", e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject);
-                    result.Add(new CalendarEvent(e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details.Subject, e.Details.Location));
+                    result.Add(new CalendarEvent(e.StartTime, e.EndTime, e.FreeBusyStatus, e.Details?.Subject, e.Details?.Location));
                 }
 
                 results[username] = result;
