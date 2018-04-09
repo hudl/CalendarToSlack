@@ -10,7 +10,7 @@ namespace CalendarToSlack
     {
         // Assigned to new users when they're added to the DB
         private const string DefaultFilterString = "OOO|Lunch|1:1|Working From Home>WFH|Meeting";
-        private const int UserLimit = 30; // TODO remove someday. mainly exists to avoid hitting unexpected limits with repeated Exchange queries or Slack rate limiting
+        private const int UserLimit = 40; // TODO remove someday. mainly exists to avoid hitting unexpected limits with repeated Exchange queries or Slack rate limiting
 
         private static readonly ILog Log = LogManager.GetLogger(typeof (UserDatabase).Name);
 
