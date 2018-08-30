@@ -93,9 +93,13 @@ namespace CalendarToSlack
         private readonly string _subject;
         private readonly string _location;
 
-        public LegacyFreeBusyStatus FreeBusyStatus { get { return _freeBusyStatus; } }
-        public string Subject { get { return _subject; } }
-        public string Location { get { return _location; } }
+        public LegacyFreeBusyStatus FreeBusyStatus => _freeBusyStatus;
+        public string Subject => _subject;
+        public string Location => _location;
+
+        public DateTime StartTime => _startTime;
+
+        public DateTime EndTime => _endTime;
 
         public CalendarEvent(DateTime startTime, DateTime endTime, LegacyFreeBusyStatus freeBusyStatus, string subject, string location)
         {
