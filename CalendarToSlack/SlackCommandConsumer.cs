@@ -173,9 +173,9 @@ namespace CalendarToSlack
             if (command == "whitelist")
             {
                 var text = WebUtility.UrlDecode(fields["text"]);
-                var options = Regex.Matches(text.Trim(), @"[\""].+?[\""]|[^ ]+")
+                var options = Regex.Matches(text.Trim(), @"[\""].+?[\""]|“.+?”|[^ ]+")
                     .Cast<Match>()
-                    .Select(m => m.Value.Replace("\"", ""))
+                    .Select(m => m.Value.Replace("\"", "").Replace("“", "").Replace("”", ""))
                     .ToList();
                 
                 // /c2s-whitelist

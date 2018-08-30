@@ -246,7 +246,7 @@ namespace CalendarToSlack
             switch (ev.FreeBusyStatus)
             {
                 case LegacyFreeBusyStatus.OOF:
-                    return filterMatch ?? new CustomStatus { StatusText = "OOO", StatusEmoji = ":palm_tree:" };
+                    return filterMatch ?? new CustomStatus { StatusText = $"OOO until {ev.EndTime.ToString("dddd, dd MMMM")}", StatusEmoji = ":ooo:" };
                 
                     // With the non-away statuses, we'll still update the user's message
                     // but keep their status as Auto. This works for things like "Lunch"
