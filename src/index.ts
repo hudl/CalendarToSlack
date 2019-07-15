@@ -3,6 +3,7 @@ import { getAllUserSettings, UserSettings, getSettingsForUsers } from './service
 import { setSlackStatus, SlackStatus } from './services/slack';
 import AWS from 'aws-sdk';
 import { Handler } from 'aws-lambda';
+import { InvocationRequest } from 'aws-sdk/clients/lambda';
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) => {
   // TODO: Implement this function to resolve the event to use for status updates from a list of user events
@@ -32,7 +33,7 @@ export const update: Handler = async () => {
     endpoint: process.env.IS_OFFLINE ? 'http://localhost:3000' : undefined,
   });
 
-  const invokeParams = {
+  const invokeParams: InvocationRequest = {
     FunctionName: 'calendar2slack-prod-update-batch',
     InvocationType: 'Event',
     LogType: 'None',
