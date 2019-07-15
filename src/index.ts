@@ -33,7 +33,7 @@ export const update: Handler = async () => {
   });
 
   const invokeParams = {
-    FunctionName: 'calendar2slack-dev-update-batch',
+    FunctionName: 'calendar2slack-prod-update-batch',
     InvocationType: 'Event',
     LogType: 'None',
   };
