@@ -32,5 +32,12 @@
     "serverless-plugin-typescript": "^1.1.9",
     "ts-node": "^8.3.0",
     "typescript": "^3.5.3"
+  },
+  "dependencies": {
+    "@microsoft/microsoft-graph-client": "^1.7.0",
+    "@types/dotenv": "^6.1.1",
+    "@types/simple-oauth2": "^2.2.1",
+    "dotenv": "^8.0.0",
+    "simple-oauth2": "^2.2.1"
   }
 }

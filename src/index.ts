@@ -1,4 +1,4 @@
-import { getEventsForUser, CalendarEvent } from './services/calendar';
+import { getEventsForUser, CalendarEvent } from './services/calendar/calendar';
 import { getUserSettings, UserSettings } from './services/dynamo';
 import { setSlackStatus, SlackStatus } from './services/slack';
 
