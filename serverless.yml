@@ -22,6 +22,7 @@ service: calendar2slack # NOTE: update this with your service name
 provider:
   name: aws
   runtime: nodejs10.x
+  stage: prod
   region: us-east-1
   stackName: hudl-calendar2slack
   deploymentBucket:
@@ -120,6 +121,19 @@ functions:
 #     NewOutput:
 #       Description: "Description for the output"
 #       Value: "Some output value"
+resources:
+  Resources:
+    userSettingsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: cal2slack-usersettings
+        AttributeDefinitions:
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: email
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
 
 plugins:
   - serverless-plugin-typescript
