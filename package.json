@@ -1,0 +1,36 @@
+{
+  "name": "calendartoslack",
+  "version": "1.0.0",
+  "description": "Sets your Slack status based on your Outlook calendar",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hudl/CalendarToSlack.git"
+  },
+  "keywords": [
+    "slack",
+    "calendar",
+    "outlook"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hudl/CalendarToSlack/issues"
+  },
+  "homepage": "https://github.com/hudl/CalendarToSlack#readme",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.28",
+    "@types/node": "^12.6.2",
+    "serverless-offline": "^5.7.3",
+    "serverless-plugin-typescript": "^1.1.9",
+    "ts-node": "^8.3.0",
+    "typescript": "^3.5.3"
+  }
+}
