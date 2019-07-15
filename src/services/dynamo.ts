@@ -1,23 +1,28 @@
 import { SlackStatus } from './slack';
+import AWS from 'aws-sdk';
+import config from '../../config';
 
-const userSettings: UserSettings[] = [
-  {
-    email: 'jordan.degner@hudl.com',
-    slackToken: 'abcd',
-  },
-];
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 export type UserSettings = {
   email: string;
   slackToken: string;
+  defaultStatus?: SlackStatus;
   statusMappings?: {
-    isDefaultStatus?: boolean;
     calendarText?: string;
     slackStatus: SlackStatus;
   }[];
 };
 
-export const getUserSettings = async () => {
-  // TODO: Implement this function to retrieve all user settings records from DynamoDB
-  return userSettings;
+export const getAllUserSettings = async (): Promise<UserSettings[]> => {
+  return new Promise(resolve =>
+    dynamoDb.scan(
+      {
+        TableName: config.dynamoDb.tableName,
+      },
+      (_, data) => {
+        resolve(data.Items as UserSettings[]);
+      },
+    ),
+  );
 };

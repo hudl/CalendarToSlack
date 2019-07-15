@@ -1,5 +1,5 @@
 import { getEventsForUser, CalendarEvent } from './services/calendar';
-import { getUserSettings, UserSettings } from './services/dynamo';
+import { getAllUserSettings, UserSettings } from './services/dynamo';
 import { setSlackStatus, SlackStatus } from './services/slack';
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) => {
@@ -13,22 +13,16 @@ const getStatusForUserEvent = (settings: UserSettings, event: CalendarEvent | nu
     emoji: ':spiral_calendar_pad:',
   };
 
-  if (!settings.statusMappings) {
-    return defaultAwayStatus;
-  }
+  if (!settings.statusMappings) return defaultAwayStatus;
 
-  if (!event) {
-    const defaultStatus = settings.statusMappings.find(sm => sm.isDefaultStatus);
-
-    return defaultStatus ? defaultStatus.slackStatus : { text: '', emoji: '' };
-  }
+  if (!event) return settings.defaultStatus || { text: '', emoji: '' };
 
   // TODO: Implement here to get the status from a user's statusMappings for a specific calendar event
   return defaultAwayStatus;
 };
 
 export const handler = async (event: any) => {
-  const userSettings = await getUserSettings();
+  const userSettings = await getAllUserSettings();
 
   // TODO: Consider replacing this with code to start a separate lambda that runs for a smaller batch of users, depending on timing
   await Promise.all(
