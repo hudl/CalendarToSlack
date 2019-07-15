@@ -64,9 +64,16 @@ package:
 functions:
   update:
     handler: src/index.handler
+    memorySize: 512
     events:
       - http:
           path: 'update'
+          method: post
+  slackbot:
+    handler: src/slackbot.handler
+    events:
+      - http:
+          path: 'bot'
           method: post
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
