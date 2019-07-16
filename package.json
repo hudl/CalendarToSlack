@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "ts-node src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -28,11 +28,13 @@
   "devDependencies": {
     "@types/aws-lambda": "^8.10.28",
     "@types/aws-sdk": "^2.7.0",
+    "@types/jest": "^24.0.15",
     "@types/node": "^12.6.2",
-    "@types/qs": "^6.5.3",
+    "jest": "^24.8.0",
     "serverless-offline": "^5.7.3",
     "serverless-plugin-include-dependencies": "^3.2.1",
     "serverless-plugin-typescript": "^1.1.9",
+    "ts-jest": "^24.0.2",
     "ts-node": "^8.3.0",
     "typescript": "^3.5.3"
   },
