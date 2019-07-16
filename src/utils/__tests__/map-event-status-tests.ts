@@ -287,7 +287,7 @@ describe('getStatusForUserEvent', () => {
     });
 
     describe('Given no relevant status mappings', () => {
-      test(`Returns "OOO until {date}" and :ooo: when the user has no status mappings and the OOO event lasts beyond the current day`, () => {
+      test(`Returns "OOO until {date}" and :ooo: when the OOO event lasts beyond the current day`, () => {
         const today = new Date();
         const status = getStatusForUserEvent(
           {
@@ -319,7 +319,7 @@ describe('getStatusForUserEvent', () => {
         expect(status).toEqual({ text: 'OOO until tomorrow', emoji: ':ooo:' });
       });
 
-      test(`Returns "OOO until {time}" and :ooo: when the user has no status mappings and the OOO event ends on the current day`, () => {
+      test(`Returns "OOO until {time}" and :ooo: when the OOO event ends on the current day`, () => {
         const today = new Date();
         const status = getStatusForUserEvent(
           {
