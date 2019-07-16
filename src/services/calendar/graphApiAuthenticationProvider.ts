@@ -1,5 +1,5 @@
 import { AuthenticationProvider } from "@microsoft/microsoft-graph-client";
-import oauth2, { OAuthClient } from "simple-oauth2";
+import oauth2, { OAuthClient, Token } from "simple-oauth2";
 import env from "dotenv";
 import {
   getSettingsForUsers,
@@ -39,17 +39,29 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
           throw new Error(`Didn't find stored user settings for email ${this.userEmail}`);
         }
         resolve(settings[0]);
-        return;
       } catch (error) {
         reject(error.message);
-        return;
       }
     });
   };
 
+  public async getTokenWithAuthCode(authCode: string): Promise<Token> {
+    return new Promise(async (resolve, reject) => {
+      const tokenConfig: any = {
+        scope: (process.env.OAUTH_SCOPE || '').split(' '),
+        code: authCode || '',
+        redirect_uri: 'https://localhost:3000/authorize-outlook' // should be the lambda
+      };
+      const result = await this.authentication.authorizationCode.getToken(tokenConfig);
+      const token = this.authentication.accessToken.create(result);
+      await storeCalendarAuthenticationToken(this.userEmail, token);
+      resolve(token);
+    });
+  }
+
   public async getAccessToken(): Promise<any> {
     return new Promise(async (resolve, reject) => {
-      const { calendarAuthCode, calendarStoredToken } = await this.getUserInformation();
+      const { calendarStoredToken } = await this.getUserInformation();
 
       if (calendarStoredToken) {
         const token = this.authentication.accessToken.create(calendarStoredToken);
@@ -59,20 +71,8 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
           resolve(newToken.token.access_token);
         }
         resolve(token.token.access_token);
-      } else if (calendarAuthCode) {
-        const tokenConfig: any = {
-          scope: (process.env.OAUTH_SCOPE || '').split(' '),
-          code: calendarAuthCode || '',
-          redirect_uri: 'https://localhost:3000/authorize-outlook' // should be the lambda
-        };
-        const result = await this.authentication.authorizationCode.getToken(tokenConfig);
-        const token = this.authentication.accessToken.create(result).token.access_token;
-        await storeCalendarAuthenticationToken(this.userEmail, token);
-        resolve(token.token.access_token);
-        return;
       } else {
         reject(`Could not authenticate user ${this.userEmail} with Outlook`);
-        return;
       }
     });   
   }

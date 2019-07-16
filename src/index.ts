@@ -1,10 +1,11 @@
+import AWS from 'aws-sdk';
 import { getEventsForUser, CalendarEvent } from './services/calendar/calendar';
 import { setSlackStatus } from './services/slack';
 import { getAllUserSettings, getSettingsForUsers } from './services/dynamo';
-import AWS from 'aws-sdk';
 import { Handler } from 'aws-lambda';
 import { InvocationRequest } from 'aws-sdk/clients/lambda';
 import { getStatusForUserEvent } from './utils/map-event-status';
+import { GraphApiAuthenticationProvider } from "./services/calendar/graphApiAuthenticationProvider";
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) => {
   // TODO: Implement this function to resolve the event to use for status updates from a list of user events
@@ -47,4 +48,10 @@ export const updateBatch: Handler = async (event: any) => {
       await setSlackStatus(us.email, us.slackToken, status);
     }),
   );
+};
+
+export const authorizeOutlook: Handler = async (event: any) => {
+  const { queryStringParameters: { code, state } } = event;
+  const authProvider = new GraphApiAuthenticationProvider(state);
+  await authProvider.getTokenWithAuthCode(code);
 };
