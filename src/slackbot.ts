@@ -1,4 +1,3 @@
-import qs from "qs";
 import crypto from "crypto";
 import AWS from "aws-sdk";
 import config from "../config";
@@ -21,7 +20,12 @@ async function getSigningSecret(): Promise<string> {
   try {
     const data = await client.getSecretValue({ SecretId: config.slack.secretName }).promise();
     if ("SecretString" in data && data.SecretString) {
-      return data.SecretString;
+      const secrets = JSON.parse(data.SecretString);
+      const signingSecret = secrets["signing-secret"];
+      if (!signingSecret) {
+        throw new Error("Property `signing-secret` is empty or does not exist");
+      }
+      return signingSecret;
     }
   } catch (err) {
     console.error(err);
@@ -38,8 +42,10 @@ function validateTimestamp(slackRequestTimestampInSec: number): boolean {
 
 async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
   console.log(JSON.stringify(event.headers, null, 2));
+  console.log(Buffer.from(event.body).toString("base64"));
 
-  const requestTimestamp: number = +event.headers["x-slack-request-timestamp"];
+  const requestTimestamp: number = +event.headers["X-Slack-Request-Timestamp"];
+  console.log("Slack request timestamp: " + requestTimestamp);
   if (!validateTimestamp(requestTimestamp)) {
     return false;
   }
@@ -47,11 +53,12 @@ async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
   const signingSecret = await getSigningSecret();
   const hmac = crypto.createHmac("sha256", signingSecret);
 
-  const requestSignature = event.headers["x-slack-signature"];
+  const requestSignature = event.headers["X-Slack-Signature"];
+  console.log("Slack request signature: " + requestSignature);
   const [version, slackHash] = requestSignature.split("=");
 
-  const requestBody = qs.stringify(event.body, { format: "RFC1738" });
-  const calculatedSignature = hmac.update(`${version}:${requestTimestamp}:${requestBody}`, "utf8").digest("hex");
+  const calculatedSignature = hmac.update(`${version}:${requestTimestamp}:${event.body}`).digest("hex");
+  console.log("Calculated signature: " + calculatedSignature);
 
   return crypto.timingSafeEqual(Buffer.from(calculatedSignature, "utf8"), Buffer.from(slackHash, "utf8"));
 }
@@ -60,7 +67,7 @@ export const handler = async (event: ApiGatewayEvent) => {
   let body = JSON.parse(event.body);
 
   // verify request
-  if (!validateSlackRequest(event)) {
+  if (!(await validateSlackRequest(event))) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: "Request was invalid" })
