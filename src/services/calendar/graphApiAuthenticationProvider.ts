@@ -24,8 +24,6 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       const authentication = oauth2.create({client, auth});
 
       const tokenConfig = {
-        // code: '',
-        // redirect_uri: 'localhost:3000',
         scope: (process.env.OAUTH_SCOPE || '').split(' ')
       };
 
