@@ -6,10 +6,16 @@ import {
   storeCalendarAuthenticationToken,
   UserSettings
 } from "../dynamo";
+import config from '../../config';
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   private userEmail: string;
   private authentication: OAuthClient;
+
+  private readonly oauthAuthority: string = 'https://login.microsoftonline.com/';
+  private readonly authorizePath: string = '/oauth2/v2.0/authorize';
+  private readonly tokenPath: string = '/oauth2/v2.0/token';
+  private readonly scope: string = 'https://graph.microsoft.com/.default';
 
   constructor(userEmail: string) {
     this.userEmail = userEmail;
@@ -20,13 +26,13 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   private createOAuthClient(): OAuthClient<string> {
     return oauth2.create({
       client: {
-        id: process.env.CLIENT_ID || '',
-        secret: process.env.CLIENT_SECRET || '',
+        id: config.outlook.clientId || '',
+        secret: process.env.CLIENT_SECRET || '', // TODO: move the secret into AWS secrets
       },
       auth: {
-        tokenHost: `${process.env.OAUTH_AUTHORITY || ''}${process.env.TENANT_ID || ''}`,
-        tokenPath: process.env.OAUTH_TOKEN_PATH || '',
-        authorizePath: process.env.OAUTH_AUTHORIZE_PATH || '',
+        tokenHost: `${this.oauthAuthority}${config.outlook.tenantId || ''}`,
+        tokenPath: this.tokenPath,
+        authorizePath: this.authorizePath,
       }
     });
   }
@@ -48,7 +54,7 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   public async getTokenWithAuthCode(authCode: string): Promise<Token> {
     return new Promise(async (resolve, reject) => {
       const tokenConfig: any = {
-        scope: (process.env.OAUTH_SCOPE || '').split(' '),
+        scope: this.scope,
         code: authCode || '',
         redirect_uri: 'http://localhost:3000/authorize-outlook' // should be the lambda
       };
