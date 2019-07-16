@@ -49,9 +49,9 @@ const userEvents: {
   ],
 };
 
-const getAuthenticatedClient = (): Client => {
+const getAuthenticatedClient = (email: string): Client => {
   const options: ClientOptions = {
-    authProvider: new GraphApiAuthenticationProvider(),
+    authProvider: new GraphApiAuthenticationProvider(email),
   };
   return Client.initWithMiddleware(options);
 };
@@ -65,7 +65,7 @@ export const getEventsForUser = async (email: string): Promise<CalendarEvent[]> 
   endTime.setHours(startTime.getHours() + 1);
 
   try {
-    const outlookEvents = await getAuthenticatedClient()
+    const outlookEvents = await getAuthenticatedClient(email)
       .api(`/users/${email}/events`)
       .filter(`sensitivity eq 'normal' and start/dateTime le '${startTime.toISOString()}' and end/dateTime ge '${endTime.toISOString()}'`)
       .select('start,end,subject,showAs,location')
