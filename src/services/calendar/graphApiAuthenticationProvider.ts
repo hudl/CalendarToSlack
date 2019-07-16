@@ -50,18 +50,23 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       const tokenConfig: any = {
         scope: (process.env.OAUTH_SCOPE || '').split(' '),
         code: authCode || '',
-        redirect_uri: 'https://localhost:3000/authorize-outlook' // should be the lambda
+        redirect_uri: 'http://localhost:3000/authorize-outlook' // should be the lambda
       };
-      const result = await this.authentication.authorizationCode.getToken(tokenConfig);
-      const token = this.authentication.accessToken.create(result);
-      await storeCalendarAuthenticationToken(this.userEmail, token);
-      resolve(token);
+      try {
+        const result = await this.authentication.authorizationCode.getToken(tokenConfig);
+        const token = this.authentication.accessToken.create(result);
+        await storeCalendarAuthenticationToken(this.userEmail, token);
+        resolve(token);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
   public async getAccessToken(): Promise<any> {
     return new Promise(async (resolve, reject) => {
       const { calendarStoredToken } = await this.getUserInformation();
+      console.log(calendarStoredToken);
 
       if (calendarStoredToken) {
         const token = this.authentication.accessToken.create(calendarStoredToken);
