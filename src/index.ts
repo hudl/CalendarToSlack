@@ -1,36 +1,42 @@
 import { getEventsForUser, CalendarEvent } from './services/calendar/calendar';
-import { getUserSettings, UserSettings } from './services/dynamo';
-import { setSlackStatus, SlackStatus } from './services/slack';
+import { setSlackStatus } from './services/slack';
+import { getAllUserSettings, getSettingsForUsers } from './services/dynamo';
+import AWS from 'aws-sdk';
+import { Handler } from 'aws-lambda';
+import { InvocationRequest } from 'aws-sdk/clients/lambda';
+import { getStatusForUserEvent } from './utils/map-event-status';
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) => {
   // TODO: Implement this function to resolve the event to use for status updates from a list of user events
   return events.length ? events[0] : null;
 };
 
-const getStatusForUserEvent = (settings: UserSettings, event: CalendarEvent | null): SlackStatus => {
-  const defaultAwayStatus = {
-    text: 'Away',
-    emoji: ':spiral_calendar_pad:',
+export const update: Handler = async () => {
+  const batchSize = 10;
+
+  const lambda = new AWS.Lambda({
+    apiVersion: 'latest',
+    region: 'us-east-1',
+    endpoint: process.env.IS_OFFLINE ? 'http://localhost:3000' : undefined,
+  });
+
+  const invokeParams: InvocationRequest = {
+    FunctionName: 'calendar2slack-prod-update-batch',
+    InvocationType: 'Event',
+    LogType: 'None',
   };
 
-  if (!settings.statusMappings) {
-    return defaultAwayStatus;
+  const userSettings = await getAllUserSettings();
+  for (var i = 0; i < userSettings.length; i += batchSize) {
+    const batch = userSettings.slice(i, i + batchSize).map(us => us.email);
+
+    lambda.invoke({ Payload: JSON.stringify({ emails: batch }), ...invokeParams }).send();
   }
-
-  if (!event) {
-    const defaultStatus = settings.statusMappings.find(sm => sm.isDefaultStatus);
-
-    return defaultStatus ? defaultStatus.slackStatus : { text: '', emoji: '' };
-  }
-
-  // TODO: Implement here to get the status from a user's statusMappings for a specific calendar event
-  return defaultAwayStatus;
 };
 
-export const handler = async (event: any) => {
-  const userSettings = await getUserSettings();
+export const updateBatch: Handler = async (event: any) => {
+  const userSettings = await getSettingsForUsers(event.emails);
 
-  // TODO: Consider replacing this with code to start a separate lambda that runs for a smaller batch of users, depending on timing
   await Promise.all(
     userSettings.map(async us => {
       const userEvents = await getEventsForUser(us.email);
