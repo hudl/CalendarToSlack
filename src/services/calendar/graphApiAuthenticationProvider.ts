@@ -1,7 +1,11 @@
-import { AuthenticationProvider, AuthenticationProviderOptions } from "@microsoft/microsoft-graph-client";
+import { AuthenticationProvider } from "@microsoft/microsoft-graph-client";
 import oauth2, { OAuthClient } from "simple-oauth2";
 import env from "dotenv";
-import { getSettingsForUsers, UserSettings } from "../dynamo";
+import {
+  getSettingsForUsers,
+  storeCalendarAuthenticationToken,
+  UserSettings
+} from "../dynamo";
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   private userEmail: string;
@@ -28,21 +32,22 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   }
 
   private async getUserInformation(): Promise<UserSettings> {
-    // lookup the user data from dynamo w/ the user email
     return new Promise(async (resolve, reject) => {
       try {
         const settings = await getSettingsForUsers([this.userEmail]);
         if (!settings || !settings.length) {
           throw new Error(`Didn't find stored user settings for email ${this.userEmail}`);
         }
-        return settings[0];
+        resolve(settings[0]);
+        return;
       } catch (error) {
         reject(error.message);
+        return;
       }
     });
   };
 
-  public async getAccessToken(options?: AuthenticationProviderOptions): Promise<any> {
+  public async getAccessToken(): Promise<any> {
     return new Promise(async (resolve, reject) => {
       const { calendarAuthCode, calendarStoredToken } = await this.getUserInformation();
 
@@ -50,21 +55,24 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
         const token = this.authentication.accessToken.create(calendarStoredToken);
         if (token.expired()) {
           const newToken = await token.refresh();
-          // persist newToken to db
+          await storeCalendarAuthenticationToken(this.userEmail, newToken);
           resolve(newToken.token.access_token);
         }
         resolve(token.token.access_token);
-      } else {
-        // get token with auth code
+      } else if (calendarAuthCode) {
         const tokenConfig: any = {
           scope: (process.env.OAUTH_SCOPE || '').split(' '),
           code: calendarAuthCode || '',
-          redirect_uri: 'https://localhost:3000/authorize' // should be the lambda
+          redirect_uri: 'https://localhost:3000/authorize-outlook' // should be the lambda
         };
         const result = await this.authentication.authorizationCode.getToken(tokenConfig);
         const token = this.authentication.accessToken.create(result).token.access_token;
-        // persist token to db
+        await storeCalendarAuthenticationToken(this.userEmail, token);
         resolve(token.token.access_token);
+        return;
+      } else {
+        reject(`Could not authenticate user ${this.userEmail} with Outlook`);
+        return;
       }
     });   
   }

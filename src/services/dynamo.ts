@@ -15,6 +15,32 @@ export type UserSettings = {
   }[];
 };
 
+export const storeCalendarAuthenticationToken = async (email: string, calendarStoredToken: Token): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) => 
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: { 'email': email },
+        UpdateExpression: 'set calendarStoredToken = :t',
+        ExpressionAttributeValues: {
+          ':t': calendarStoredToken
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data as UserSettings);
+      }
+    )
+  );
+};
+
 export const getAllUserSettings = async (): Promise<UserSettings[]> => {
   const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
