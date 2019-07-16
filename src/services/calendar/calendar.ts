@@ -58,8 +58,18 @@ const getAuthenticatedClient = (): Client => {
 
 export const getEventsForUser = async (email: string): Promise<CalendarEvent[]> => {
   let events = userEvents[email];
+  const startTime = new Date();
+  startTime.setMinutes(0);
+
+  const endTime = new Date(startTime);
+  endTime.setHours(startTime.getHours() + 1);
+
   try {
-    const outlookEvents = await getAuthenticatedClient().api(`/users/${email}/events`).select('start,end,subject,showAs,location').get();
+    const outlookEvents = await getAuthenticatedClient()
+      .api(`/users/${email}/events`)
+      .filter(`sensitivity eq 'normal' and start/dateTime le '${startTime.toISOString()}' and end/dateTime ge '${endTime.toISOString()}'`)
+      .select('start,end,subject,showAs,location')
+      .get();
     console.log(outlookEvents);
     events = outlookEvents.map((e: any) => { 
       const event: CalendarEvent = {
