@@ -1,23 +1,58 @@
 import { SlackStatus } from './slack';
-
-const userSettings: UserSettings[] = [
-  {
-    email: 'jordan.degner@hudl.com',
-    slackToken: 'abcd',
-  },
-];
+import AWS from 'aws-sdk';
+import config from '../../config';
 
 export type UserSettings = {
   email: string;
   slackToken: string;
+  defaultStatus?: SlackStatus;
   statusMappings?: {
-    isDefaultStatus?: boolean;
     calendarText?: string;
     slackStatus: SlackStatus;
   }[];
 };
 
-export const getUserSettings = async () => {
-  // TODO: Implement this function to retrieve all user settings records from DynamoDB
-  return userSettings;
+export const getAllUserSettings = async (): Promise<UserSettings[]> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.scan(
+      {
+        TableName: config.dynamoDb.tableName,
+        ProjectionExpression: 'email',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Items as UserSettings[]);
+      },
+    ),
+  );
+};
+
+export const getSettingsForUsers = async (emails: string[]): Promise<UserSettings[]> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.batchGet(
+      {
+        RequestItems: {
+          [config.dynamoDb.tableName]: { Keys: emails.map(email => ({ email })) },
+        },
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(
+          data.Responses ? (data.Responses[config.dynamoDb.tableName] as UserSettings[]) : ([] as UserSettings[]),
+        );
+      },
+    ),
+  );
 };

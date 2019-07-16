@@ -22,32 +22,26 @@ service: calendar2slack # NOTE: update this with your service name
 provider:
   name: aws
   runtime: nodejs10.x
+  stage: prod
   region: us-east-1
   stackName: hudl-calendar2slack
   deploymentBucket:
     name: hudl-calendar2slack-deployment
     serverSideEncryption: AES256
   deploymentPrefix: development
-
-# you can overwrite defaults here
-#  stage: dev
-#  region: us-east-1
-
-# you can add statements to the Lambda function's IAM Role here
-#  iamRoleStatements:
-#    - Effect: "Allow"
-#      Action:
-#        - "s3:ListBucket"
-#      Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket" } ] ]  }
-#    - Effect: "Allow"
-#      Action:
-#        - "s3:PutObject"
-#      Resource:
-#        Fn::Join:
-#          - ""
-#          - - "arn:aws:s3:::"
-#            - "Ref" : "ServerlessDeploymentBucket"
-#            - "/*"
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - dynamodb:Scan
+        - dynamodb:Query
+        - dynamodb:GetItem
+        - dynamodb:BatchGetItem
+        - dynamodb:PutItem
+      Resource: 'arn:aws:dynamodb:us-east-1:*:table/cal2slack-usersettings'
+    - Effect: 'Allow'
+      Action:
+        - lambda:InvokeFunction
+      Resource: 'arn:aws:lambda:us-east-1:*:function:calendar2slack-prod-update-batch'
 
 # you can define service wide environment variables here
 #  environment:
@@ -62,11 +56,13 @@ package:
 
 functions:
   update:
-    handler: src/index.handler
+    handler: src/index.update
     events:
       - http:
           path: 'update'
           method: post
+  update-batch:
+    handler: src/index.updateBatch
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
 #    Check the event documentation for details
@@ -118,6 +114,24 @@ functions:
 #     NewOutput:
 #       Description: "Description for the output"
 #       Value: "Some output value"
+resources:
+  Resources:
+    userSettingsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: cal2slack-usersettings
+        AttributeDefinitions:
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: email
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+  Outputs:
+    UserSettingsTableArn:
+      Description: 'The ARN for the cal2slack-usersettings table'
+      Value:
+        'Fn::GetAtt': [userSettingsTable, Arn]
 
 plugins:
   - serverless-plugin-typescript
