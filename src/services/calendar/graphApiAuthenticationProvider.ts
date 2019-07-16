@@ -66,16 +66,15 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   public async getAccessToken(): Promise<any> {
     return new Promise(async (resolve, reject) => {
       const { calendarStoredToken } = await this.getUserInformation();
-      console.log(calendarStoredToken);
 
       if (calendarStoredToken) {
         const token = this.authentication.accessToken.create(calendarStoredToken);
         if (token.expired()) {
           const newToken = await token.refresh();
           await storeCalendarAuthenticationToken(this.userEmail, newToken);
-          resolve(newToken.token.access_token);
+          resolve(newToken.token.token.access_token);
         }
-        resolve(token.token.access_token);
+        resolve(token.token.token.access_token);
       } else {
         reject(`Could not authenticate user ${this.userEmail} with Outlook`);
       }

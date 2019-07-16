@@ -57,7 +57,6 @@ const getAuthenticatedClient = (email: string): Client => {
 };
 
 export const getEventsForUser = async (email: string): Promise<CalendarEvent[]> => {
-  let events = userEvents[email];
   const startTime = new Date();
   startTime.setMinutes(0);
 
@@ -70,12 +69,11 @@ export const getEventsForUser = async (email: string): Promise<CalendarEvent[]> 
       .filter(`sensitivity eq 'normal' and start/dateTime le '${startTime.toISOString()}' and end/dateTime ge '${endTime.toISOString()}'`)
       .select('start,end,subject,showAs,location')
       .get();
-    console.log(outlookEvents);
-    events = outlookEvents.map((e: any) => { 
+    return outlookEvents.value.map((e: any) => { 
       const event: CalendarEvent = {
         name: e.subject,
-        startTime: e.start.dateTime,
-        endTime: e.end.dateTime,
+        startTime: new Date(e.start.dateTime),
+        endTime: new Date(e.end.dateTime),
         location: e.location.displayName,
         showAs: toShowAsStatus(e.showAs),
       };
@@ -85,6 +83,5 @@ export const getEventsForUser = async (email: string): Promise<CalendarEvent[]> 
     console.error(error);
   }
 
-  // TODO: remove stubbed out return
-  return events || [];
+  return [];
 };
