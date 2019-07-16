@@ -1,7 +1,7 @@
 import { AuthenticationProvider, AuthenticationProviderOptions } from "@microsoft/microsoft-graph-client";
 import oauth2, { OAuthClient } from "simple-oauth2";
 import env from "dotenv";
-import { UserSettings } from "services/dynamo";
+import { getSettingsForUsers, UserSettings } from "../dynamo";
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   private userEmail: string;
@@ -29,8 +29,17 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
 
   private async getUserInformation(): Promise<UserSettings> {
     // lookup the user data from dynamo w/ the user email
-    console.log(this.userEmail);
-    throw Error('couldn\'t find user');
+    return new Promise(async (resolve, reject) => {
+      try {
+        const settings = await getSettingsForUsers([this.userEmail]);
+        if (!settings || !settings.length) {
+          throw new Error(`Didn't find stored user settings for email ${this.userEmail}`);
+        }
+        return settings[0];
+      } catch (error) {
+        reject(error.message);
+      }
+    });
   };
 
   public async getAccessToken(options?: AuthenticationProviderOptions): Promise<any> {
