@@ -32,6 +32,7 @@
     "@types/node": "^12.6.2",
     "jest": "^24.8.0",
     "serverless-offline": "^5.7.3",
+    "serverless-plugin-include-dependencies": "^3.2.1",
     "serverless-plugin-typescript": "^1.1.9",
     "ts-jest": "^24.0.2",
     "ts-node": "^8.3.0",
