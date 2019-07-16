@@ -1,4 +1,5 @@
 import { SlackStatus } from './slack';
+import { Token } from 'simple-oauth2';
 
 const userSettings: UserSettings[] = [
   {
@@ -10,6 +11,8 @@ const userSettings: UserSettings[] = [
 export type UserSettings = {
   email: string;
   slackToken: string;
+  calendarAuthCode?: string | '';
+  calendarStoredToken?: Token | null;
   statusMappings?: {
     isDefaultStatus?: boolean;
     calendarText?: string;

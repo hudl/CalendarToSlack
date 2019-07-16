@@ -1,12 +1,7 @@
 import { AuthenticationProvider, AuthenticationProviderOptions } from "@microsoft/microsoft-graph-client";
-import oauth2, { Token, OAuthClient } from "simple-oauth2";
+import oauth2, { OAuthClient } from "simple-oauth2";
 import env from "dotenv";
-
-type UserInformation = {
-  email: string;
-  authCode: string;
-  storedToken: Token;
-};
+import { UserSettings } from "services/dynamo";
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   private userEmail: string;
@@ -32,17 +27,18 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     });
   }
 
-  private async getUserInformation(): Promise<any> {
+  private async getUserInformation(): Promise<UserSettings> {
     // lookup the user data from dynamo w/ the user email
     console.log(this.userEmail);
+    throw Error('couldn\'t find user');
   };
 
   public async getAccessToken(options?: AuthenticationProviderOptions): Promise<any> {
     return new Promise(async (resolve, reject) => {
-      const { authCode, storedToken } = await this.getUserInformation();
+      const { calendarAuthCode, calendarStoredToken } = await this.getUserInformation();
 
-      if (storedToken) {
-        const token = this.authentication.accessToken.create(storedToken);
+      if (calendarStoredToken) {
+        const token = this.authentication.accessToken.create(calendarStoredToken);
         if (token.expired()) {
           const newToken = await token.refresh();
           // persist newToken to db
@@ -51,9 +47,9 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
         resolve(token.token.access_token);
       } else {
         // get token with auth code
-        const tokenConfig = {
+        const tokenConfig: any = {
           scope: (process.env.OAUTH_SCOPE || '').split(' '),
-          code: authCode,
+          code: calendarAuthCode || '',
           redirect_uri: 'https://localhost:3000/authorize' // should be the lambda
         };
         const result = await this.authentication.authorizationCode.getToken(tokenConfig);
