@@ -10,16 +10,29 @@ export enum ShowAs {
 
 export type CalendarEvent = {
   name: string;
-  start: {
-    dateTime: Date;
-  };
-  end: {
-    dateTime: Date;
-  };
-  location: {
-    displayName: string;
-  }
+  startTime: Date;
+  endTime: Date;
+  location: string;
   showAs: ShowAs;
+};
+
+const toShowAsStatus = (status: string): ShowAs => {
+  switch(status.toLowerCase()) {
+    case 'oof':
+    case 'workingElsewhere': {
+      return ShowAs.OutOfOffice;
+    }
+    case 'busy': {
+      return ShowAs.Busy;
+    }
+    case 'tentative': {
+      return ShowAs.Tentative;
+    }
+    case 'free':
+    default: {
+      return ShowAs.Free;
+    }
+  }
 };
 
 const userEvents: {
@@ -28,9 +41,9 @@ const userEvents: {
   'jordan.degner@hudl.com': [
     {
       name: 'Quick Chat',
-      start: { dateTime: new Date('7/14/2019') },
-      end: { dateTime: new Date('7/15/2019') },
-      location: { displayName: 'Zoom' },
+      startTime: new Date('7/14/2019'),
+      endTime: new Date('7/15/2019'),
+      location: 'Zoom',
       showAs: ShowAs.Busy,
     },
   ],
@@ -44,13 +57,24 @@ const getAuthenticatedClient = (): Client => {
 };
 
 export const getEventsForUser = async (email: string): Promise<CalendarEvent[]> => {
-  // TODO: Implement this function to retrieve a list of current calendar events for a given Outlook user
   let events = userEvents[email];
   try {
-    
-    events = await getAuthenticatedClient().api(`/users/${email}/events`).select('start,end,subject,showAs,location').get();
+    const outlookEvents = await getAuthenticatedClient().api(`/users/${email}/events`).select('start,end,subject,showAs,location').get();
+    console.log(outlookEvents);
+    events = outlookEvents.map((e: any) => { 
+      const event: CalendarEvent = {
+        name: e.subject,
+        startTime: e.start.dateTime,
+        endTime: e.end.dateTime,
+        location: e.location.displayName,
+        showAs: toShowAsStatus(e.showAs),
+      };
+      return event;
+    });
   } catch (error) {
     console.error(error);
   }
+
+  // TODO: remove stubbed out return
   return events || [];
 };
