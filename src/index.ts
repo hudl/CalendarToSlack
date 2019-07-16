@@ -1,27 +1,14 @@
 import { getEventsForUser, CalendarEvent } from './services/calendar';
-import { getAllUserSettings, UserSettings, getSettingsForUsers } from './services/dynamo';
-import { setSlackStatus, SlackStatus } from './services/slack';
+import { getAllUserSettings, getSettingsForUsers } from './services/dynamo';
+import { setSlackStatus } from './services/slack';
 import AWS from 'aws-sdk';
 import { Handler } from 'aws-lambda';
 import { InvocationRequest } from 'aws-sdk/clients/lambda';
+import { getStatusForUserEvent } from './utils/map-event-status';
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) => {
   // TODO: Implement this function to resolve the event to use for status updates from a list of user events
   return events.length ? events[0] : null;
-};
-
-const getStatusForUserEvent = (settings: UserSettings, event: CalendarEvent | null): SlackStatus => {
-  const defaultAwayStatus = {
-    text: 'Away',
-    emoji: ':spiral_calendar_pad:',
-  };
-
-  if (!settings.statusMappings) return defaultAwayStatus;
-
-  if (!event) return settings.defaultStatus || { text: '', emoji: '' };
-
-  // TODO: Implement here to get the status from a user's statusMappings for a specific calendar event
-  return defaultAwayStatus;
 };
 
 export const update: Handler = async () => {
