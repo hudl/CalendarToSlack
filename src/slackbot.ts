@@ -12,6 +12,8 @@ type ApiGatewayEvent = {
   body: string;
 };
 
+interface SlackResponse {}
+
 async function getSigningSecret(): Promise<string> {
   const client = new AWS.SecretsManager({
     region: config.region
@@ -41,11 +43,7 @@ function validateTimestamp(slackRequestTimestampInSec: number): boolean {
 }
 
 async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
-  console.log(JSON.stringify(event.headers, null, 2));
-  console.log(Buffer.from(event.body).toString("base64"));
-
   const requestTimestamp: number = +event.headers["X-Slack-Request-Timestamp"];
-  console.log("Slack request timestamp: " + requestTimestamp);
   if (!validateTimestamp(requestTimestamp)) {
     return false;
   }
@@ -54,11 +52,9 @@ async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
   const hmac = crypto.createHmac("sha256", signingSecret);
 
   const requestSignature = event.headers["X-Slack-Signature"];
-  console.log("Slack request signature: " + requestSignature);
   const [version, slackHash] = requestSignature.split("=");
 
   const calculatedSignature = hmac.update(`${version}:${requestTimestamp}:${event.body}`).digest("hex");
-  console.log("Calculated signature: " + calculatedSignature);
 
   return crypto.timingSafeEqual(Buffer.from(calculatedSignature, "utf8"), Buffer.from(slackHash, "utf8"));
 }
@@ -66,7 +62,6 @@ async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
 export const handler = async (event: ApiGatewayEvent) => {
   let body = JSON.parse(event.body);
 
-  // verify request
   if (!(await validateSlackRequest(event))) {
     return {
       statusCode: 400,
@@ -74,10 +69,24 @@ export const handler = async (event: ApiGatewayEvent) => {
     };
   }
 
-  // respond with challenge
+  let responseBody: SlackResponse;
+  switch (body.type) {
+    case "url_verification":
+      responseBody = { challenge: body.challenge };
+      break;
+    case "event_callback":
+      console.log(event.body);
+      responseBody = { };
+      break;
+    default:
+      console.log("Event type not recognized: " + body.type);
+      console.log(event.body);
+      responseBody = { };
+  }
+
   let response = {
     statusCode: 200,
-    body: JSON.stringify({ challenge: body.challenge })
+    body: JSON.stringify(responseBody)
   };
 
   return response;
