@@ -120,7 +120,7 @@ You need to authorize me before we can do anything else: ${config.endpoints.slac
 
   if (/^\s*set-default/i.test(command)) {
     const tokens = command.match(/[\w]+=[""][^""]+[""]|[^ """]+/g) || [];
-    const defaults: { [prop: string]: string } = { text: '', emoji: '' };
+    const defaults: { [prop: string]: string } = { message: '', emoji: '' };
     for (let token of tokens) {
       const [key, value] = token.split('=');
       if (key in defaults) {
@@ -128,16 +128,16 @@ You need to authorize me before we can do anything else: ${config.endpoints.slac
       }
     }
 
-    const { text, emoji } = defaults;
+    const { message, emoji } = defaults;
 
-    if (!text && !emoji) {
-      return await sendMessage('Please set a default `text` and/or `emoji`.');
+    if (!message && !emoji) {
+      return await sendMessage('Please set a default `message` and/or `emoji`.');
     }
 
-    usersSettings.defaultStatus = defaults;
+    usersSettings.defaultStatus = { text: message, emoji: emoji };
     await upsertDefaultStatus(usersSettings);
 
-    return await sendMessage(`Your default status is ${emoji} \`${text}\`.`);
+    return await sendMessage(`Your default status is ${emoji} \`${message}\`.`);
   } else if (/^\s*set/i.test(command)) {
     const tokens = command.match(/[\w]+=[""][^""]+[""]|[^ """]+/g) || [];
     const defaults: { [prop: string]: string } = { meeting: '', message: '', emoji: '' };
