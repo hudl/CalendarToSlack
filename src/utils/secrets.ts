@@ -15,6 +15,7 @@ const getSecretWithKey = async (secretName: string, key: string): Promise<string
   });
 
   try {
+    console.log(secretName + ' ' + key);
     const data = await client.getSecretValue({ SecretId: secretName }).promise();
     if ('SecretString' in data && data.SecretString) {
       const secrets = JSON.parse(data.SecretString);

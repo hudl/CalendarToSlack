@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getSecretWithKey } from './utils/secrets';
+import { getSlackSecretWithKey } from './utils/secrets';
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
@@ -24,7 +24,7 @@ async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
     return false;
   }
 
-  const signingSecret = await getSecretWithKey('signing-secret');
+  const signingSecret = await getSlackSecretWithKey('signing-secret');
   const hmac = crypto.createHmac('sha256', signingSecret);
 
   const requestSignature = event.headers['X-Slack-Signature'];
