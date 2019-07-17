@@ -1,14 +1,11 @@
 import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
 import oauth2, { OAuthClient, Token } from 'simple-oauth2';
-import {
-  getSettingsForUsers,
-  storeCalendarAuthenticationToken,
-  UserSettings
-} from '../dynamo';
+import { storeCalendarAuthenticationToken } from '../dynamo';
 import config from '../../config';
 import { getMicrosoftGraphSecretWithKey } from '../../utils/secrets';
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
+  private storedToken?: Token;
   private userEmail: string;
 
   private readonly oauthAuthority: string = 'https://login.microsoftonline.com/';
@@ -19,8 +16,9 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
                                           'http://localhost:3000/authorize-microsoft-graph' :
                                           config.endpoints.authorizeMicrosoftGraph;
 
-  constructor(userEmail: string) {
+  constructor(userEmail: string, storedToken?: Token) {
     this.userEmail = userEmail;
+    this.storedToken = storedToken;
   }
 
   private async createOAuthClient(): Promise<OAuthClient<string>> {
@@ -37,20 +35,6 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       }
     });
   }
-
-  private async getUserInformation(): Promise<UserSettings> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const settings = await getSettingsForUsers([this.userEmail]);
-        if (!settings || !settings.length) {
-          throw new Error(`Didn't find stored user settings for email ${this.userEmail}`);
-        }
-        resolve(settings[0]);
-      } catch (error) {
-        reject(error.message);
-      }
-    });
-  };
 
   private async shouldRefreshToken({ 'expires_at_timestamp': expiresAtTimestamp }: Token): Promise<boolean> {
     if (!expiresAtTimestamp) {
@@ -84,13 +68,12 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
 
   public async getAccessToken(): Promise<any> {
     return new Promise(async (resolve, reject) => {
-      const { calendarStoredToken } = await this.getUserInformation();
 
-      if (calendarStoredToken) {
-        if (this.shouldRefreshToken(calendarStoredToken)) {
+      if (this.storedToken) {
+        if (this.shouldRefreshToken(this.storedToken)) {
           try {
             const authentication = await this.createOAuthClient();
-            const accessToken = authentication.accessToken.create(calendarStoredToken);
+            const accessToken = authentication.accessToken.create(this.storedToken);
             const newToken = (await accessToken.refresh()).token;
             newToken.expires_at_timestamp = newToken.expires_at.toISOString();
             await storeCalendarAuthenticationToken(this.userEmail, newToken);
@@ -100,7 +83,7 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
             reject(error);
           }
         }
-        resolve(calendarStoredToken.access_token);
+        resolve(this.storedToken.access_token);
       } else {
         reject(`Could not authenticate user ${this.userEmail} with Microsoft Graph`);
       }

@@ -64,7 +64,9 @@ export const updateBatch: Handler = async (event: any) => {
 
   await Promise.all(
     userSettings.map(async us => {
-      const userEvents = await getEventsForUser(us.email);
+      const userEvents = await getEventsForUser(us.email, us.calendarStoredToken);
+      if (!userEvents) return;
+
       const relevantEvent = getHighestPriorityEvent(userEvents);
 
       const status = getStatusForUserEvent(us, relevantEvent);
@@ -78,9 +80,9 @@ export const updateBatch: Handler = async (event: any) => {
 
       const presence =
         relevantEvent &&
-        [ShowAs.Busy, ShowAs.OutOfOffice].includes(relevantEvent.showAs)
-          ? "away"
-          : "auto";
+        (relevantEvent.showAs < ShowAs.Busy)
+          ? 'auto'
+          : 'away';
 
       console.log(`Setting presence to '${presence}' for ${us.email}`);
       await setUserPresence(us.slackToken, presence);
@@ -159,7 +161,5 @@ export const createUser: Handler = async (event: any) => {
     slackToken: tokenStr
   });
 
-  const redirect = microsoftAuthRedirect(authorizedUser.email);
-  console.log(redirect);
-  return redirect;
+  return microsoftAuthRedirect(authorizedUser.email);
 };
