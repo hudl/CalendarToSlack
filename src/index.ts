@@ -99,7 +99,7 @@ export const createUser: Handler = async (event: any) => {
 
   const tokenResult = await oauthClient.authorizationCode.getToken({
     code,
-    redirect_uri: process.env.IS_OFFLINE ? 'http://localhost:3000/create-user' : 'IMPLEMENT_URL',
+    redirect_uri: process.env.IS_OFFLINE ? 'http://localhost:3000/create-user' : config.endpoints.createUser,
   });
   const accessToken = oauthClient.accessToken.create(tokenResult);
   const tokenStr: string = accessToken.token.access_token;
