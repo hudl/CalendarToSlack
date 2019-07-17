@@ -139,12 +139,26 @@ const handleSet = async (userSettings: UserSettings, args: CommandArguments): Pr
   const updated = await upsertStatusMappings(userSettings);
   const serialized = serializeStatusMappings(updated);
 
-  return `Here's what I got: ${serialized}`;
+  return `Added! Here's what I got: ${serialized}`;
 };
 
 const handleRemove = async (userSettings: UserSettings, args: CommandArguments): Promise<string> => {
-  // TODO: implement
-  return 'Not implemented';
+  if (!args.meeting) {
+    return `You must specify a meeting using \`meeting="My Meeting"\`.`;
+  }
+
+  if (!userSettings.statusMappings) {
+    userSettings.statusMappings = [];
+  }
+
+  userSettings.statusMappings = userSettings.statusMappings.filter(
+    sm => sm.calendarText.toLowerCase() !== (args.meeting || '').toLowerCase(),
+  );
+
+  const updated = await upsertStatusMappings(userSettings);
+  const serialized = serializeStatusMappings(updated);
+
+  return `Removed! Here's what I got: ${serialized}`;
 };
 
 const commandHandlerMap: {
