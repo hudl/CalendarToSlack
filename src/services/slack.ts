@@ -1,4 +1,4 @@
-import { WebClient, WebAPICallError, WebAPIPlatformError, WebAPIHTTPError } from '@slack/web-api';
+import { WebClient } from '@slack/web-api';
 import { clearUserTokens } from './dynamo';
 
 export type SlackStatus = {
