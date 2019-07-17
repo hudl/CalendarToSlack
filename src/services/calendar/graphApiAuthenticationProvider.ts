@@ -7,10 +7,10 @@ import {
   UserSettings
 } from '../dynamo';
 import config from '../../config';
+import { getMicrosoftGraphSecretWithKey } from '../../utils/secrets';
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   private userEmail: string;
-  private authentication: OAuthClient;
 
   private readonly oauthAuthority: string = 'https://login.microsoftonline.com/';
   private readonly authorizePath: string = '/oauth2/v2.0/authorize';
@@ -23,14 +23,14 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   constructor(userEmail: string) {
     this.userEmail = userEmail;
     env.config();
-    this.authentication = this.createOAuthClient();
   }
 
-  private createOAuthClient(): OAuthClient<string> {
+  private async createOAuthClient(): Promise<OAuthClient<string>> {
+    const clientSecret = await getMicrosoftGraphSecretWithKey('client-secret');
     return oauth2.create({
       client: {
         id: config.microsoftGraph.clientId || '',
-        secret: process.env.CLIENT_SECRET || '', // TODO: move the secret into AWS secrets
+        secret: clientSecret,
       },
       auth: {
         tokenHost: `${this.oauthAuthority}${config.microsoftGraph.tenantId || ''}`,
@@ -69,11 +69,12 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       const tokenConfig: any = {
         scope: this.scope,
         code: authCode || '',
-        redirect_uri: this.redirectUri // should be the lambda
+        redirect_uri: this.redirectUri
       };
       try {
-        const result = await this.authentication.authorizationCode.getToken(tokenConfig);
-        const { token } = this.authentication.accessToken.create(result);
+        const authentication = await this.createOAuthClient();
+        const result = await authentication.authorizationCode.getToken(tokenConfig);
+        const { token } = authentication.accessToken.create(result);
         token.expires_at_timestamp = token.expires_at.toISOString();
         await storeCalendarAuthenticationToken(this.userEmail, token);
         resolve(token);
@@ -90,7 +91,8 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       if (calendarStoredToken) {
         if (this.shouldRefreshToken(calendarStoredToken)) {
           try {
-            const accessToken = this.authentication.accessToken.create(calendarStoredToken);
+            const authentication = await this.createOAuthClient();
+            const accessToken = authentication.accessToken.create(calendarStoredToken);
             const newToken = (await accessToken.refresh()).token;
             newToken.expires_at_timestamp = newToken.expires_at.toISOString();
             await storeCalendarAuthenticationToken(this.userEmail, newToken);

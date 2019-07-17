@@ -9,7 +9,7 @@ import { InvocationRequest } from 'aws-sdk/clients/lambda';
 import { getStatusForUserEvent } from './utils/map-event-status';
 import { GraphApiAuthenticationProvider } from "./services/calendar/graphApiAuthenticationProvider";
 import config from './config';
-import { getSecretWithKey } from './utils/secrets';
+import { getSlackSecretWithKey } from './utils/secrets';
 
 type GetProfileResult = {
   email: string;
@@ -91,7 +91,7 @@ export const slackInstall: Handler = async () => {
 export const createUser: Handler = async (event: any) => {
   const code = event.queryStringParameters.code;
   const clientId = config.slack.clientId;
-  const clientSecret = await getSecretWithKey('client-secret');
+  const clientSecret = await getSlackSecretWithKey('client-secret');
 
   const oauthClient = oauth.create({
     client: {
