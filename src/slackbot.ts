@@ -2,7 +2,6 @@ import crypto from 'crypto';
 import { getSlackSecretWithKey } from './utils/secrets';
 import { getUserProfile, postMessage } from './services/slack';
 import { getSettingsForUsers, upsertStatusMappings, UserSettings, upsertDefaultStatus } from './services/dynamo';
-import config from '../config';
 import { slackInstallUrl } from './utils/urls';
 
 const MILLIS_IN_SEC = 1000;
@@ -38,6 +37,12 @@ type SlackEventCallback = {
   event_id: string;
   event_time: number;
   authed_users: Array<string>;
+};
+
+type CommandArguments = {
+  meeting?: string;
+  message?: string;
+  emoji?: string;
 };
 
 interface SlackResponse {}
@@ -78,6 +83,23 @@ const serializeStatusMappings = (userSettings: UserSettings): string[] => {
   return [];
 };
 
+const constructCommandArgs = (argList: string[]): CommandArguments => {
+  const args: { [key: string]: string } = { meeting: '', message: '', emoji: '' };
+
+  for (let arg of argList) {
+    const [key, value] = arg.split('=');
+    if (key in args) {
+      args[key] = value.replace(/["”“]/g, '');
+    }
+  }
+
+  return {
+    meeting: args['meeting'],
+    message: args['message'],
+    emoji: args['emoji'],
+  };
+};
+
 const handleShow = async (userSettings: UserSettings): Promise<string> => {
   const serialized = serializeStatusMappings(userSettings);
   if (serialized.length) {
@@ -87,16 +109,8 @@ const handleShow = async (userSettings: UserSettings): Promise<string> => {
   return "You don't have any status mappings yet. Try `set`";
 };
 
-const handleSet = async (userSettings: UserSettings, args: string[]): Promise<string> => {
-  const defaults: { [prop: string]: string } = { meeting: '', message: '', emoji: '' };
-  for (let arg of args) {
-    const [key, value] = arg.split('=');
-    if (key in defaults) {
-      defaults[key] = value;
-    }
-  }
-
-  if (!defaults.meeting) {
+const handleSet = async (userSettings: UserSettings, args: CommandArguments): Promise<string> => {
+  if (!args.meeting) {
     return `You must specify a meeting using \`meeting="My Meeting"\`.`;
   }
 
@@ -105,19 +119,19 @@ const handleSet = async (userSettings: UserSettings, args: string[]): Promise<st
   }
 
   const existingMeeting = userSettings.statusMappings.find(
-    m => m.calendarText.toLowerCase() === defaults.meeting.toLowerCase(),
+    m => m.calendarText.toLowerCase() === (args.meeting || '').toLowerCase(),
   );
 
   const slackStatus = {
-    text: defaults.message || defaults.meeting,
-    emoji: defaults.emoji,
+    text: args.message || args.meeting,
+    emoji: args.emoji,
   };
 
   if (existingMeeting) {
     existingMeeting.slackStatus = slackStatus;
   } else {
     userSettings.statusMappings.push({
-      calendarText: defaults.meeting,
+      calendarText: args.meeting,
       slackStatus,
     });
   }
@@ -128,21 +142,13 @@ const handleSet = async (userSettings: UserSettings, args: string[]): Promise<st
   return `Here's what I got: ${serialized}`;
 };
 
-const handleRemove = async (userSettings: UserSettings, args: string[]): Promise<string> => {
+const handleRemove = async (userSettings: UserSettings, args: CommandArguments): Promise<string> => {
   // TODO: implement
   return 'Not implemented';
 };
 
-const handleSetDefault = async (userSettings: UserSettings, args: string[]): Promise<string> => {
-  const defaults: { [prop: string]: string | '' } = { message: '', emoji: '' };
-  for (let arg of args) {
-    const [key, value] = arg.split('=');
-    if (key in defaults) {
-      defaults[key] = value;
-    }
-  }
-
-  const { message, emoji } = defaults;
+const handleSetDefault = async (userSettings: UserSettings, args: CommandArguments): Promise<string> => {
+  const { message, emoji } = args;
 
   if (!message && !emoji) {
     return 'Please set a default `message` and/or `emoji`.';
@@ -160,7 +166,9 @@ const handleRemoveDefault = async (userSettings: UserSettings): Promise<string> 
   return 'Your default status has been removed.';
 };
 
-const commandHandlerMap: { [command: string]: (userSettings: UserSettings, args: string[]) => Promise<string> } = {
+const commandHandlerMap: {
+  [command: string]: (userSettings: UserSettings, args: CommandArguments) => Promise<string>;
+} = {
   show: handleShow,
   set: handleSet,
   remove: handleRemove,
@@ -201,12 +209,12 @@ You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   }
 
   const command = text;
-  const tokens = command.match(/[\w]+=[""][^""]+[""]|[^ """]+/g) || [];
+  const tokens = command.match(/[\w]+=["“][^"”]+["”]|[^ "“”]+/g) || [];
   const subcommand = tokens[0];
   const args = tokens.slice(1);
 
   if (subcommand in commandHandlerMap) {
-    const message = await commandHandlerMap[subcommand](userSettings[0], args);
+    const message = await commandHandlerMap[subcommand](userSettings[0], constructCommandArgs(args));
     return await sendMessage(message);
   }
 
