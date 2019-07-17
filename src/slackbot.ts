@@ -3,6 +3,7 @@ import { getSlackSecretWithKey } from './utils/secrets';
 import { getUserProfile, postMessage } from './services/slack';
 import { getSettingsForUsers, upsertStatusMappings, UserSettings, upsertDefaultStatus } from './services/dynamo';
 import config from '../config';
+import { slackInstallUrl } from './utils/urls';
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
@@ -41,12 +42,12 @@ type SlackEventCallback = {
 
 interface SlackResponse {}
 
-function validateTimestamp(slackRequestTimestampInSec: number): boolean {
+const validateTimestamp = (slackRequestTimestampInSec: number): boolean => {
   const currentTimeInSec = Math.floor(new Date().getTime() / MILLIS_IN_SEC);
   return Math.abs(currentTimeInSec - slackRequestTimestampInSec) < FIVE_MIN_IN_SEC;
-}
+};
 
-async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
+const validateSlackRequest = async (event: ApiGatewayEvent): Promise<boolean> => {
   const requestTimestamp: number = +event.headers['X-Slack-Request-Timestamp'];
   if (!validateTimestamp(requestTimestamp)) {
     return false;
@@ -61,9 +62,9 @@ async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
   const calculatedSignature = hmac.update(`${version}:${requestTimestamp}:${event.body}`).digest('hex');
 
   return crypto.timingSafeEqual(Buffer.from(calculatedSignature, 'utf8'), Buffer.from(slackHash, 'utf8'));
-}
+};
 
-function serializeStatusMappings(userSettings: UserSettings): string[] {
+const serializeStatusMappings = (userSettings: UserSettings): string[] => {
   if (userSettings.statusMappings) {
     const serialized = userSettings.statusMappings.map(
       m =>
@@ -75,26 +76,118 @@ function serializeStatusMappings(userSettings: UserSettings): string[] {
   }
 
   return [];
-}
+};
 
-async function handleSlackEventCallback(event: SlackEventCallback): Promise<SlackResponse> {
-  console.debug(JSON.stringify(event));
-  if (event.event.type !== 'message' || event.event.channel_type !== 'im') {
-    console.log(`Event type ${event.event.type}/${event.event.channel_type} is not handled by this version.`);
+const handleShow = async (userSettings: UserSettings): Promise<string> => {
+  const serialized = serializeStatusMappings(userSettings);
+  if (serialized.length) {
+    return `Here's what I've got for you:${serialized}`;
+  }
+
+  return "You don't have any status mappings yet. Try `set`";
+};
+
+const handleSet = async (userSettings: UserSettings, args: string[]): Promise<string> => {
+  const defaults: { [prop: string]: string } = { meeting: '', message: '', emoji: '' };
+  for (let arg of args) {
+    const [key, value] = arg.split('=');
+    if (key in defaults) {
+      defaults[key] = value;
+    }
+  }
+
+  if (!defaults.meeting) {
+    return `You must specify a meeting using \`meeting="My Meeting"\`.`;
+  }
+
+  if (!userSettings.statusMappings) {
+    userSettings.statusMappings = [];
+  }
+
+  const existingMeeting = userSettings.statusMappings.find(
+    m => m.calendarText.toLowerCase() === defaults.meeting.toLowerCase(),
+  );
+
+  const slackStatus = {
+    text: defaults.message || defaults.meeting,
+    emoji: defaults.emoji,
+  };
+
+  if (existingMeeting) {
+    existingMeeting.slackStatus = slackStatus;
+  } else {
+    userSettings.statusMappings.push({
+      calendarText: defaults.meeting,
+      slackStatus,
+    });
+  }
+
+  const updated = await upsertStatusMappings(userSettings);
+  const serialized = serializeStatusMappings(updated);
+
+  return `Here's what I got: ${serialized}`;
+};
+
+const handleRemove = async (userSettings: UserSettings, args: string[]): Promise<string> => {
+  // TODO: implement
+  return 'Not implemented';
+};
+
+const handleSetDefault = async (userSettings: UserSettings, args: string[]): Promise<string> => {
+  const defaults: { [prop: string]: string | '' } = { message: '', emoji: '' };
+  for (let arg of args) {
+    const [key, value] = arg.split('=');
+    if (key in defaults) {
+      defaults[key] = value;
+    }
+  }
+
+  const { message, emoji } = defaults;
+
+  if (!message && !emoji) {
+    return 'Please set a default `message` and/or `emoji`.';
+  }
+
+  userSettings.defaultStatus = { text: message, emoji: emoji };
+  await upsertDefaultStatus(userSettings);
+
+  return `Your default status is ${emoji} \`${message}\`.`;
+};
+
+const handleRemoveDefault = async (userSettings: UserSettings): Promise<string> => {
+  userSettings.defaultStatus = null;
+  await upsertDefaultStatus(userSettings);
+  return 'Your default status has been removed.';
+};
+
+const commandHandlerMap: { [command: string]: (userSettings: UserSettings, args: string[]) => Promise<string> } = {
+  show: handleShow,
+  set: handleSet,
+  remove: handleRemove,
+  'set-default': handleSetDefault,
+  'remove-default': handleRemoveDefault,
+};
+
+const handleSlackEventCallback = async ({
+  event: { type, subtype, channel, channel_type, user, text },
+}: SlackEventCallback): Promise<SlackResponse> => {
+  if (type !== 'message' || channel_type !== 'im') {
+    console.log(`Event type ${type}/${channel_type} is not handled by this version.`);
     return EMPTY_RESPONSE_BODY;
   }
-  if (event.event.subtype === 'bot_message' || !event.event.user) {
+
+  if (subtype === 'bot_message' || !user) {
     // ignore messages from self
     return EMPTY_RESPONSE_BODY;
   }
 
   const botToken = await getSlackSecretWithKey('bot-token');
   const sendMessage = async (message: string): Promise<SlackResponse> => {
-    const ok = await postMessage(botToken, { text: message, channel: event.event.channel });
+    await postMessage(botToken, { text: message, channel: channel });
     return EMPTY_RESPONSE_BODY;
   };
 
-  const userProfile = await getUserProfile(botToken, event.event.user);
+  const userProfile = await getUserProfile(botToken, user);
   if (!userProfile) {
     return await sendMessage('Something went wrong fetching your user profile. Maybe try again?');
   }
@@ -104,86 +197,17 @@ async function handleSlackEventCallback(event: SlackEventCallback): Promise<Slac
   if (!userSettings.length || !userSettings[0].slackToken) {
     return await sendMessage(`Hello :wave:
 
-You need to authorize me before we can do anything else: ${config.endpoints.slackInstall}`);
+You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   }
 
-  const command = event.event.text;
-  const usersSettings = userSettings[0];
-  if (/^\s*show/i.test(command)) {
-    const serialized = serializeStatusMappings(usersSettings);
-    if (serialized.length) {
-      return await sendMessage(`Here's what I've got for you:${serialized}`);
-    }
+  const command = text;
+  const tokens = command.match(/[\w]+=[""][^""]+[""]|[^ """]+/g) || [];
+  const subcommand = tokens[0];
+  const args = tokens.slice(1);
 
-    return await sendMessage("You don't have any status mappings yet. Try `set`");
-  }
-
-  if (/^\s*set-default/i.test(command)) {
-    const tokens = command.match(/[\w]+=[""][^""]+[""]|[^ """]+/g) || [];
-    const defaults: { [prop: string]: string } = { message: '', emoji: '' };
-    for (let token of tokens) {
-      const [key, value] = token.split('=');
-      if (key in defaults) {
-        defaults[key] = value;
-      }
-    }
-
-    const { message, emoji } = defaults;
-
-    if (!message && !emoji) {
-      return await sendMessage('Please set a default `message` and/or `emoji`.');
-    }
-
-    usersSettings.defaultStatus = { text: message, emoji: emoji };
-    await upsertDefaultStatus(usersSettings);
-
-    return await sendMessage(`Your default status is ${emoji} \`${message}\`.`);
-  } else if (/^\s*set/i.test(command)) {
-    const tokens = command.match(/[\w]+=[""][^""]+[""]|[^ """]+/g) || [];
-    const defaults: { [prop: string]: string } = { meeting: '', message: '', emoji: '' };
-    for (let token of tokens) {
-      const [key, value] = token.split('=');
-      if (key in defaults) {
-        defaults[key] = value;
-      }
-    }
-
-    if (!defaults.meeting) {
-      return await sendMessage("The `meeting` part can't be empty.");
-    }
-
-    if (!usersSettings.statusMappings) {
-      usersSettings.statusMappings = [];
-    }
-
-    const existingMeeting = usersSettings.statusMappings.find(
-      m => m.calendarText.toLowerCase() === defaults.meeting.toLowerCase(),
-    );
-    if (existingMeeting) {
-      existingMeeting.slackStatus = {
-        text: defaults.message,
-        emoji: defaults.emoji,
-      };
-    } else {
-      usersSettings.statusMappings.push({
-        calendarText: defaults.meeting,
-        slackStatus: {
-          text: defaults.message,
-          emoji: defaults.emoji,
-        },
-      });
-    }
-
-    const updated = await upsertStatusMappings(usersSettings);
-    const serialized = serializeStatusMappings(updated);
-
-    return await sendMessage(`Here's what I got: ${serialized}`);
-  }
-
-  if (/^\s*remove-default/i.test(command)) {
-    usersSettings.defaultStatus = null;
-    await upsertDefaultStatus(usersSettings);
-    return await sendMessage('Your default status has been removed.');
+  if (subcommand in commandHandlerMap) {
+    const message = await commandHandlerMap[subcommand](userSettings[0], args);
+    return await sendMessage(message);
   }
 
   return await sendMessage(`:shrug: Maybe try one of these:
@@ -193,7 +217,7 @@ You need to authorize me before we can do anything else: ${config.endpoints.slac
   - \`set-default\`
   - \`remove\`
   - \`remove-default\``);
-}
+};
 
 export const handler = async (event: ApiGatewayEvent) => {
   let body = JSON.parse(event.body);
