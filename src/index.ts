@@ -1,10 +1,18 @@
-import { getEventsForUser, CalendarEvent } from './services/calendar';
-import { getAllUserSettings, getSettingsForUsers } from './services/dynamo';
-import { setSlackStatus } from './services/slack';
+import { getEventsForUser, CalendarEvent, ShowAs } from './services/calendar';
+import { getAllUserSettings, getSettingsForUsers, upsertUserSettings } from './services/dynamo';
+import { setUserStatus, setUserPresence } from './services/slack';
 import AWS from 'aws-sdk';
 import { Handler } from 'aws-lambda';
 import { InvocationRequest } from 'aws-sdk/clients/lambda';
 import { getStatusForUserEvent } from './utils/map-event-status';
+import oauth from 'simple-oauth2';
+import config from '../config';
+import { getSecretWithKey } from './utils/secrets';
+import { WebClient } from '@slack/web-api';
+
+type GetProfileResult = {
+  email: string;
+};
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) => {
   const now: Date = new Date();
@@ -50,7 +58,54 @@ export const updateBatch: Handler = async (event: any) => {
 
       const status = getStatusForUserEvent(us, relevantEvent);
 
-      await setSlackStatus(us.email, us.slackToken, status);
+      console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${us.email}`);
+      await setUserStatus(us.slackToken, status);
+
+      const presence =
+        relevantEvent && [ShowAs.Busy, ShowAs.OutOfOffice].includes(relevantEvent.showAs) ? 'away' : 'auto';
+
+      console.log(`Setting presence to "${presence}" for ${us.email}`);
+      await setUserPresence(us.slackToken, presence);
     }),
   );
+};
+
+export const slackInstall: Handler = async () => {
+  return {
+    statusCode: 302,
+    headers: {
+      Location: `https://slack.com/oauth/authorize?client_id=${config.slack.clientId}&scope=${encodeURIComponent(
+        'users.profile:read,users.profile:write,users:write',
+      )}`,
+    },
+  };
+};
+
+export const createUser: Handler = async (event: any) => {
+  const code = event.queryStringParameters.code;
+  const clientId = config.slack.clientId;
+  const clientSecret = await getSecretWithKey('client-secret');
+
+  const oauthClient = oauth.create({
+    client: {
+      id: clientId,
+      secret: clientSecret,
+    },
+    auth: {
+      tokenHost: 'https://slack.com',
+      tokenPath: '/api/oauth.access',
+    },
+  });
+
+  const tokenResult = await oauthClient.authorizationCode.getToken({
+    code,
+    redirect_uri: process.env.IS_OFFLINE ? 'http://localhost:3000/create-user' : config.endpoints.createUser,
+  });
+  const accessToken = oauthClient.accessToken.create(tokenResult);
+  const tokenStr: string = accessToken.token.access_token;
+
+  const slackClient = new WebClient(tokenStr);
+  const authorizedUser = (await slackClient.users.profile.get()).profile as GetProfileResult;
+
+  await upsertUserSettings({ email: authorizedUser.email, slackToken: tokenStr });
 };

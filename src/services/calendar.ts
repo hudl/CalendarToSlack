@@ -18,10 +18,10 @@ const userEvents: {
 } = {
   'jordan.degner@hudl.com': [
     {
-      name: 'Quick Chat',
-      startDate: new Date('7/14/2019'),
-      endDate: new Date('7/15/2019'),
-      location: 'Zoom',
+      name: 'Skunkworks',
+      startDate: new Date('7/15/2019'),
+      endDate: new Date('7/17/2019'),
+      location: 'HQ',
       showAs: ShowAs.Busy,
     },
   ],
