@@ -96,6 +96,13 @@ export const authorizeMicrosoftGraph: Handler = async (event: any) => {
   } = event;
   const authProvider = new GraphApiAuthenticationProvider(state);
   await authProvider.getTokenWithAuthCode(code);
+
+  return {
+    statusCode: 301,
+    headers: {
+      Location: 'https://github.com/hudl/CalendarToSlack/wiki/Cal2Slack-Home',
+    },
+  };
 };
 
 const microsoftAuthRedirect = (email: string) => {
@@ -109,8 +116,8 @@ const microsoftAuthRedirect = (email: string) => {
         config.microsoftGraph.tenantId
       }/oauth2/v2.0/authorize?client_id=${
         config.microsoftGraph.clientId
-      }&response_type=code&redirect_uri=${redirectUri}&response_mode=query&scope=calendars.read&state=${email}`
-    }
+      }&response_type=code&redirect_uri=${redirectUri}&response_mode=query&scope=calendars.read&state=${email}`,
+    },
   };
 };
 
