@@ -1,14 +1,42 @@
 import crypto from 'crypto';
 import { getSlackSecretWithKey } from './utils/secrets';
+import { WebClient } from '@slack/web-api';
+import { getSettingsForUsers } from './services/dynamo';
+import config from '../config';
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
+const EMPTY_RESPONSE_BODY = {};
 
 type ApiGatewayEvent = {
   headers: {
     [header: string]: string;
   };
   body: string;
+};
+
+type SlackEvent = {
+  client_msg_id: string;
+  type: string;
+  subtype?: string;
+  text: string;
+  user?: string;
+  ts: string;
+  team: string;
+  channel: string;
+  event_ts: string;
+  channel_type: string;
+};
+
+type SlackEventCallback = {
+  token: string;
+  team_id: string;
+  api_app_id: string;
+  event: SlackEvent;
+  type: string;
+  event_id: string;
+  event_time: number;
+  authed_users: Array<string>;
 };
 
 interface SlackResponse {}
@@ -35,13 +63,72 @@ async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
   return crypto.timingSafeEqual(Buffer.from(calculatedSignature, 'utf8'), Buffer.from(slackHash, 'utf8'));
 }
 
+async function handleSlackEventCallback(event: SlackEventCallback): Promise<SlackResponse> {
+  console.debug(JSON.stringify(event));
+  if (event.event.type !== 'message' || event.event.channel_type !== 'im') {
+    console.log(`Event type ${event.event.type}/${event.event.channel_type} is not handled by this version.`);
+    return EMPTY_RESPONSE_BODY;
+  }
+  if (event.event.subtype === 'bot_message' || !event.event.user) {
+    // ignore messages from self
+    return EMPTY_RESPONSE_BODY;
+  }
+
+  const botToken = await getSlackSecretWithKey('bot-token');
+  const slackWeb = new WebClient(botToken);
+
+  const response: any = await slackWeb.users.info({ user: event.event.user });
+  const userEmail = response.user.profile.email;
+  const userSettings = await getSettingsForUsers([userEmail]);
+  if (!userSettings.length || !userSettings[0].slackToken) {
+    await slackWeb.chat.postMessage({
+      text: `Hello :wave:
+
+You need to authorize me before we can do anything else: ${config.endpoints.slackInstall}`,
+      channel: event.event.channel
+    });
+
+    return EMPTY_RESPONSE_BODY;
+  }
+
+  const command = event.event.text;
+  const usersSettings = userSettings[0];
+  if (/^\s*show/i.test(command)) {
+    let message = 'You don\'t have any status mappings yet. Try `set`';
+    if (usersSettings.statusMappings) {
+      const serialized = usersSettings.statusMappings.map(
+        m =>
+          `\n${m.slackStatus.emoji} \`${m.calendarText}\` ${
+            m.slackStatus.text ? 'uses status `' + m.slackStatus.text + '`' : ''
+          }`
+      );
+      message = `Here's what I've got for you:${serialized}`;
+    }
+
+    await slackWeb.chat.postMessage({
+      text: message,
+      channel: event.event.channel
+    });
+
+    return EMPTY_RESPONSE_BODY;
+  }
+
+  await slackWeb.chat.postMessage({
+    text: `:shrug: Maybe try one of these:
+- \`show\``,
+    channel: event.event.channel
+  });
+
+  return EMPTY_RESPONSE_BODY;
+}
+
 export const handler = async (event: ApiGatewayEvent) => {
   let body = JSON.parse(event.body);
 
   if (!(await validateSlackRequest(event))) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: 'Request was invalid' }),
+      body: JSON.stringify({ error: 'Request was invalid' })
     };
   }
 
@@ -51,18 +138,17 @@ export const handler = async (event: ApiGatewayEvent) => {
       responseBody = { challenge: body.challenge };
       break;
     case 'event_callback':
-      console.log(event.body);
-      responseBody = {};
+      responseBody = await handleSlackEventCallback(body as SlackEventCallback);
       break;
     default:
       console.log('Event type not recognized: ' + body.type);
       console.log(event.body);
-      responseBody = {};
+      responseBody = EMPTY_RESPONSE_BODY;
   }
 
   let response = {
     statusCode: 200,
-    body: JSON.stringify(responseBody),
+    body: JSON.stringify(responseBody)
   };
 
   return response;
