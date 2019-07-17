@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { getSlackSecretWithKey } from './utils/secrets';
 import { WebClient } from '@slack/web-api';
 import { getSettingsForUsers } from './services/dynamo';
-import config from '../config';
+import { slackInstallUrl } from './utils/urls';
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
@@ -84,8 +84,8 @@ async function handleSlackEventCallback(event: SlackEventCallback): Promise<Slac
     await slackWeb.chat.postMessage({
       text: `Hello :wave:
 
-You need to authorize me before we can do anything else: ${config.endpoints.slackInstall}`,
-      channel: event.event.channel
+You need to authorize me before we can do anything else: ${slackInstallUrl()}`,
+      channel: event.event.channel,
     });
 
     return EMPTY_RESPONSE_BODY;
@@ -94,20 +94,20 @@ You need to authorize me before we can do anything else: ${config.endpoints.slac
   const command = event.event.text;
   const usersSettings = userSettings[0];
   if (/^\s*show/i.test(command)) {
-    let message = 'You don\'t have any status mappings yet. Try `set`';
+    let message = "You don't have any status mappings yet. Try `set`";
     if (usersSettings.statusMappings) {
       const serialized = usersSettings.statusMappings.map(
         m =>
           `\n${m.slackStatus.emoji} \`${m.calendarText}\` ${
             m.slackStatus.text ? 'uses status `' + m.slackStatus.text + '`' : ''
-          }`
+          }`,
       );
       message = `Here's what I've got for you:${serialized}`;
     }
 
     await slackWeb.chat.postMessage({
       text: message,
-      channel: event.event.channel
+      channel: event.event.channel,
     });
 
     return EMPTY_RESPONSE_BODY;
@@ -116,7 +116,7 @@ You need to authorize me before we can do anything else: ${config.endpoints.slac
   await slackWeb.chat.postMessage({
     text: `:shrug: Maybe try one of these:
 - \`show\``,
-    channel: event.event.channel
+    channel: event.event.channel,
   });
 
   return EMPTY_RESPONSE_BODY;
@@ -128,7 +128,7 @@ export const handler = async (event: ApiGatewayEvent) => {
   if (!(await validateSlackRequest(event))) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: 'Request was invalid' })
+      body: JSON.stringify({ error: 'Request was invalid' }),
     };
   }
 
@@ -148,7 +148,7 @@ export const handler = async (event: ApiGatewayEvent) => {
 
   let response = {
     statusCode: 200,
-    body: JSON.stringify(responseBody)
+    body: JSON.stringify(responseBody),
   };
 
   return response;
