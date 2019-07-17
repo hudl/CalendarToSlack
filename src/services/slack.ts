@@ -1,9 +1,23 @@
+import { WebClient } from '@slack/web-api';
+
 export type SlackStatus = {
   text?: string;
   emoji?: string;
 };
 
-export const setSlackStatus = async (email: string, token: string, status: SlackStatus) => {
-  // TODO: Implement this function to set the Slack status to a given status text and emoji for a user
-  console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email}`);
+export const setUserPresence = async (token: string, presence: 'auto' | 'away') => {
+  if (!token) return;
+
+  const slackClient = new WebClient(token);
+
+  await slackClient.users.setPresence({ presence });
+};
+
+export const setUserStatus = async (token: string, status: SlackStatus) => {
+  if (!token) return;
+
+  const slackClient = new WebClient(token);
+  const profile = JSON.stringify({ status_text: status.text, status_emoji: status.emoji });
+
+  await slackClient.users.profile.set({ profile });
 };
