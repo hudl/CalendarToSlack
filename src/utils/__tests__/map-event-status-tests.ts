@@ -1,5 +1,5 @@
 import { getStatusForUserEvent } from '../map-event-status';
-import { ShowAs } from '../../services/calendar';
+import { ShowAs } from '../../services/calendar/calendar';
 
 const baseUserSettings = { email: 'test@email.com', slackToken: 'abc' };
 
@@ -36,7 +36,7 @@ describe('getStatusForUserEvent', () => {
             },
           ],
         },
-        { name: 'Quick Chat', startDate: new Date(), endDate: new Date(), location: 'Zoom', showAs: ShowAs.Free },
+        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Free },
       );
 
       expect(status).toEqual({
@@ -61,7 +61,7 @@ describe('getStatusForUserEvent', () => {
             },
           ],
         },
-        { name: 'Quick Chat', startDate: new Date(), endDate: new Date(), location: 'Zoom', showAs: ShowAs.Free },
+        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Free },
       );
 
       expect(status).toEqual(defaultStatus);
@@ -71,7 +71,7 @@ describe('getStatusForUserEvent', () => {
       const defaultStatus = { text: 'Hi', emoji: ':wave:' };
       const status = getStatusForUserEvent(
         { ...baseUserSettings, defaultStatus },
-        { name: 'Quick Chat', startDate: new Date(), endDate: new Date(), location: 'Zoom', showAs: ShowAs.Free },
+        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Free },
       );
 
       expect(status).toEqual(defaultStatus);
@@ -80,8 +80,8 @@ describe('getStatusForUserEvent', () => {
     test('Returns an empty status without a status mapping or default status', () => {
       const status = getStatusForUserEvent(baseUserSettings, {
         name: 'Quick Chat',
-        startDate: new Date(),
-        endDate: new Date(),
+        startTime: new Date(),
+        endTime: new Date(),
         location: 'Zoom',
         showAs: ShowAs.Free,
       });
@@ -107,7 +107,7 @@ describe('getStatusForUserEvent', () => {
             },
           ],
         },
-        { name: 'Quick Chat', startDate: new Date(), endDate: new Date(), location: 'Zoom', showAs: ShowAs.Busy },
+        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Busy },
       );
 
       expect(status).toEqual({
@@ -132,7 +132,7 @@ describe('getStatusForUserEvent', () => {
             },
           ],
         },
-        { name: 'Quick Chat', startDate: new Date(), endDate: new Date(), location: 'Zoom', showAs: ShowAs.Busy },
+        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Busy },
       );
 
       expect(status).toEqual({ text: 'Away', emoji: ':spiral_calendar_pad:' });
@@ -141,8 +141,8 @@ describe('getStatusForUserEvent', () => {
     test(`Returns "Away" and :spiral_calendar_pad: when the user has no status mappings`, () => {
       const status = getStatusForUserEvent(baseUserSettings, {
         name: 'Quick Chat',
-        startDate: new Date(),
-        endDate: new Date(),
+        startTime: new Date(),
+        endTime: new Date(),
         location: 'Zoom',
         showAs: ShowAs.Busy,
       });
@@ -168,7 +168,7 @@ describe('getStatusForUserEvent', () => {
             },
           ],
         },
-        { name: 'Quick Chat', startDate: new Date(), endDate: new Date(), location: 'Zoom', showAs: ShowAs.Tentative },
+        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Tentative },
       );
 
       expect(status).toEqual({
@@ -193,8 +193,8 @@ describe('getStatusForUserEvent', () => {
         },
         {
           name: 'Quick Chat',
-          startDate: new Date(),
-          endDate: new Date(),
+          startTime: new Date(),
+          endTime: new Date(),
           location: 'Zoom',
           showAs: ShowAs.Tentative,
         },
@@ -206,8 +206,8 @@ describe('getStatusForUserEvent', () => {
     test(`Returns "Away" and :spiral_calendar_pad: when the user has no status mappings`, () => {
       const status = getStatusForUserEvent(baseUserSettings, {
         name: 'Quick Chat',
-        startDate: new Date(),
-        endDate: new Date(),
+        startTime: new Date(),
+        endTime: new Date(),
         location: 'Zoom',
         showAs: ShowAs.Tentative,
       });
@@ -235,8 +235,8 @@ describe('getStatusForUserEvent', () => {
         },
         {
           name: 'Quick Chat',
-          startDate: new Date(),
-          endDate: new Date(),
+          startTime: new Date(),
+          endTime: new Date(),
           location: 'Zoom',
           showAs: ShowAs.OutOfOffice,
         },
@@ -253,8 +253,8 @@ describe('getStatusForUserEvent', () => {
         const today = new Date();
         const status = getStatusForUserEvent(baseUserSettings, {
           name: 'Quick Chat',
-          startDate: new Date(),
-          endDate: {
+          startTime: new Date(),
+          endTime: {
             ...today,
             getDate: jest.fn(() => today.getDate() + 1),
             toLocaleDateString: jest.fn(() => 'tomorrow'),
@@ -271,8 +271,8 @@ describe('getStatusForUserEvent', () => {
         const today = new Date();
         const status = getStatusForUserEvent(baseUserSettings, {
           name: 'Quick Chat',
-          startDate: new Date(),
-          endDate: {
+          startTime: new Date(),
+          endTime: {
             ...today,
             getDate: jest.fn(() => today.getDate()),
             toLocaleDateString: jest.fn(() => 'tomorrow'),
@@ -304,8 +304,8 @@ describe('getStatusForUserEvent', () => {
           },
           {
             name: 'Quick Chat',
-            startDate: new Date(),
-            endDate: {
+            startTime: new Date(),
+            endTime: {
               ...today,
               getDate: jest.fn(() => today.getDate() + 1),
               toLocaleDateString: jest.fn(() => 'tomorrow'),
@@ -336,8 +336,8 @@ describe('getStatusForUserEvent', () => {
           },
           {
             name: 'Quick Chat',
-            startDate: new Date(),
-            endDate: {
+            startTime: new Date(),
+            endTime: {
               ...today,
               getDate: jest.fn(() => today.getDate()),
               toLocaleDateString: jest.fn(() => 'tomorrow'),

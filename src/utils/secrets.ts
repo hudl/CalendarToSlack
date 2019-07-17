@@ -1,13 +1,21 @@
 import AWS from 'aws-sdk';
 import config from '../../config';
 
-export const getSecretWithKey = async (key: string): Promise<string> => {
+export const getSlackSecretWithKey = async (key: string): Promise<string> => {
+  return getSecretWithKey(config.slack.secretName, key);
+};
+
+export const getMicrosoftGraphSecretWithKey = async (key: string): Promise<string> => {
+  return getSecretWithKey(config.microsoftGraph.secretName, key);
+};
+
+const getSecretWithKey = async (secretName: string, key: string): Promise<string> => {
   const client = new AWS.SecretsManager({
     region: config.region,
   });
 
   try {
-    const data = await client.getSecretValue({ SecretId: config.slack.secretName }).promise();
+    const data = await client.getSecretValue({ SecretId: secretName }).promise();
     if ('SecretString' in data && data.SecretString) {
       const secrets = JSON.parse(data.SecretString);
       const value = secrets[key];
@@ -21,5 +29,5 @@ export const getSecretWithKey = async (key: string): Promise<string> => {
     throw err;
   }
 
-  throw new Error('Slack secret not configured properly');
+  throw new Error('Secret not configured properly');
 };

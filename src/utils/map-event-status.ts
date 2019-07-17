@@ -1,5 +1,5 @@
 import { UserSettings } from '../services/dynamo';
-import { CalendarEvent, ShowAs } from '../services/calendar';
+import { CalendarEvent, ShowAs } from '../services/calendar/calendar';
 import { SlackStatus } from '../services/slack';
 
 const getOOODateString = (endDateTime: Date | null) => {
@@ -18,7 +18,7 @@ export const getStatusForUserEvent = (settings: UserSettings, event: CalendarEve
     [ShowAs.Free]: { text: '', emoji: '' },
     [ShowAs.Busy]: { text: 'Away', emoji: ':spiral_calendar_pad:' },
     [ShowAs.Tentative]: { text: 'Away', emoji: ':spiral_calendar_pad:' },
-    [ShowAs.OutOfOffice]: { text: `OOO until ${getOOODateString(event && event.endDate)}`, emoji: ':ooo:' },
+    [ShowAs.OutOfOffice]: { text: `OOO until ${getOOODateString(event && event.endTime)}`, emoji: ':ooo:' },
   };
 
   if (!event) return settings.defaultStatus || { text: '', emoji: '' };
