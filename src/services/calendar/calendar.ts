@@ -1,6 +1,6 @@
-import { Client, ClientOptions } from "@microsoft/microsoft-graph-client";
-import { GraphApiAuthenticationProvider } from "./graphApiAuthenticationProvider";
-import { Token } from "simple-oauth2";
+import { Client, ClientOptions } from '@microsoft/microsoft-graph-client';
+import { GraphApiAuthenticationProvider } from './graphApiAuthenticationProvider';
+import { Token } from 'simple-oauth2';
 
 export enum ShowAs {
   Free = 1,
@@ -18,7 +18,7 @@ export type CalendarEvent = {
 };
 
 const toShowAsStatus = (status: string): ShowAs => {
-  switch(status.toLowerCase()) {
+  switch (status.toLowerCase()) {
     case 'oof':
     case 'workingElsewhere': {
       return ShowAs.OutOfOffice;
@@ -69,10 +69,12 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
   try {
     const outlookEvents = await getAuthenticatedClient(email, storedToken)
       .api(`/users/${email}/events`)
-      .filter(`sensitivity eq 'normal' and start/dateTime le '${startTime.toISOString()}' and end/dateTime ge '${endTime.toISOString()}'`)
+      .filter(
+        `sensitivity eq 'normal' and start/dateTime le '${startTime.toISOString()}' and end/dateTime ge '${endTime.toISOString()}'`,
+      )
       .select('start,end,subject,showAs,location')
       .get();
-    return outlookEvents.value.map((e: any) => { 
+    return outlookEvents.value.map((e: any) => {
       const event: CalendarEvent = {
         name: e.subject,
         startTime: new Date(e.start.dateTime),

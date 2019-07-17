@@ -1,7 +1,7 @@
 import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
 import oauth2, { OAuthClient, Token } from 'simple-oauth2';
 import { storeCalendarAuthenticationToken } from '../dynamo';
-import config from '../../config';
+import config from '../../../config';
 import { getMicrosoftGraphSecretWithKey } from '../../utils/secrets';
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
@@ -12,9 +12,9 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   private readonly authorizePath: string = '/oauth2/v2.0/authorize';
   private readonly tokenPath: string = '/oauth2/v2.0/token';
   private readonly scope: string = 'offline_access https://graph.microsoft.com/.default';
-  private readonly redirectUri: string = process.env.IS_OFFLINE ?
-                                          'http://localhost:3000/authorize-microsoft-graph' :
-                                          config.endpoints.authorizeMicrosoftGraph;
+  private readonly redirectUri: string = process.env.IS_OFFLINE
+    ? 'http://localhost:3000/authorize-microsoft-graph'
+    : config.endpoints.authorizeMicrosoftGraph;
 
   constructor(userEmail: string, storedToken?: Token) {
     this.userEmail = userEmail;
@@ -32,11 +32,11 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
         tokenHost: `${this.oauthAuthority}${config.microsoftGraph.tenantId || ''}`,
         tokenPath: this.tokenPath,
         authorizePath: this.authorizePath,
-      }
+      },
     });
   }
 
-  private async shouldRefreshToken({ 'expires_at_timestamp': expiresAtTimestamp }: Token): Promise<boolean> {
+  private async shouldRefreshToken({ expires_at_timestamp: expiresAtTimestamp }: Token): Promise<boolean> {
     if (!expiresAtTimestamp) {
       return true;
     }
@@ -51,7 +51,7 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       const tokenConfig: any = {
         scope: this.scope,
         code: authCode || '',
-        redirect_uri: this.redirectUri
+        redirect_uri: this.redirectUri,
       };
       try {
         const authentication = await this.createOAuthClient();
@@ -68,7 +68,6 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
 
   public async getAccessToken(): Promise<any> {
     return new Promise(async (resolve, reject) => {
-
       if (this.storedToken) {
         if (this.shouldRefreshToken(this.storedToken)) {
           try {
@@ -87,6 +86,6 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       } else {
         reject(`Could not authenticate user ${this.userEmail} with Microsoft Graph`);
       }
-    });   
+    });
   }
 }
