@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { getSlackSecretWithKey } from './utils/secrets';
 import { getUserProfile, postMessage } from './services/slack';
 import { getSettingsForUsers, upsertStatusMappings, UserSettings } from './services/dynamo';
-import config from '../config';
+import { slackInstallUrl } from './utils/urls';
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
@@ -69,7 +69,7 @@ function serializeStatusMappings(userSettings: UserSettings): string[] {
       m =>
         `\n${m.slackStatus.emoji} \`${m.calendarText}\` ${
           m.slackStatus.text ? 'uses status `' + m.slackStatus.text + '`' : ''
-        }`
+        }`,
     );
     return serialized;
   }
@@ -92,11 +92,11 @@ async function handleSlackEventCallback(event: SlackEventCallback): Promise<Slac
   const sendMessage = async (message: string): Promise<SlackResponse> => {
     const ok = await postMessage(botToken, { text: message, channel: event.event.channel });
     return EMPTY_RESPONSE_BODY;
-  }
+  };
 
   const userProfile = await getUserProfile(botToken, event.event.user);
   if (!userProfile) {
-    return await sendMessage("Something went wrong fetching your user profile. Maybe try again?");
+    return await sendMessage('Something went wrong fetching your user profile. Maybe try again?');
   }
   const userEmail = userProfile.email;
 
@@ -104,7 +104,7 @@ async function handleSlackEventCallback(event: SlackEventCallback): Promise<Slac
   if (!userSettings.length || !userSettings[0].slackToken) {
     return await sendMessage(`Hello :wave:
 
-You need to authorize me before we can do anything else: ${config.endpoints.slackInstall}`);
+You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   }
 
   const command = event.event.text;
@@ -115,14 +115,14 @@ You need to authorize me before we can do anything else: ${config.endpoints.slac
       return await sendMessage(`Here's what I've got for you:${serialized}`);
     }
 
-    return await sendMessage('You don\'t have any status mappings yet. Try `set`');
+    return await sendMessage("You don't have any status mappings yet. Try `set`");
   }
 
   if (/^\s*set/i.test(command)) {
     const tokens = command.match(/[\w]+=[""][^""]+[""]|[^ """]+/g) || [];
-    const defaults: {[prop:string]: string} = {meeting:'', message:'', emoji:''};
+    const defaults: { [prop: string]: string } = { meeting: '', message: '', emoji: '' };
     for (let token of tokens) {
-      const [ key, value ] = token.split('=');
+      const [key, value] = token.split('=');
       if (key in defaults) {
         defaults[key] = value;
       }
@@ -136,19 +136,21 @@ You need to authorize me before we can do anything else: ${config.endpoints.slac
       usersSettings.statusMappings = [];
     }
 
-    const existingMeeting = usersSettings.statusMappings.find(m => m.calendarText.toLowerCase() === defaults.meeting.toLowerCase());
+    const existingMeeting = usersSettings.statusMappings.find(
+      m => m.calendarText.toLowerCase() === defaults.meeting.toLowerCase(),
+    );
     if (existingMeeting) {
       existingMeeting.slackStatus = {
         text: defaults.message,
-        emoji: defaults.emoji
+        emoji: defaults.emoji,
       };
     } else {
       usersSettings.statusMappings.push({
         calendarText: defaults.meeting,
         slackStatus: {
           text: defaults.message,
-          emoji: defaults.emoji
-        }
+          emoji: defaults.emoji,
+        },
       });
     }
 
@@ -171,7 +173,7 @@ export const handler = async (event: ApiGatewayEvent) => {
   if (!(await validateSlackRequest(event))) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: 'Request was invalid' })
+      body: JSON.stringify({ error: 'Request was invalid' }),
     };
   }
 
@@ -191,7 +193,7 @@ export const handler = async (event: ApiGatewayEvent) => {
 
   let response = {
     statusCode: 200,
-    body: JSON.stringify(responseBody)
+    body: JSON.stringify(responseBody),
   };
 
   return response;

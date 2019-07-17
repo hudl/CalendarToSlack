@@ -14,6 +14,33 @@ export type UserSettings = {
   }[];
 };
 
+export const clearUserTokens = async (email: string): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: { email: email },
+        UpdateExpression: 'set calendarStoredToken = :ct, slackToken = :st',
+        ExpressionAttributeValues: {
+          ':ct': null,
+          ':st': null,
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data as UserSettings);
+      },
+    ),
+  );
+};
+
 export const storeCalendarAuthenticationToken = async (
   email: string,
   calendarStoredToken: Token,

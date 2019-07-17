@@ -10,14 +10,23 @@ import { getStatusForUserEvent } from './utils/map-event-status';
 import { GraphApiAuthenticationProvider } from './services/calendar/graphApiAuthenticationProvider';
 import config from '../config';
 import { getSlackSecretWithKey } from './utils/secrets';
+import { authorizeMicrosoftGraphUrl, createUserUrl } from './utils/urls';
 
 type GetProfileResult = {
   email: string;
 };
 
-const getHighestPriorityEvent = (events: CalendarEvent[]) => {
-  return events.length ? events.sort((event1, event2) => event2.showAs - event1.showAs)[0] : null;
-};
+const getHighestPriorityEvent = (events: CalendarEvent[]) =>
+  events.length ? events.sort((event1, event2) => event2.showAs - event1.showAs)[0] : null;
+
+const microsoftAuthRedirect = (email: string) => ({
+  statusCode: 301,
+  headers: {
+    Location: `https://login.microsoftonline.com/${config.microsoftGraph.tenantId}/oauth2/v2.0/authorize?client_id=${
+      config.microsoftGraph.clientId
+    }&response_type=code&redirect_uri=${authorizeMicrosoftGraphUrl()}&response_mode=query&scope=calendars.read&state=${email}`,
+  },
+});
 
 export const update: Handler = async () => {
   const batchSize = 10;
@@ -55,12 +64,12 @@ export const updateBatch: Handler = async (event: any) => {
       const status = getStatusForUserEvent(us, relevantEvent);
 
       console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${us.email}`);
-      await setUserStatus(us.slackToken, status);
+      await setUserStatus(us.email, us.slackToken, status);
 
       const presence = relevantEvent && relevantEvent.showAs < ShowAs.Busy ? 'auto' : 'away';
 
       console.log(`Setting presence to '${presence}' for ${us.email}`);
-      await setUserPresence(us.slackToken, presence);
+      await setUserPresence(us.email, us.slackToken, presence);
     }),
   );
 };
@@ -80,30 +89,16 @@ export const authorizeMicrosoftGraph: Handler = async (event: any) => {
   };
 };
 
-const microsoftAuthRedirect = (email: string) => {
-  const redirectUri = process.env.IS_OFFLINE
-    ? 'http://localhost:3000/authorize-microsoft-graph'
-    : config.endpoints.authorizeMicrosoftGraph;
-  return {
-    statusCode: 301,
-    headers: {
-      Location: `https://login.microsoftonline.com/${config.microsoftGraph.tenantId}/oauth2/v2.0/authorize?client_id=${
-        config.microsoftGraph.clientId
-      }&response_type=code&redirect_uri=${redirectUri}&response_mode=query&scope=calendars.read&state=${email}`,
-    },
-  };
-};
-
-export const slackInstall: Handler = async () => {
-  return {
-    statusCode: 302,
-    headers: {
-      Location: `https://slack.com/oauth/authorize?client_id=${config.slack.clientId}&scope=${encodeURIComponent(
-        'users.profile:read,users.profile:write,users:write',
-      )}`,
-    },
-  };
-};
+export const slackInstall: Handler = async () => ({
+  statusCode: 302,
+  headers: {
+    Location: `https://slack.com/oauth/authorize?client_id=${
+      config.slack.clientId
+    }&redirect_uri=${createUserUrl()}&scope=${encodeURIComponent(
+      'users.profile:read,users.profile:write,users:write',
+    )}`,
+  },
+});
 
 export const createUser: Handler = async (event: any) => {
   const code = event.queryStringParameters.code;
@@ -123,7 +118,7 @@ export const createUser: Handler = async (event: any) => {
 
   const tokenResult = await oauthClient.authorizationCode.getToken({
     code,
-    redirect_uri: process.env.IS_OFFLINE ? 'http://localhost:3000/create-user' : config.endpoints.createUser,
+    redirect_uri: createUserUrl(),
   });
   const accessToken = oauthClient.accessToken.create(tokenResult);
   const tokenStr: string = accessToken.token.access_token;
