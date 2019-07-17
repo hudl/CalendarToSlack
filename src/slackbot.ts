@@ -73,7 +73,8 @@ async function handleSlackEventCallback(event: SlackEventCallback): Promise<Slac
   }
 
   const command = event.event.text;
-  const slackWeb = new WebClient(BOT_TOKEN);
+  const botToken = await getSecretWithKey('bot-token');
+  const slackWeb = new WebClient(botToken);
   const result = await slackWeb.chat.postMessage({
     text: "Hello :wave:",
     channel: event.event.channel
@@ -97,23 +98,13 @@ export const handler = async (event: ApiGatewayEvent) => {
     case 'url_verification':
       responseBody = { challenge: body.challenge };
       break;
-<<<<<<< HEAD
     case "event_callback":
       responseBody = await handleSlackEventCallback(body as SlackEventCallback);
-=======
-    case 'event_callback':
-      console.log(event.body);
-      responseBody = {};
->>>>>>> origin/skunkworks-master
       break;
     default:
       console.log('Event type not recognized: ' + body.type);
       console.log(event.body);
-<<<<<<< HEAD
       responseBody = EMPTY_RESPONSE_BODY;
-=======
-      responseBody = {};
->>>>>>> origin/skunkworks-master
   }
 
   let response = {
