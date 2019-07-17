@@ -180,12 +180,19 @@ You need to authorize me before we can do anything else: ${config.endpoints.slac
     return await sendMessage(`Here's what I got: ${serialized}`);
   }
 
+  if (/^\s*remove-default/i.test(command)) {
+    usersSettings.defaultStatus = null;
+    await upsertDefaultStatus(usersSettings);
+    return await sendMessage('Your default status has been removed.');
+  }
+
   return await sendMessage(`:shrug: Maybe try one of these:
   - \`help\`
   - \`show\`
   - \`set\`
   - \`set-default\`
-  - \`remove\``);
+  - \`remove\`
+  - \`remove-default\``);
 }
 
 export const handler = async (event: ApiGatewayEvent) => {
