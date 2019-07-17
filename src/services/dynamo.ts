@@ -7,7 +7,7 @@ export type UserSettings = {
   email: string;
   slackToken: string;
   calendarStoredToken?: any | null;
-  defaultStatus?: SlackStatus | null;
+  defaultStatus?: SlackStatus;
   statusMappings?: {
     calendarText: string;
     slackStatus: SlackStatus;
@@ -22,11 +22,7 @@ export const clearUserTokens = async (email: string): Promise<UserSettings> => {
       {
         TableName: config.dynamoDb.tableName,
         Key: { email: email },
-        UpdateExpression: 'set calendarStoredToken = :ct, slackToken = :st',
-        ExpressionAttributeValues: {
-          ':ct': null,
-          ':st': null,
-        },
+        UpdateExpression: 'remove calendarStoredToken, slackToken',
         ReturnValues: 'ALL_NEW',
       },
       (err, data) => {
@@ -112,6 +108,31 @@ export const upsertDefaultStatus = async ({ email, defaultStatus }: UserSettings
         ExpressionAttributeValues: {
           ':s': defaultStatus,
         },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
+};
+
+export const removeDefaultStatus = async (email: string): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: email,
+        },
+        UpdateExpression: 'remove defaultStatus = :s',
         ReturnValues: 'ALL_NEW',
       },
       (err, data) => {

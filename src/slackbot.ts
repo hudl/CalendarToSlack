@@ -1,7 +1,13 @@
 import crypto from 'crypto';
 import { getSlackSecretWithKey } from './utils/secrets';
 import { getUserProfile, postMessage } from './services/slack';
-import { getSettingsForUsers, upsertStatusMappings, UserSettings, upsertDefaultStatus } from './services/dynamo';
+import {
+  getSettingsForUsers,
+  upsertStatusMappings,
+  UserSettings,
+  upsertDefaultStatus,
+  removeDefaultStatus,
+} from './services/dynamo';
 import { slackInstallUrl } from './utils/urls';
 
 const MILLIS_IN_SEC = 1000;
@@ -161,8 +167,7 @@ const handleSetDefault = async (userSettings: UserSettings, args: CommandArgumen
 };
 
 const handleRemoveDefault = async (userSettings: UserSettings): Promise<string> => {
-  userSettings.defaultStatus = null;
-  await upsertDefaultStatus(userSettings);
+  await removeDefaultStatus(userSettings.email);
   return 'Your default status has been removed.';
 };
 
