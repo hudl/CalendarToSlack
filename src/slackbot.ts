@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { getSlackSecretWithKey } from './utils/secrets';
-import { WebClient } from '@slack/web-api';
+import { getUserProfile, postMessage } from './services/slack';
 import { getSettingsForUsers } from './services/dynamo';
 import config from '../config';
 
@@ -75,20 +75,22 @@ async function handleSlackEventCallback(event: SlackEventCallback): Promise<Slac
   }
 
   const botToken = await getSlackSecretWithKey('bot-token');
-  const slackWeb = new WebClient(botToken);
+  const sendMessage = async (message: string): Promise<SlackResponse> => {
+    const ok = await postMessage(botToken, { text: message, channel: event.event.channel });
+    return EMPTY_RESPONSE_BODY;
+  }
 
-  const response: any = await slackWeb.users.info({ user: event.event.user });
-  const userEmail = response.user.profile.email;
+  const userProfile = await getUserProfile(botToken, event.event.user);
+  if (!userProfile) {
+    return await sendMessage("Something went wrong fetching your user profile. Maybe try again?");
+  }
+  const userEmail = userProfile.email;
+
   const userSettings = await getSettingsForUsers([userEmail]);
   if (!userSettings.length || !userSettings[0].slackToken) {
-    await slackWeb.chat.postMessage({
-      text: `Hello :wave:
+    return await sendMessage(`Hello :wave:
 
-You need to authorize me before we can do anything else: ${config.endpoints.slackInstall}`,
-      channel: event.event.channel
-    });
-
-    return EMPTY_RESPONSE_BODY;
+You need to authorize me before we can do anything else: ${config.endpoints.slackInstall}`);
   }
 
   const command = event.event.text;
@@ -105,21 +107,20 @@ You need to authorize me before we can do anything else: ${config.endpoints.slac
       message = `Here's what I've got for you:${serialized}`;
     }
 
-    await slackWeb.chat.postMessage({
-      text: message,
-      channel: event.event.channel
-    });
-
-    return EMPTY_RESPONSE_BODY;
+    return await sendMessage(message);
   }
 
-  await slackWeb.chat.postMessage({
-    text: `:shrug: Maybe try one of these:
-- \`show\``,
-    channel: event.event.channel
-  });
+  if (/^\s*set/i.test(command)) {
+    const matches = /^\s*set\s+("[\w\s]+")\s*(:[\w]+:)\s*>?\s*("[\w\s]*")?/i.exec(command);
 
-  return EMPTY_RESPONSE_BODY;
+    return await sendMessage(`Here's what I got: set ${matches[1]} ${matches[2]} > ${matches[3]}`);
+  }
+
+  return await sendMessage(`:shrug: Maybe try one of these:
+  - \`help\`
+  - \`show\`
+  - \`set\`
+  - \`remove\``);
 }
 
 export const handler = async (event: ApiGatewayEvent) => {
