@@ -36,20 +36,6 @@ const toShowAsStatus = (status: string): ShowAs => {
   }
 };
 
-const userEvents: {
-  [email: string]: CalendarEvent[];
-} = {
-  'jordan.degner@hudl.com': [
-    {
-      name: 'Quick Chat',
-      startTime: new Date('7/14/2019'),
-      endTime: new Date('7/15/2019'),
-      location: 'Zoom',
-      showAs: ShowAs.Busy,
-    },
-  ],
-};
-
 const getAuthenticatedClient = (email: string, token: Token): Client => {
   const options: ClientOptions = {
     authProvider: new GraphApiAuthenticationProvider(email, token),
@@ -76,7 +62,7 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
         endTime: new Date(e.end.dateTime),
         location: e.location.displayName,
         showAs: toShowAsStatus(e.showAs),
-        name: e.sensitivity === 'normal' ? e.subject : 'Private event'
+        name: e.sensitivity === 'normal' ? e.subject : 'Private event',
       };
       return event;
     });

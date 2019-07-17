@@ -16,9 +16,7 @@ type GetProfileResult = {
 };
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) => {
-  return events.length ?
-         events.sort((event1, event2) => event2.showAs - event1.showAs)[0] :
-         null;
+  return events.length ? events.sort((event1, event2) => event2.showAs - event1.showAs)[0] : null;
 };
 
 export const update: Handler = async () => {
