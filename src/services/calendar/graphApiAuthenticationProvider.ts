@@ -1,6 +1,5 @@
 import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
 import oauth2, { OAuthClient, Token } from 'simple-oauth2';
-import env from 'dotenv';
 import {
   getSettingsForUsers,
   storeCalendarAuthenticationToken,
@@ -22,7 +21,6 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
 
   constructor(userEmail: string) {
     this.userEmail = userEmail;
-    env.config();
   }
 
   private async createOAuthClient(): Promise<OAuthClient<string>> {
