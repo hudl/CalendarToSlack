@@ -184,6 +184,7 @@ You need to authorize me before we can do anything else: ${config.endpoints.slac
   - \`help\`
   - \`show\`
   - \`set\`
+  - \`set-default\`
   - \`remove\``);
 }
 
