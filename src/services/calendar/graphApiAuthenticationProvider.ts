@@ -3,6 +3,7 @@ import oauth2, { OAuthClient, Token } from 'simple-oauth2';
 import { storeCalendarAuthenticationToken } from '../dynamo';
 import config from '../../../config';
 import { getMicrosoftGraphSecretWithKey } from '../../utils/secrets';
+import { authorizeMicrosoftGraphUrl } from '../../utils/urls';
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   private storedToken?: Token;
@@ -12,9 +13,6 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   private readonly authorizePath: string = '/oauth2/v2.0/authorize';
   private readonly tokenPath: string = '/oauth2/v2.0/token';
   private readonly scope: string = 'offline_access https://graph.microsoft.com/.default';
-  private readonly redirectUri: string = process.env.IS_OFFLINE
-    ? 'http://localhost:3000/authorize-microsoft-graph'
-    : config.endpoints.authorizeMicrosoftGraph;
 
   constructor(userEmail: string, storedToken?: Token) {
     this.userEmail = userEmail;
@@ -51,7 +49,7 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       const tokenConfig: any = {
         scope: this.scope,
         code: authCode || '',
-        redirect_uri: this.redirectUri,
+        redirect_uri: authorizeMicrosoftGraphUrl,
       };
       try {
         const authentication = await this.createOAuthClient();
