@@ -89,10 +89,7 @@ const constructCommandArgs = (argList: string[]): CommandArguments => {
   for (let arg of argList) {
     const [key, value] = arg.split('=');
     if (key in args) {
-      args[key] = value
-        .replace('"', '')
-        .replace('”', '')
-        .replace('“', '');
+      args[key] = value.replace(/["”“]/g, '');
     }
   }
 
