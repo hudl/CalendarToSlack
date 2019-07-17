@@ -64,12 +64,12 @@ export const updateBatch: Handler = async (event: any) => {
       const status = getStatusForUserEvent(us, relevantEvent);
 
       console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${us.email}`);
-      await setUserStatus(us.slackToken, status);
+      await setUserStatus(us.email, us.slackToken, status);
 
       const presence = relevantEvent && relevantEvent.showAs < ShowAs.Busy ? 'auto' : 'away';
 
       console.log(`Setting presence to '${presence}' for ${us.email}`);
-      await setUserPresence(us.slackToken, presence);
+      await setUserPresence(us.email, us.slackToken, presence);
     }),
   );
 };
