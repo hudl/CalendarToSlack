@@ -42,8 +42,6 @@
   "dependencies": {
     "@microsoft/microsoft-graph-client": "^1.7.0",
     "@slack/web-api": "^5.0.1",
-    "@types/dotenv": "^6.1.1",
-    "@types/simple-oauth2": "^2.2.1",
     "aws-sdk": "^2.493.0",
     "simple-oauth2": "^2.2.1"
   }
