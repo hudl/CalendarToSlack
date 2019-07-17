@@ -46,10 +46,10 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
 
   public async getTokenWithAuthCode(authCode: string): Promise<Token> {
     return new Promise(async (resolve, reject) => {
-      const tokenConfig: any = {
+      const tokenConfig = {
         scope: this.scope,
         code: authCode || '',
-        redirect_uri: authorizeMicrosoftGraphUrl,
+        redirect_uri: authorizeMicrosoftGraphUrl(),
       };
       try {
         const authentication = await this.createOAuthClient();
