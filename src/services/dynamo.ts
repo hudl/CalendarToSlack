@@ -9,7 +9,7 @@ export type UserSettings = {
   calendarStoredToken?: any | null;
   defaultStatus?: SlackStatus;
   statusMappings?: {
-    calendarText?: string;
+    calendarText: string;
     slackStatus: SlackStatus;
   }[];
 };
@@ -56,6 +56,34 @@ export const upsertUserSettings = async (userSettings: UserSettings): Promise<Us
         UpdateExpression: 'set slackToken = :t',
         ExpressionAttributeValues: {
           ':t': userSettings.slackToken,
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data as UserSettings);
+      },
+    ),
+  );
+};
+
+export const upsertStatusMappings = async (userSettings: UserSettings): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: userSettings.email,
+        },
+        UpdateExpression: 'set statusMappings = :s',
+        ExpressionAttributeValues: {
+          ':s': userSettings.statusMappings,
         },
         ReturnValues: 'ALL_NEW',
       },

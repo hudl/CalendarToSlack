@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { getSlackSecretWithKey } from './utils/secrets';
 import { getUserProfile, postMessage } from './services/slack';
-import { getSettingsForUsers } from './services/dynamo';
+import { getSettingsForUsers, upsertStatusMappings, UserSettings } from './services/dynamo';
 import config from '../config';
 
 const MILLIS_IN_SEC = 1000;
@@ -63,6 +63,20 @@ async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
   return crypto.timingSafeEqual(Buffer.from(calculatedSignature, 'utf8'), Buffer.from(slackHash, 'utf8'));
 }
 
+function serializeStatusMappings(userSettings: UserSettings): string[] {
+  if (userSettings.statusMappings) {
+    const serialized = userSettings.statusMappings.map(
+      m =>
+        `\n${m.slackStatus.emoji} \`${m.calendarText}\` ${
+          m.slackStatus.text ? 'uses status `' + m.slackStatus.text + '`' : ''
+        }`
+    );
+    return serialized;
+  }
+
+  return [];
+}
+
 async function handleSlackEventCallback(event: SlackEventCallback): Promise<SlackResponse> {
   console.debug(JSON.stringify(event));
   if (event.event.type !== 'message' || event.event.channel_type !== 'im') {
@@ -96,24 +110,52 @@ You need to authorize me before we can do anything else: ${config.endpoints.slac
   const command = event.event.text;
   const usersSettings = userSettings[0];
   if (/^\s*show/i.test(command)) {
-    let message = 'You don\'t have any status mappings yet. Try `set`';
-    if (usersSettings.statusMappings) {
-      const serialized = usersSettings.statusMappings.map(
-        m =>
-          `\n${m.slackStatus.emoji} \`${m.calendarText}\` ${
-            m.slackStatus.text ? 'uses status `' + m.slackStatus.text + '`' : ''
-          }`
-      );
-      message = `Here's what I've got for you:${serialized}`;
+    const serialized = serializeStatusMappings(usersSettings);
+    if (serialized.length) {
+      return await sendMessage(`Here's what I've got for you:${serialized}`);
     }
 
-    return await sendMessage(message);
+    return await sendMessage('You don\'t have any status mappings yet. Try `set`');
   }
 
   if (/^\s*set/i.test(command)) {
-    const matches = /^\s*set\s+("[\w\s]+")\s*(:[\w]+:)\s*>?\s*("[\w\s]*")?/i.exec(command);
+    const tokens = command.match(/[\w]+=[""][^""]+[""]|[^ """]+/g) || [];
+    const defaults: {[prop:string]: string} = {meeting:'', message:'', emoji:''};
+    for (let token of tokens) {
+      const [ key, value ] = token.split('=');
+      if (key in defaults) {
+        defaults[key] = value;
+      }
+    }
 
-    return await sendMessage(`Here's what I got: set ${matches[1]} ${matches[2]} > ${matches[3]}`);
+    if (!defaults.meeting) {
+      return await sendMessage("The `meeting` part can't be empty.");
+    }
+
+    if (!usersSettings.statusMappings) {
+      usersSettings.statusMappings = [];
+    }
+
+    const existingMeeting = usersSettings.statusMappings.find(m => m.calendarText.toLowerCase() === defaults.meeting.toLowerCase());
+    if (existingMeeting) {
+      existingMeeting.slackStatus = {
+        text: defaults.message,
+        emoji: defaults.emoji
+      };
+    } else {
+      usersSettings.statusMappings.push({
+        calendarText: defaults.meeting,
+        slackStatus: {
+          text: defaults.message,
+          emoji: defaults.emoji
+        }
+      });
+    }
+
+    const updated = await upsertStatusMappings(usersSettings);
+    const serialized = serializeStatusMappings(updated);
+
+    return await sendMessage(`Here's what I got: ${serialized}`);
   }
 
   return await sendMessage(`:shrug: Maybe try one of these:
