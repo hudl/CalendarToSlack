@@ -1,6 +1,6 @@
 import { SlackStatus } from './slack';
 import { Token } from 'simple-oauth2';
-import AWS, { PinpointEmail } from 'aws-sdk';
+import AWS from 'aws-sdk';
 import config from '../../config';
 
 export type UserSettings = {
