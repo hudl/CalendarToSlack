@@ -64,7 +64,7 @@ export const storeCalendarAuthenticationToken = async (
           return;
         }
 
-        resolve(data as UserSettings);
+        resolve(data.Attributes as UserSettings);
       },
     ),
   );
@@ -92,7 +92,7 @@ export const upsertUserSettings = async (userSettings: UserSettings): Promise<Us
           return;
         }
 
-        resolve(data as UserSettings);
+        resolve(data.Attributes as UserSettings);
       },
     ),
   );
@@ -120,7 +120,7 @@ export const upsertStatusMappings = async (userSettings: UserSettings): Promise<
           return;
         }
 
-        resolve(data as UserSettings);
+        resolve(data.Attributes as UserSettings);
       },
     ),
   );
