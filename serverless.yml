@@ -47,6 +47,7 @@ functions:
   slackbot:
     handler: src/slackbot.handler
     role: slackbotRole
+    memorySize: 512
     events:
       - http:
           path: 'bot'
@@ -161,6 +162,32 @@ resources:
                           - Ref: 'AWS::Region'
                           - Ref: 'AWS::AccountId'
                           - 'secret:${self:custom.lambda.slackbot.secretsPrefix}/*'
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:logs'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'log-group:/aws/lambda/*:*:*'
+                - Effect: Allow
+                  Action:
+                    - dynamodb:Scan
+                    - dynamodb:Query
+                    - dynamodb:GetItem
+                    - dynamodb:BatchGetItem
+                    - dynamodb:PutItem
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:dynamodb'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'table/cal2slack-usersettings'
   Outputs:
     UserSettingsTableArn:
       Description: 'The ARN for the cal2slack-usersettings table'

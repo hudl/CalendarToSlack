@@ -167,3 +167,6 @@ $RECYCLE.BIN/
 # Configuration
 config.ts
 serverless-config.yml
+
+**/obj/**
+**/bin/**
