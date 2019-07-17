@@ -1,7 +1,7 @@
 import { SlackStatus } from './slack';
 import { Token } from 'simple-oauth2';
 import AWS from 'aws-sdk';
-import config from '../config';
+import config from '../../config';
 
 export type UserSettings = {
   email: string;
@@ -15,17 +15,20 @@ export type UserSettings = {
   }[];
 };
 
-export const storeCalendarAuthenticationToken = async (email: string, calendarStoredToken: Token): Promise<UserSettings> => {
+export const storeCalendarAuthenticationToken = async (
+  email: string,
+  calendarStoredToken: Token,
+): Promise<UserSettings> => {
   const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-  return new Promise((resolve, reject) => 
+  return new Promise((resolve, reject) =>
     dynamoDb.update(
       {
         TableName: config.dynamoDb.tableName,
-        Key: { 'email': email },
+        Key: { email: email },
         UpdateExpression: 'set calendarStoredToken = :t',
         ExpressionAttributeValues: {
-          ':t': calendarStoredToken
+          ':t': calendarStoredToken,
         },
         ReturnValues: 'ALL_NEW',
       },
@@ -36,8 +39,8 @@ export const storeCalendarAuthenticationToken = async (email: string, calendarSt
         }
 
         resolve(data as UserSettings);
-      }
-    )
+      },
+    ),
   );
 };
 
