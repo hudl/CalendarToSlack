@@ -7,8 +7,14 @@ import { InvocationRequest } from 'aws-sdk/clients/lambda';
 import { getStatusForUserEvent } from './utils/map-event-status';
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) => {
-  // TODO: Implement this function to resolve the event to use for status updates from a list of user events
-  return events.length ? events[0] : null;
+  const now: Date = new Date();
+  const ninetySecondsFromNow: Date = new Date();
+  ninetySecondsFromNow.setSeconds(ninetySecondsFromNow.getSeconds() + 90);
+
+  const eventsHappeningNow: CalendarEvent[] = events
+    .filter(e => e.startDate <= ninetySecondsFromNow && now < e.endDate)
+    .sort((event1, event2) => event2.showAs - event1.showAs);
+  return eventsHappeningNow.length ? eventsHappeningNow[0] : null;
 };
 
 export const update: Handler = async () => {
