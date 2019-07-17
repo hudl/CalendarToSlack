@@ -15,7 +15,6 @@ export type CalendarEvent = {
   endTime: Date;
   location: string;
   showAs: ShowAs;
-  title?: string | '';
 };
 
 const toShowAsStatus = (status: string): ShowAs => {
@@ -73,12 +72,11 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
       .get();
     return outlookEvents.value.map((e: any) => {
       const event: CalendarEvent = {
-        name: e.subject,
         startTime: new Date(e.start.dateTime),
         endTime: new Date(e.end.dateTime),
         location: e.location.displayName,
         showAs: toShowAsStatus(e.showAs),
-        title: e.sensitivity === 'normal' ? e.subject : 'Private event'
+        name: e.sensitivity === 'normal' ? e.subject : 'Private event'
       };
       return event;
     });
