@@ -35,6 +35,7 @@ functions:
   slackbot:
     handler: src/slackbot.handler
     role: slackbotRole
+    memorySize: 512
     events:
       - http:
           path: 'bot'
