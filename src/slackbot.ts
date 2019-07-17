@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import { WebClient } from "@slack/web-api";
-import { getSecretWithKey } from './utils/secrets';
+import { getSecretWithKey } from "./utils/secrets";
+import { getSettingsForUsers } from "./services/dynamo";
+import config from "../config";
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
@@ -45,20 +47,20 @@ function validateTimestamp(slackRequestTimestampInSec: number): boolean {
 }
 
 async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
-  const requestTimestamp: number = +event.headers['X-Slack-Request-Timestamp'];
+  const requestTimestamp: number = +event.headers["X-Slack-Request-Timestamp"];
   if (!validateTimestamp(requestTimestamp)) {
     return false;
   }
 
-  const signingSecret = await getSecretWithKey('signing-secret');
-  const hmac = crypto.createHmac('sha256', signingSecret);
+  const signingSecret = await getSecretWithKey("signing-secret");
+  const hmac = crypto.createHmac("sha256", signingSecret);
 
-  const requestSignature = event.headers['X-Slack-Signature'];
-  const [version, slackHash] = requestSignature.split('=');
+  const requestSignature = event.headers["X-Slack-Signature"];
+  const [version, slackHash] = requestSignature.split("=");
 
-  const calculatedSignature = hmac.update(`${version}:${requestTimestamp}:${event.body}`).digest('hex');
+  const calculatedSignature = hmac.update(`${version}:${requestTimestamp}:${event.body}`).digest("hex");
 
-  return crypto.timingSafeEqual(Buffer.from(calculatedSignature, 'utf8'), Buffer.from(slackHash, 'utf8'));
+  return crypto.timingSafeEqual(Buffer.from(calculatedSignature, "utf8"), Buffer.from(slackHash, "utf8"));
 }
 
 async function handleSlackEventCallback(event: SlackEventCallback): Promise<SlackResponse> {
@@ -72,11 +74,48 @@ async function handleSlackEventCallback(event: SlackEventCallback): Promise<Slac
     return EMPTY_RESPONSE_BODY;
   }
 
-  const command = event.event.text;
-  const botToken = await getSecretWithKey('bot-token');
+  const botToken = await getSecretWithKey("bot-token");
   const slackWeb = new WebClient(botToken);
-  const result = await slackWeb.chat.postMessage({
-    text: "Hello :wave:",
+
+  const response: any = await slackWeb.users.info({ user: event.event.user });
+  const userEmail = response.user.profile.email;
+  const userSettings = await getSettingsForUsers([userEmail]);
+  if (!userSettings.length || !userSettings[0].slackToken) {
+    await slackWeb.chat.postMessage({
+      text: `Hello :wave:
+
+You need to authorize me before we can do anything else: ${config.endpoints.slackInstall}`,
+      channel: event.event.channel
+    });
+
+    return EMPTY_RESPONSE_BODY;
+  }
+
+  const command = event.event.text;
+  const usersSettings = userSettings[0];
+  if (/^\s*show/i.test(command)) {
+    let message = "You don't have any status mappings yet. Try `set`";
+    if (usersSettings.statusMappings) {
+      const serialized = usersSettings.statusMappings.map(
+        m =>
+          `\n${m.slackStatus.emoji} \`${m.calendarText}\` ${
+            m.slackStatus.text ? "uses status `" + m.slackStatus.text + "`" : ""
+          }`
+      );
+      message = `Here's what I've got for you:${serialized}`;
+    }
+
+    await slackWeb.chat.postMessage({
+      text: message,
+      channel: event.event.channel
+    });
+
+    return EMPTY_RESPONSE_BODY;
+  }
+
+  await slackWeb.chat.postMessage({
+    text: `:shrug: Maybe try one of these:
+- \`show\``,
     channel: event.event.channel
   });
 
@@ -89,27 +128,27 @@ export const handler = async (event: ApiGatewayEvent) => {
   if (!(await validateSlackRequest(event))) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: 'Request was invalid' }),
+      body: JSON.stringify({ error: "Request was invalid" })
     };
   }
 
   let responseBody: SlackResponse;
   switch (body.type) {
-    case 'url_verification':
+    case "url_verification":
       responseBody = { challenge: body.challenge };
       break;
     case "event_callback":
       responseBody = await handleSlackEventCallback(body as SlackEventCallback);
       break;
     default:
-      console.log('Event type not recognized: ' + body.type);
+      console.log("Event type not recognized: " + body.type);
       console.log(event.body);
       responseBody = EMPTY_RESPONSE_BODY;
   }
 
   let response = {
     statusCode: 200,
-    body: JSON.stringify(responseBody),
+    body: JSON.stringify(responseBody)
   };
 
   return response;
