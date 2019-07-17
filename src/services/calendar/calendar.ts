@@ -15,6 +15,7 @@ export type CalendarEvent = {
   endTime: Date;
   location: string;
   showAs: ShowAs;
+  title?: string | '';
 };
 
 const toShowAsStatus = (status: string): ShowAs => {
@@ -60,17 +61,15 @@ const getAuthenticatedClient = (email: string, token: Token): Client => {
 export const getEventsForUser = async (email: string, storedToken: Token): Promise<CalendarEvent[] | null> => {
   if (!storedToken) return null;
 
-  const startTime = new Date();
-  startTime.setMinutes(0);
-
-  const endTime = new Date(startTime);
-  endTime.setHours(startTime.getHours() + 1);
+  const now: Date = new Date();
+  const ninetySecondsFromNow: Date = new Date(now);
+  ninetySecondsFromNow.setSeconds(now.getSeconds() + 90);
 
   try {
     const outlookEvents = await getAuthenticatedClient(email, storedToken)
       .api(`/users/${email}/events`)
-      .filter(`sensitivity eq 'normal' and start/dateTime le '${startTime.toISOString()}' and end/dateTime ge '${endTime.toISOString()}'`)
-      .select('start,end,subject,showAs,location')
+      .filter(`start/dateTime le '${ninetySecondsFromNow.toISOString()}' and end/dateTime ge '${now.toISOString()}'`)
+      .select('start,end,subject,showAs,location,sensitivity')
       .get();
     return outlookEvents.value.map((e: any) => { 
       const event: CalendarEvent = {
@@ -79,6 +78,7 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
         endTime: new Date(e.end.dateTime),
         location: e.location.displayName,
         showAs: toShowAsStatus(e.showAs),
+        title: e.sensitivity === 'normal' ? e.subject : 'Private event'
       };
       return event;
     });

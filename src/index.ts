@@ -16,7 +16,7 @@ import { Handler } from "aws-lambda";
 import { InvocationRequest } from "aws-sdk/clients/lambda";
 import { getStatusForUserEvent } from "./utils/map-event-status";
 import { GraphApiAuthenticationProvider } from "./services/calendar/graphApiAuthenticationProvider";
-import config from "./config";
+import config from '../config';
 import { getSlackSecretWithKey } from "./utils/secrets";
 
 type GetProfileResult = {
@@ -24,14 +24,9 @@ type GetProfileResult = {
 };
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) => {
-  const now: Date = new Date();
-  const ninetySecondsFromNow: Date = new Date();
-  ninetySecondsFromNow.setSeconds(ninetySecondsFromNow.getSeconds() + 90);
-
-  const eventsHappeningNow: CalendarEvent[] = events
-    .filter(e => e.startTime <= ninetySecondsFromNow && now < e.endTime)
-    .sort((event1, event2) => event2.showAs - event1.showAs);
-  return eventsHappeningNow.length ? eventsHappeningNow[0] : null;
+  return events.length ?
+         events.sort((event1, event2) => event2.showAs - event1.showAs)[0] :
+         null;
 };
 
 export const update: Handler = async () => {
