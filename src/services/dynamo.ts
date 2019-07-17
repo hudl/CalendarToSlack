@@ -6,7 +6,6 @@ import config from '../../config';
 export type UserSettings = {
   email: string;
   slackToken: string;
-  calendarAuthCode?: string | '';
   calendarStoredToken?: any | null;
   defaultStatus?: SlackStatus;
   statusMappings?: {
