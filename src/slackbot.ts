@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import AWS from "aws-sdk";
-import config from "../config";
+import config from "./config";
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;

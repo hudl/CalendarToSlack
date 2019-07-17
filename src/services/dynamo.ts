@@ -7,7 +7,7 @@ export type UserSettings = {
   email: string;
   slackToken: string;
   calendarAuthCode?: string | '';
-  calendarStoredToken?: Token | null;
+  calendarStoredToken?: any | null;
   defaultStatus?: SlackStatus;
   statusMappings?: {
     calendarText?: string;

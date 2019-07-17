@@ -3,8 +3,8 @@ import { GraphApiAuthenticationProvider } from "./graphApiAuthenticationProvider
 
 export enum ShowAs {
   Free = 1,
-  Busy,
   Tentative,
+  Busy,
   OutOfOffice,
 }
 

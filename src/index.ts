@@ -8,8 +8,14 @@ import { getStatusForUserEvent } from './utils/map-event-status';
 import { GraphApiAuthenticationProvider } from "./services/calendar/graphApiAuthenticationProvider";
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) => {
-  // TODO: Implement this function to resolve the event to use for status updates from a list of user events
-  return events.length ? events[0] : null;
+  const now: Date = new Date();
+  const ninetySecondsFromNow: Date = new Date();
+  ninetySecondsFromNow.setSeconds(ninetySecondsFromNow.getSeconds() + 90);
+
+  const eventsHappeningNow: CalendarEvent[] = events
+    .filter(e => e.startTime <= ninetySecondsFromNow && now < e.endTime)
+    .sort((event1, event2) => event2.showAs - event1.showAs);
+  return eventsHappeningNow.length ? eventsHappeningNow[0] : null;
 };
 
 export const update: Handler = async () => {
@@ -50,7 +56,7 @@ export const updateBatch: Handler = async (event: any) => {
   );
 };
 
-export const authorizeOutlook: Handler = async (event: any) => {
+export const authorizeMicrosoftGraph: Handler = async (event: any) => {
   const { queryStringParameters: { code, state } } = event;
   const authProvider = new GraphApiAuthenticationProvider(state);
   await authProvider.getTokenWithAuthCode(code);
