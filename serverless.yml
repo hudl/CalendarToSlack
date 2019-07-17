@@ -32,7 +32,7 @@ functions:
     events:
       - http:
           path: 'create-user'
-          method: any
+          method: get
   update:
     handler: src/index.update
     role: updateRole

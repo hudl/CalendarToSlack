@@ -68,7 +68,7 @@ export const slackInstall: Handler = async () => {
   return {
     statusCode: 302,
     headers: {
-      Location: `https://slack.com/oauth/authorize?client_id=2194059175.697064218871&scope=${encodeURIComponent(
+      Location: `https://slack.com/oauth/authorize?client_id=${config.slack.clientId}&scope=${encodeURIComponent(
         'users.profile:read,users.profile:write,users:write',
       )}`,
     },
@@ -93,7 +93,7 @@ export const createUser: Handler = async (event: any) => {
 
   const tokenResult = await oauthClient.authorizationCode.getToken({
     code,
-    redirect_uri: 'http://localhost:3000/create-user',
+    redirect_uri: process.env.IS_OFFLINE ? 'http://localhost:3000/create-user' : 'IMPLEMENT_URL',
   });
   const accessToken = oauthClient.accessToken.create(tokenResult);
   const tokenStr: string = accessToken.token.access_token;
