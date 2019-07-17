@@ -21,6 +21,18 @@ package:
     - node_modules/**/test/**
 
 functions:
+  slack-install:
+    handler: src/index.slackInstall
+    events:
+      - http:
+          path: 'slack/install'
+          method: get
+  create-user:
+    handler: src/index.createUser
+    events:
+      - http:
+          path: 'create-user'
+          method: get
   update:
     handler: src/index.update
     role: updateRole
@@ -48,7 +60,6 @@ functions:
 
 resources:
   Resources:
-
     userSettingsTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -86,12 +97,11 @@ resources:
                     - logs:PutLogEvents
                   Resource:
                     - 'Fn::Join':
-                      - ':'
-                      -
-                        - 'arn:aws:logs'
-                        - Ref: 'AWS::Region'
-                        - Ref: 'AWS::AccountId'
-                        - 'log-group:/aws/lambda/*:*:*'
+                        - ':'
+                        - - 'arn:aws:logs'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'log-group:/aws/lambda/*:*:*'
                 - Effect: Allow
                   Action:
                     - dynamodb:Scan
@@ -101,23 +111,21 @@ resources:
                     - dynamodb:PutItem
                   Resource:
                     - 'Fn::Join':
-                      - ':'
-                      -
-                        - 'arn:aws:dynamodb'
-                        - Ref: 'AWS::Region'
-                        - Ref: 'AWS::AccountId'
-                        - 'table/cal2slack-usersettings'
+                        - ':'
+                        - - 'arn:aws:dynamodb'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'table/cal2slack-usersettings'
                 - Effect: 'Allow'
                   Action:
                     - lambda:InvokeFunction
                   Resource:
                     - 'Fn::Join':
-                      - ':'
-                      -
-                        - 'arn:aws:lambda'
-                        - Ref: 'AWS::Region'
-                        - Ref: 'AWS::AccountId'
-                        - 'function:calendar2slack-prod-update-batch'
+                        - ':'
+                        - - 'arn:aws:lambda'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'function:calendar2slack-prod-update-batch'
 
     slackbotRole:
       Type: AWS::IAM::Role
@@ -144,23 +152,21 @@ resources:
                     - logs:PutLogEvents
                   Resource:
                     - 'Fn::Join':
-                      - ':'
-                      -
-                        - 'arn:aws:logs'
-                        - Ref: 'AWS::Region'
-                        - Ref: 'AWS::AccountId'
-                        - 'log-group:/aws/lambda/*:*:*'
+                        - ':'
+                        - - 'arn:aws:logs'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'log-group:/aws/lambda/*:*:*'
                 - Effect: Allow
                   Action:
                     - secretsmanager:GetSecretValue
                   Resource:
                     - 'Fn::Join':
-                      - ':'
-                      -
-                        - 'arn:aws:secretsmanager'
-                        - Ref: 'AWS::Region'
-                        - Ref: 'AWS::AccountId'
-                        - 'secret:${self:custom.lambda.slackbot.secretsPrefix}/*'
+                        - ':'
+                        - - 'arn:aws:secretsmanager'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'secret:${self:custom.lambda.slackbot.secretsPrefix}/*'
   Outputs:
     UserSettingsTableArn:
       Description: 'The ARN for the cal2slack-usersettings table'

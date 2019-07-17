@@ -41,6 +41,34 @@ export const storeCalendarAuthenticationToken = async (email: string, calendarSt
   );
 };
 
+export const upsertUserSettings = async (userSettings: UserSettings): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: userSettings.email,
+        },
+        UpdateExpression: 'set slackToken = :t',
+        ExpressionAttributeValues: {
+          ':t': userSettings.slackToken,
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data as UserSettings);
+      },
+    ),
+  );
+};
+
 export const getAllUserSettings = async (): Promise<UserSettings[]> => {
   const dynamoDb = new AWS.DynamoDB.DocumentClient();
 

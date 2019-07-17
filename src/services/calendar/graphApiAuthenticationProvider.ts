@@ -1,11 +1,11 @@
-import { AuthenticationProvider } from "@microsoft/microsoft-graph-client";
-import oauth2, { OAuthClient, Token, AccessToken } from "simple-oauth2";
-import env from "dotenv";
+import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
+import oauth2, { OAuthClient, Token } from 'simple-oauth2';
+import env from 'dotenv';
 import {
   getSettingsForUsers,
   storeCalendarAuthenticationToken,
   UserSettings
-} from "../dynamo";
+} from '../dynamo';
 import config from '../../config';
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
@@ -54,7 +54,7 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     });
   };
 
-  private async shouldRefreshToken({ "expires_at_timestamp": expiresAtTimestamp }: Token): Promise<boolean> {
+  private async shouldRefreshToken({ 'expires_at_timestamp': expiresAtTimestamp }: Token): Promise<boolean> {
     if (!expiresAtTimestamp) {
       return true;
     }
