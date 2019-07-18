@@ -1,9 +1,17 @@
-import { WebClient } from '@slack/web-api';
+import { WebClient, ChatPostMessageArguments } from '@slack/web-api';
 import { clearUserTokens } from './dynamo';
 
 export type SlackStatus = {
   text?: string;
   emoji?: string;
+};
+
+export type SlackUserProfile = {
+  status_text: string;
+  status_emoji: string;
+  real_name: string;
+  display_name: string;
+  email: string;
 };
 
 const handleError = async (error: any, email: string) => {
@@ -38,11 +46,27 @@ export const setUserStatus = async (email: string, token: string, status: SlackS
   if (!token) return;
 
   const slackClient = new WebClient(token);
-  const profile = JSON.stringify({ status_text: status.text, status_emoji: status.emoji });
+  const profile = JSON.stringify({ status_text: status.text || '', status_emoji: status.emoji || '' });
 
   try {
     await slackClient.users.profile.set({ profile });
   } catch (error) {
     await handleError(error, email);
   }
+};
+
+export const getUserProfile = async (token: string, slackUserId: string): Promise<SlackUserProfile | undefined> => {
+  if (!token) return undefined;
+
+  const slackClient = new WebClient(token);
+  const response: any = await slackClient.users.info({ user: slackUserId });
+  return response.user.profile as SlackUserProfile;
+};
+
+export const postMessage = async (token: string, params: ChatPostMessageArguments): Promise<boolean> => {
+  if (!token) return false;
+
+  const slackClient = new WebClient(token);
+  const response = await slackClient.chat.postMessage(params);
+  return response.ok;
 };

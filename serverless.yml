@@ -33,6 +33,7 @@ functions:
       - http:
           path: 'create-user'
           method: get
+    role: slackbotRole
   update:
     handler: src/index.update
     role: updateRole
@@ -50,6 +51,7 @@ functions:
       - http:
           path: 'authorize-microsoft-graph'
           method: get
+    role: slackbotRole
   slackbot:
     handler: src/slackbot.handler
     role: slackbotRole
@@ -110,6 +112,7 @@ resources:
                     - dynamodb:GetItem
                     - dynamodb:BatchGetItem
                     - dynamodb:PutItem
+                    - dynamodb:UpdateItem
                   Resource:
                     - 'Fn::Join':
                         - ':'
@@ -170,23 +173,12 @@ resources:
                           - 'secret:${self:custom.lambda.slackbot.secretsPrefix}/*'
                 - Effect: Allow
                   Action:
-                    - logs:CreateLogGroup
-                    - logs:CreateLogStream
-                    - logs:PutLogEvents
-                  Resource:
-                    - 'Fn::Join':
-                        - ':'
-                        - - 'arn:aws:logs'
-                          - Ref: 'AWS::Region'
-                          - Ref: 'AWS::AccountId'
-                          - 'log-group:/aws/lambda/*:*:*'
-                - Effect: Allow
-                  Action:
                     - dynamodb:Scan
                     - dynamodb:Query
                     - dynamodb:GetItem
                     - dynamodb:BatchGetItem
                     - dynamodb:PutItem
+                    - dynamodb:UpdateItem
                   Resource:
                     - 'Fn::Join':
                         - ':'

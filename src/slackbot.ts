@@ -1,7 +1,13 @@
 import crypto from 'crypto';
 import { getSlackSecretWithKey } from './utils/secrets';
-import { WebClient } from '@slack/web-api';
-import { getSettingsForUsers } from './services/dynamo';
+import { getUserProfile, postMessage } from './services/slack';
+import {
+  getSettingsForUsers,
+  upsertStatusMappings,
+  UserSettings,
+  upsertDefaultStatus,
+  removeDefaultStatus,
+} from './services/dynamo';
 import { slackInstallUrl } from './utils/urls';
 
 const MILLIS_IN_SEC = 1000;
@@ -39,14 +45,20 @@ type SlackEventCallback = {
   authed_users: Array<string>;
 };
 
+type CommandArguments = {
+  meeting?: string;
+  message?: string;
+  emoji?: string;
+};
+
 interface SlackResponse {}
 
-function validateTimestamp(slackRequestTimestampInSec: number): boolean {
+const validateTimestamp = (slackRequestTimestampInSec: number): boolean => {
   const currentTimeInSec = Math.floor(new Date().getTime() / MILLIS_IN_SEC);
   return Math.abs(currentTimeInSec - slackRequestTimestampInSec) < FIVE_MIN_IN_SEC;
-}
+};
 
-async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
+const validateSlackRequest = async (event: ApiGatewayEvent): Promise<boolean> => {
   const requestTimestamp: number = +event.headers['X-Slack-Request-Timestamp'];
   if (!validateTimestamp(requestTimestamp)) {
     return false;
@@ -61,66 +73,181 @@ async function validateSlackRequest(event: ApiGatewayEvent): Promise<boolean> {
   const calculatedSignature = hmac.update(`${version}:${requestTimestamp}:${event.body}`).digest('hex');
 
   return crypto.timingSafeEqual(Buffer.from(calculatedSignature, 'utf8'), Buffer.from(slackHash, 'utf8'));
-}
+};
 
-async function handleSlackEventCallback(event: SlackEventCallback): Promise<SlackResponse> {
-  console.debug(JSON.stringify(event));
-  if (event.event.type !== 'message' || event.event.channel_type !== 'im') {
-    console.log(`Event type ${event.event.type}/${event.event.channel_type} is not handled by this version.`);
+const serializeStatusMappings = (userSettings: UserSettings): string[] => {
+  if (userSettings.statusMappings) {
+    const serialized = userSettings.statusMappings.map(
+      m =>
+        `\n${m.slackStatus.emoji || ':transparent:'} \`${m.calendarText}\` ${
+          m.slackStatus.text ? 'uses status `' + m.slackStatus.text + '`' : ''
+        }`,
+    );
+    return serialized;
+  }
+
+  return [];
+};
+
+const constructCommandArgs = (argList: string[]): CommandArguments => {
+  const args: { [key: string]: string } = { meeting: '', message: '', emoji: '' };
+
+  for (let arg of argList) {
+    const [key, value] = arg.split('=');
+    if (key in args) {
+      args[key] = value.replace(/["”“]/g, '');
+    }
+  }
+
+  return {
+    meeting: args['meeting'],
+    message: args['message'],
+    emoji: args['emoji'],
+  };
+};
+
+const handleHelp = async (): Promise<string> => {
+  return ':information_desk_person: Please visit https://github.com/hudl/CalendarToSlack/wiki for more information on how to use this app!';
+};
+
+const handleShow = async (userSettings: UserSettings): Promise<string> => {
+  const serialized = serializeStatusMappings(userSettings);
+  if (serialized.length) {
+    return `Here's what I've got for you:${serialized}`;
+  }
+
+  return "You don't have any status mappings yet. Try `set`";
+};
+
+const handleSet = async (userSettings: UserSettings, args: CommandArguments): Promise<string> => {
+  if (!args.meeting) {
+    return `You must specify a meeting using \`meeting="My Meeting"\`.`;
+  }
+
+  const slackStatus = {
+    text: args.message || args.meeting,
+    emoji: args.emoji,
+  };
+
+  const updatedMappings = userSettings.statusMappings || [];
+  const existingMapping = updatedMappings.find(
+    m => args.meeting && m.calendarText.toLowerCase() === args.meeting.toLowerCase(),
+  );
+
+  if (existingMapping) {
+    existingMapping.slackStatus = slackStatus;
+  } else {
+    updatedMappings.push({ calendarText: args.meeting, slackStatus });
+  }
+
+  const updateResult = await upsertStatusMappings(userSettings.email, updatedMappings);
+  const serialized = serializeStatusMappings(updateResult);
+
+  return `Added! Here's what I got: ${serialized}`;
+};
+
+const handleRemove = async (userSettings: UserSettings, args: CommandArguments): Promise<string> => {
+  if (!args.meeting) {
+    return `You must specify a meeting using \`meeting="My Meeting"\`.`;
+  }
+
+  if (!userSettings.statusMappings) {
+    userSettings.statusMappings = [];
+  }
+
+  const filteredMappings = userSettings.statusMappings.filter(
+    sm => !args.meeting || sm.calendarText.toLowerCase() !== args.meeting.toLowerCase(),
+  );
+
+  const updated = await upsertStatusMappings(userSettings.email, filteredMappings);
+  const serialized = serializeStatusMappings(updated);
+
+  return `Removed! Here's what I got: ${serialized}`;
+};
+
+const handleSetDefault = async (userSettings: UserSettings, args: CommandArguments): Promise<string> => {
+  const { message, emoji } = args;
+
+  if (!message && !emoji) {
+    return 'Please set a default `message` and/or `emoji`.';
+  }
+
+  await upsertDefaultStatus(userSettings.email, { text: message, emoji: emoji });
+
+  const emojiString = emoji ? ` ${emoji}` : '';
+  const messageString = message ? ` \`${message}\`` : '';
+
+  return `Your default status is${emojiString}${messageString}.`;
+};
+
+const handleRemoveDefault = async (userSettings: UserSettings): Promise<string> => {
+  await removeDefaultStatus(userSettings.email);
+
+  return 'Your default status has been removed.';
+};
+
+const commandHandlerMap: {
+  [command: string]: (userSettings: UserSettings, args: CommandArguments) => Promise<string>;
+} = {
+  help: handleHelp,
+  show: handleShow,
+  set: handleSet,
+  remove: handleRemove,
+  'set-default': handleSetDefault,
+  'remove-default': handleRemoveDefault,
+};
+
+const handleSlackEventCallback = async ({
+  event: { type, subtype, channel, channel_type, user, text },
+}: SlackEventCallback): Promise<SlackResponse> => {
+  if (type !== 'message' || channel_type !== 'im') {
+    console.log(`Event type ${type}/${channel_type} is not handled by this version.`);
     return EMPTY_RESPONSE_BODY;
   }
-  if (event.event.subtype === 'bot_message' || !event.event.user) {
+
+  if (subtype === 'bot_message' || !user) {
     // ignore messages from self
     return EMPTY_RESPONSE_BODY;
   }
 
   const botToken = await getSlackSecretWithKey('bot-token');
-  const slackWeb = new WebClient(botToken);
+  const sendMessage = async (message: string): Promise<SlackResponse> => {
+    await postMessage(botToken, { text: message, channel: channel });
+    return EMPTY_RESPONSE_BODY;
+  };
 
-  const response: any = await slackWeb.users.info({ user: event.event.user });
-  const userEmail = response.user.profile.email;
+  const userProfile = await getUserProfile(botToken, user);
+  if (!userProfile) {
+    return await sendMessage('Something went wrong fetching your user profile. Maybe try again?');
+  }
+
+  const userEmail = userProfile.email;
   const userSettings = await getSettingsForUsers([userEmail]);
+
   if (!userSettings.length || !userSettings[0].slackToken) {
-    await slackWeb.chat.postMessage({
-      text: `Hello :wave:
+    return await sendMessage(`Hello :wave:
 
-You need to authorize me before we can do anything else: ${slackInstallUrl()}`,
-      channel: event.event.channel,
-    });
-
-    return EMPTY_RESPONSE_BODY;
+You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   }
 
-  const command = event.event.text;
-  const usersSettings = userSettings[0];
-  if (/^\s*show/i.test(command)) {
-    let message = "You don't have any status mappings yet. Try `set`";
-    if (usersSettings.statusMappings) {
-      const serialized = usersSettings.statusMappings.map(
-        m =>
-          `\n${m.slackStatus.emoji} \`${m.calendarText}\` ${
-            m.slackStatus.text ? 'uses status `' + m.slackStatus.text + '`' : ''
-          }`,
-      );
-      message = `Here's what I've got for you:${serialized}`;
-    }
+  const command = text;
+  const tokens = command.match(/[\w]+=["“][^"”]+["”]|[^ "“”]+/g) || [];
+  const subcommand = tokens[0];
+  const args = tokens.slice(1);
 
-    await slackWeb.chat.postMessage({
-      text: message,
-      channel: event.event.channel,
-    });
-
-    return EMPTY_RESPONSE_BODY;
+  if (subcommand in commandHandlerMap) {
+    const message = await commandHandlerMap[subcommand](userSettings[0], constructCommandArgs(args));
+    return await sendMessage(message);
   }
 
-  await slackWeb.chat.postMessage({
-    text: `:shrug: Maybe try one of these:
-- \`show\``,
-    channel: event.event.channel,
-  });
-
-  return EMPTY_RESPONSE_BODY;
-}
+  return await sendMessage(`:shrug: Maybe try one of these:
+  - \`help\`
+  - \`show\`
+  - \`set\`
+  - \`set-default\`
+  - \`remove\`
+  - \`remove-default\``);
+};
 
 export const handler = async (event: ApiGatewayEvent) => {
   let body = JSON.parse(event.body);
