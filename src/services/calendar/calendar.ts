@@ -47,16 +47,21 @@ const getAuthenticatedClient = (email: string, token: Token): Client => {
 export const getEventsForUser = async (email: string, storedToken: Token): Promise<CalendarEvent[] | null> => {
   if (!storedToken) return null;
 
-  const now: Date = new Date();
-  const ninetySecondsFromNow: Date = new Date(now);
-  ninetySecondsFromNow.setSeconds(now.getSeconds() + 90);
+  const now = new Date();
+
+  const startTime = new Date(now);
+  startTime.setMinutes(now.getMinutes() - 1);
+
+  const endTime = new Date(now);
+  endTime.setMinutes(now.getMinutes() + 1);
 
   try {
     const outlookEvents = await getAuthenticatedClient(email, storedToken)
-      .api(`/users/${email}/events`)
-      .filter(`start/dateTime le '${ninetySecondsFromNow.toISOString()}' and end/dateTime ge '${now.toISOString()}'`)
+      .api(`/users/${email}/calendarView?startDateTime=${startTime.toISOString()}&endDateTime=${endTime.toISOString()}`)
+      .orderby('start/dateTime')
       .select('start,end,subject,showAs,location,sensitivity')
       .get();
+
     return outlookEvents.value.map((e: any) => {
       const event: CalendarEvent = {
         startTime: new Date(e.start.dateTime),
