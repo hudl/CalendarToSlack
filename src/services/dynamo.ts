@@ -3,15 +3,32 @@ import { Token } from 'simple-oauth2';
 import AWS from 'aws-sdk';
 import config from '../../config';
 
+type StatusMapping = {
+  calendarText: string;
+  slackStatus: SlackStatus;
+};
+
 export type UserSettings = {
   email: string;
   slackToken: string;
   calendarStoredToken?: any | null;
   defaultStatus?: SlackStatus;
-  statusMappings?: {
-    calendarText: string;
-    slackStatus: SlackStatus;
-  }[];
+  statusMappings?: StatusMapping[];
+};
+
+const toDynamoStatus = (status: SlackStatus) => ({
+  text: status.text || null,
+  emoji: status.emoji || null,
+});
+
+const toDynamoStatusMappings = (statusMappings?: StatusMapping[]) => {
+  return (
+    statusMappings &&
+    statusMappings.map(sm => ({
+      ...sm,
+      slackStatus: toDynamoStatus(sm.slackStatus),
+    }))
+  );
 };
 
 export const clearUserTokens = async (email: string): Promise<UserSettings> => {
@@ -22,11 +39,7 @@ export const clearUserTokens = async (email: string): Promise<UserSettings> => {
       {
         TableName: config.dynamoDb.tableName,
         Key: { email: email },
-        UpdateExpression: 'set calendarStoredToken = :ct, slackToken = :st',
-        ExpressionAttributeValues: {
-          ':ct': null,
-          ':st': null,
-        },
+        UpdateExpression: 'remove calendarStoredToken, slackToken',
         ReturnValues: 'ALL_NEW',
       },
       (err, data) => {
@@ -70,7 +83,7 @@ export const storeCalendarAuthenticationToken = async (
   );
 };
 
-export const upsertUserSettings = async (userSettings: UserSettings): Promise<UserSettings> => {
+export const upsertSlackToken = async (email: string, slackToken: string): Promise<UserSettings> => {
   const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
   return new Promise((resolve, reject) =>
@@ -78,11 +91,11 @@ export const upsertUserSettings = async (userSettings: UserSettings): Promise<Us
       {
         TableName: config.dynamoDb.tableName,
         Key: {
-          email: userSettings.email,
+          email: email,
         },
         UpdateExpression: 'set slackToken = :t',
         ExpressionAttributeValues: {
-          ':t': userSettings.slackToken,
+          ':t': slackToken,
         },
         ReturnValues: 'ALL_NEW',
       },
@@ -98,7 +111,39 @@ export const upsertUserSettings = async (userSettings: UserSettings): Promise<Us
   );
 };
 
-export const upsertStatusMappings = async (userSettings: UserSettings): Promise<UserSettings> => {
+export const upsertDefaultStatus = async (email: string, defaultStatus: SlackStatus): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  if (!defaultStatus) {
+    return await removeDefaultStatus(email);
+  }
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: email,
+        },
+        UpdateExpression: 'set defaultStatus = :s',
+        ExpressionAttributeValues: {
+          ':s': toDynamoStatus(defaultStatus),
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
+};
+
+export const removeDefaultStatus = async (email: string): Promise<UserSettings> => {
   const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
   return new Promise((resolve, reject) =>
@@ -106,11 +151,36 @@ export const upsertStatusMappings = async (userSettings: UserSettings): Promise<
       {
         TableName: config.dynamoDb.tableName,
         Key: {
-          email: userSettings.email,
+          email: email,
+        },
+        UpdateExpression: 'remove defaultStatus',
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
+};
+
+export const upsertStatusMappings = async (email: string, statusMappings: StatusMapping[]): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: email,
         },
         UpdateExpression: 'set statusMappings = :s',
         ExpressionAttributeValues: {
-          ':s': userSettings.statusMappings,
+          ':s': toDynamoStatusMappings(statusMappings),
         },
         ReturnValues: 'ALL_NEW',
       },
@@ -163,9 +233,7 @@ export const getSettingsForUsers = async (emails: string[]): Promise<UserSetting
           return;
         }
 
-        resolve(
-          data.Responses ? (data.Responses[config.dynamoDb.tableName] as UserSettings[]) : ([] as UserSettings[]),
-        );
+        resolve(data.Responses ? (data.Responses[config.dynamoDb.tableName] as UserSettings[]) : []);
       },
     ),
   );

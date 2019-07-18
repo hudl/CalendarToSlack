@@ -2,7 +2,7 @@ import AWS from 'aws-sdk';
 import oauth from 'simple-oauth2';
 import { WebClient } from '@slack/web-api';
 import { getEventsForUser, CalendarEvent, ShowAs } from './services/calendar/calendar';
-import { getAllUserSettings, getSettingsForUsers, upsertUserSettings } from './services/dynamo';
+import { getAllUserSettings, getSettingsForUsers, upsertSlackToken } from './services/dynamo';
 import { setUserStatus, setUserPresence } from './services/slack';
 import { Handler } from 'aws-lambda';
 import { InvocationRequest } from 'aws-sdk/clients/lambda';
@@ -126,10 +126,7 @@ export const createUser: Handler = async (event: any) => {
   const slackClient = new WebClient(tokenStr);
   const authorizedUser = (await slackClient.users.profile.get()).profile as GetProfileResult;
 
-  await upsertUserSettings({
-    email: authorizedUser.email,
-    slackToken: tokenStr,
-  });
+  await upsertSlackToken(authorizedUser.email, tokenStr);
 
   return microsoftAuthRedirect(authorizedUser.email);
 };

@@ -1,7 +1,13 @@
 import crypto from 'crypto';
 import { getSlackSecretWithKey } from './utils/secrets';
 import { getUserProfile, postMessage } from './services/slack';
-import { getSettingsForUsers, upsertStatusMappings, UserSettings } from './services/dynamo';
+import {
+  getSettingsForUsers,
+  upsertStatusMappings,
+  UserSettings,
+  upsertDefaultStatus,
+  removeDefaultStatus,
+} from './services/dynamo';
 import { slackInstallUrl } from './utils/urls';
 
 const MILLIS_IN_SEC = 1000;
@@ -73,7 +79,7 @@ const serializeStatusMappings = (userSettings: UserSettings): string[] => {
   if (userSettings.statusMappings) {
     const serialized = userSettings.statusMappings.map(
       m =>
-        `\n${m.slackStatus.emoji} \`${m.calendarText}\` ${
+        `\n${m.slackStatus.emoji || ':transparent:'} \`${m.calendarText}\` ${
           m.slackStatus.text ? 'uses status `' + m.slackStatus.text + '`' : ''
         }`,
     );
@@ -100,6 +106,10 @@ const constructCommandArgs = (argList: string[]): CommandArguments => {
   };
 };
 
+const handleHelp = async (): Promise<string> => {
+  return ':information_desk_person: Please visit https://github.com/hudl/CalendarToSlack/wiki for more information on how to use this app!';
+};
+
 const handleShow = async (userSettings: UserSettings): Promise<string> => {
   const serialized = serializeStatusMappings(userSettings);
   if (serialized.length) {
@@ -114,30 +124,24 @@ const handleSet = async (userSettings: UserSettings, args: CommandArguments): Pr
     return `You must specify a meeting using \`meeting="My Meeting"\`.`;
   }
 
-  if (!userSettings.statusMappings) {
-    userSettings.statusMappings = [];
-  }
-
-  const existingMeeting = userSettings.statusMappings.find(
-    m => m.calendarText.toLowerCase() === (args.meeting || '').toLowerCase(),
-  );
-
   const slackStatus = {
     text: args.message || args.meeting,
     emoji: args.emoji,
   };
 
-  if (existingMeeting) {
-    existingMeeting.slackStatus = slackStatus;
+  const updatedMappings = userSettings.statusMappings || [];
+  const existingMapping = updatedMappings.find(
+    m => args.meeting && m.calendarText.toLowerCase() === args.meeting.toLowerCase(),
+  );
+
+  if (existingMapping) {
+    existingMapping.slackStatus = slackStatus;
   } else {
-    userSettings.statusMappings.push({
-      calendarText: args.meeting,
-      slackStatus,
-    });
+    updatedMappings.push({ calendarText: args.meeting, slackStatus });
   }
 
-  const updated = await upsertStatusMappings(userSettings);
-  const serialized = serializeStatusMappings(updated);
+  const updateResult = await upsertStatusMappings(userSettings.email, updatedMappings);
+  const serialized = serializeStatusMappings(updateResult);
 
   return `Added! Here's what I got: ${serialized}`;
 };
@@ -151,22 +155,46 @@ const handleRemove = async (userSettings: UserSettings, args: CommandArguments):
     userSettings.statusMappings = [];
   }
 
-  userSettings.statusMappings = userSettings.statusMappings.filter(
-    sm => sm.calendarText.toLowerCase() !== (args.meeting || '').toLowerCase(),
+  const filteredMappings = userSettings.statusMappings.filter(
+    sm => !args.meeting || sm.calendarText.toLowerCase() !== args.meeting.toLowerCase(),
   );
 
-  const updated = await upsertStatusMappings(userSettings);
+  const updated = await upsertStatusMappings(userSettings.email, filteredMappings);
   const serialized = serializeStatusMappings(updated);
 
   return `Removed! Here's what I got: ${serialized}`;
 };
 
+const handleSetDefault = async (userSettings: UserSettings, args: CommandArguments): Promise<string> => {
+  const { message, emoji } = args;
+
+  if (!message && !emoji) {
+    return 'Please set a default `message` and/or `emoji`.';
+  }
+
+  await upsertDefaultStatus(userSettings.email, { text: message, emoji: emoji });
+
+  const emojiString = emoji ? ` ${emoji}` : '';
+  const messageString = message ? ` \`${message}\`` : '';
+
+  return `Your default status is${emojiString}${messageString}.`;
+};
+
+const handleRemoveDefault = async (userSettings: UserSettings): Promise<string> => {
+  await removeDefaultStatus(userSettings.email);
+
+  return 'Your default status has been removed.';
+};
+
 const commandHandlerMap: {
   [command: string]: (userSettings: UserSettings, args: CommandArguments) => Promise<string>;
 } = {
+  help: handleHelp,
   show: handleShow,
   set: handleSet,
   remove: handleRemove,
+  'set-default': handleSetDefault,
+  'remove-default': handleRemoveDefault,
 };
 
 const handleSlackEventCallback = async ({
@@ -192,9 +220,10 @@ const handleSlackEventCallback = async ({
   if (!userProfile) {
     return await sendMessage('Something went wrong fetching your user profile. Maybe try again?');
   }
-  const userEmail = userProfile.email;
 
+  const userEmail = userProfile.email;
   const userSettings = await getSettingsForUsers([userEmail]);
+
   if (!userSettings.length || !userSettings[0].slackToken) {
     return await sendMessage(`Hello :wave:
 
@@ -215,7 +244,9 @@ You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   - \`help\`
   - \`show\`
   - \`set\`
-  - \`remove\``);
+  - \`set-default\`
+  - \`remove\`
+  - \`remove-default\``);
 };
 
 export const handler = async (event: ApiGatewayEvent) => {

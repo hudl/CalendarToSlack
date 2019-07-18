@@ -46,7 +46,7 @@ export const setUserStatus = async (email: string, token: string, status: SlackS
   if (!token) return;
 
   const slackClient = new WebClient(token);
-  const profile = JSON.stringify({ status_text: status.text, status_emoji: status.emoji });
+  const profile = JSON.stringify({ status_text: status.text || '', status_emoji: status.emoji || '' });
 
   try {
     await slackClient.users.profile.set({ profile });
