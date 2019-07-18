@@ -42,6 +42,7 @@ functions:
       - http:
           path: 'update'
           method: post
+      - schedule: rate(1 minute)
   update-batch:
     handler: src/index.updateBatch
     role: slackbotRole
