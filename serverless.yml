@@ -44,7 +44,7 @@ functions:
           method: post
   update-batch:
     handler: src/index.updateBatch
-    role: updateRole
+    role: slackbotRole
   authorize-microsoft-graph:
     handler: src/index.authorizeMicrosoftGraph
     events:
