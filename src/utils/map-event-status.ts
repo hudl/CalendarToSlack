@@ -33,7 +33,9 @@ export const getStatusForUserEvent = (settings: UserSettings, event: CalendarEve
   // TODO: Consider a less naive approach than finding the first event that contains the mapping's text
   const relevantStatus =
     settings.statusMappings &&
-    settings.statusMappings.find(sm => sm.calendarText && event.name.includes(sm.calendarText));
+    settings.statusMappings.find(
+      sm => sm.calendarText && event.name.toLowerCase().includes(sm.calendarText.toLowerCase()),
+    );
 
   return relevantStatus ? relevantStatus.slackStatus : defaultStatus;
 };

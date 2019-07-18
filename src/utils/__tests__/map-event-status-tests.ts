@@ -19,6 +19,29 @@ describe('getStatusForUserEvent', () => {
     });
   });
 
+  test('Given any event, matches to a status regardless of casing', () => {
+    const status = getStatusForUserEvent(
+      {
+        ...baseUserSettings,
+        statusMappings: [
+          {
+            calendarText: 'quick chat',
+            slackStatus: {
+              text: 'Be right back',
+              emoji: ':brb:',
+            },
+          },
+        ],
+      },
+      { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Busy },
+    );
+
+    expect(status).toEqual({
+      text: 'Be right back',
+      emoji: ':brb:',
+    });
+  });
+
   describe('Given a Free event', () => {
     test(`Returns the status mapping matching the event name if present`, () => {
       const defaultStatus = { text: 'Hi', emoji: ':wave:' };
