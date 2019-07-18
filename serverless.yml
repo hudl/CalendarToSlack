@@ -12,6 +12,9 @@ provider:
     name: ${self:custom.deployment.bucketName}
     serverSideEncryption: AES256
   deploymentPrefix: prod
+  stackTags:
+    Environment: internal
+    Group: cal2slack
 
 package:
   include:
