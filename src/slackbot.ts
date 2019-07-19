@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { getSlackSecretWithKey } from './utils/secrets';
-import { getUserProfile, postMessage } from './services/slack';
+import { getUserProfile, postMessage, setUserStatus } from './services/slack';
 import {
   getSettingsForUsers,
   upsertStatusMappings,
@@ -140,8 +140,13 @@ const handleSet = async (userSettings: UserSettings, args: CommandArguments): Pr
     updatedMappings.push({ calendarText: args.meeting, slackStatus });
   }
 
-  const updateResult = await upsertStatusMappings(userSettings.email, updatedMappings);
-  const serialized = serializeStatusMappings(updateResult);
+  const slackPromise =
+    userSettings.currentEvent && userSettings.currentEvent.name.toLowerCase().includes(args.meeting)
+      ? setUserStatus(userSettings.email, userSettings.slackToken, slackStatus)
+      : Promise.resolve();
+
+  const updateResult = await Promise.all([upsertStatusMappings(userSettings.email, updatedMappings), slackPromise]);
+  const serialized = serializeStatusMappings(updateResult[0]);
 
   return `Added! Here's what I got: ${serialized}`;
 };
@@ -172,7 +177,11 @@ const handleSetDefault = async (userSettings: UserSettings, args: CommandArgumen
     return 'Please set a default `message` and/or `emoji`.';
   }
 
-  await upsertDefaultStatus(userSettings.email, { text: message, emoji: emoji });
+  const slackPromise = !userSettings.currentEvent
+    ? setUserStatus(userSettings.email, userSettings.slackToken, { text: message, emoji })
+    : Promise.resolve();
+
+  await Promise.all([upsertDefaultStatus(userSettings.email, { text: message, emoji }), slackPromise]);
 
   const emojiString = emoji ? ` ${emoji}` : '';
   const messageString = message ? ` \`${message}\`` : '';
@@ -181,7 +190,11 @@ const handleSetDefault = async (userSettings: UserSettings, args: CommandArgumen
 };
 
 const handleRemoveDefault = async (userSettings: UserSettings): Promise<string> => {
-  await removeDefaultStatus(userSettings.email);
+  const slackPromise = !userSettings.currentEvent
+    ? setUserStatus(userSettings.email, userSettings.slackToken, { text: '', emoji: '' })
+    : Promise.resolve();
+
+  await Promise.all([removeDefaultStatus(userSettings.email), slackPromise]);
 
   return 'Your default status has been removed.';
 };
