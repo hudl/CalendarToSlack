@@ -141,7 +141,7 @@ const handleSet = async (userSettings: UserSettings, args: CommandArguments): Pr
   }
 
   const slackPromise =
-    userSettings.currentEvent && userSettings.currentEvent.name.toLowerCase().includes(args.meeting)
+    userSettings.currentEvent && userSettings.currentEvent.name.toLowerCase().includes(args.meeting.toLowerCase())
       ? setUserStatus(userSettings.email, userSettings.slackToken, slackStatus)
       : Promise.resolve();
 
@@ -177,11 +177,13 @@ const handleSetDefault = async (userSettings: UserSettings, args: CommandArgumen
     return 'Please set a default `message` and/or `emoji`.';
   }
 
+  const slackStatus = { text: message, emoji };
+
   const slackPromise = !userSettings.currentEvent
-    ? setUserStatus(userSettings.email, userSettings.slackToken, { text: message, emoji })
+    ? setUserStatus(userSettings.email, userSettings.slackToken, slackStatus)
     : Promise.resolve();
 
-  await Promise.all([upsertDefaultStatus(userSettings.email, { text: message, emoji }), slackPromise]);
+  await Promise.all([upsertDefaultStatus(userSettings.email, slackStatus), slackPromise]);
 
   const emojiString = emoji ? ` ${emoji}` : '';
   const messageString = message ? ` \`${message}\`` : '';
