@@ -40,7 +40,7 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     }
     const now = new Date();
     const expiration = new Date(expiresAtTimestamp);
-    expiration.setMinutes(expiration.getMinutes() + 1);
+    expiration.setMinutes(expiration.getMinutes() - 1);
     return now >= expiration;
   }
 
