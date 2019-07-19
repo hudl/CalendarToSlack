@@ -2,6 +2,7 @@ import { SlackStatus } from './slack';
 import { Token } from 'simple-oauth2';
 import AWS from 'aws-sdk';
 import config from '../../config';
+import { CalendarEvent } from './calendar/calendar';
 
 type StatusMapping = {
   calendarText: string;
@@ -10,10 +11,11 @@ type StatusMapping = {
 
 export type UserSettings = {
   email: string;
-  slackToken: string;
+  slackToken?: string;
   calendarStoredToken?: any | null;
   defaultStatus?: SlackStatus;
   statusMappings?: StatusMapping[];
+  currentEvent?: CalendarEvent;
 };
 
 const toDynamoStatus = (status: SlackStatus) => ({
@@ -182,6 +184,62 @@ export const upsertStatusMappings = async (email: string, statusMappings: Status
         ExpressionAttributeValues: {
           ':s': toDynamoStatusMappings(statusMappings),
         },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
+};
+
+export const upsertCurrentEvent = async (email: string, event: CalendarEvent): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: email,
+        },
+        UpdateExpression: 'set currentEvent = :e',
+        ExpressionAttributeValues: {
+          ':e': {
+            ...event,
+            location: event.location || null,
+          },
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
+};
+
+export const removeCurrentEvent = async (email: string): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: email,
+        },
+        UpdateExpression: 'remove currentEvent',
         ReturnValues: 'ALL_NEW',
       },
       (err, data) => {

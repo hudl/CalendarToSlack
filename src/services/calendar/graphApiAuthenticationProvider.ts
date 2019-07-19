@@ -68,11 +68,19 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     return new Promise(async (resolve, reject) => {
       if (this.storedToken) {
         if (this.shouldRefreshToken(this.storedToken)) {
+          console.log(
+            `Microsoft Graph access token expired for ${this.userEmail} at ${
+              this.storedToken.expires_at_timestamp
+            }. Refreshing...`,
+          );
           try {
             const authentication = await this.createOAuthClient();
             const accessToken = authentication.accessToken.create(this.storedToken);
             const newToken = (await accessToken.refresh()).token;
             newToken.expires_at_timestamp = newToken.expires_at.toISOString();
+            console.log(
+              `Refreshed Microsoft graph token for ${this.userEmail} with expiration: ${newToken.expires_at_timestamp}`,
+            );
             await storeCalendarAuthenticationToken(this.userEmail, newToken);
             resolve(newToken.access_token);
           } catch (error) {

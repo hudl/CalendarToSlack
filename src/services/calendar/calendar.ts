@@ -11,6 +11,7 @@ export enum ShowAs {
 }
 
 export type CalendarEvent = {
+  id: string;
   name: string;
   startTime: Date;
   endTime: Date;
@@ -64,6 +65,7 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
 
     return outlookEvents.value.map((e: any) => {
       const event: CalendarEvent = {
+        id: e.id,
         startTime: new Date(e.start.dateTime),
         endTime: new Date(e.end.dateTime),
         location: e.location.displayName,
