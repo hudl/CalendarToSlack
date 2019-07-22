@@ -34,56 +34,65 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     });
   }
 
-  private async shouldRefreshToken({ expires_at_timestamp: expiresAtTimestamp }: Token): Promise<boolean> {
+  private shouldRefreshToken({ expires_at_timestamp: expiresAtTimestamp }: Token) {
     if (!expiresAtTimestamp) {
       return true;
     }
     const now = new Date();
     const expiration = new Date(expiresAtTimestamp);
-    expiration.setMinutes(expiration.getMinutes() + 1);
+    expiration.setMinutes(expiration.getMinutes() - 1);
     return now >= expiration;
   }
 
   public async getTokenWithAuthCode(authCode: string): Promise<Token> {
-    return new Promise(async (resolve, reject) => {
-      const tokenConfig = {
-        scope: this.scope,
-        code: authCode || '',
-        redirect_uri: authorizeMicrosoftGraphUrl(),
-      };
-      try {
-        const authentication = await this.createOAuthClient();
-        const result = await authentication.authorizationCode.getToken(tokenConfig);
-        const { token } = authentication.accessToken.create(result);
-        token.expires_at_timestamp = token.expires_at.toISOString();
-        await storeCalendarAuthenticationToken(this.userEmail, token);
-        resolve(token);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    const tokenConfig = {
+      scope: this.scope,
+      code: authCode || '',
+      redirect_uri: authorizeMicrosoftGraphUrl(),
+    };
+
+    const authentication = await this.createOAuthClient();
+    const result = await authentication.authorizationCode.getToken(tokenConfig);
+    const { token } = authentication.accessToken.create(result);
+    token.expires_at_timestamp = token.expires_at.toISOString();
+
+    await storeCalendarAuthenticationToken(this.userEmail, token);
+    return token;
   }
 
   public async getAccessToken(): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-      if (this.storedToken) {
-        if (this.shouldRefreshToken(this.storedToken)) {
-          try {
-            const authentication = await this.createOAuthClient();
-            const accessToken = authentication.accessToken.create(this.storedToken);
-            const newToken = (await accessToken.refresh()).token;
-            newToken.expires_at_timestamp = newToken.expires_at.toISOString();
-            await storeCalendarAuthenticationToken(this.userEmail, newToken);
-            resolve(newToken.access_token);
-          } catch (error) {
-            console.error(error);
-            reject(error);
-          }
-        }
-        resolve(this.storedToken.access_token);
-      } else {
-        reject(`Could not authenticate user ${this.userEmail} with Microsoft Graph`);
-      }
-    });
+    if (!this.storedToken) {
+      throw new Error(`Could not authenticate user ${this.userEmail} with Microsoft Graph`);
+    }
+
+    if (!this.shouldRefreshToken(this.storedToken)) {
+      return this.storedToken.access_token;
+    }
+
+    console.log(
+      `Microsoft Graph access token expired for ${this.userEmail} at ${
+        this.storedToken.expires_at_timestamp
+      }. Refreshing...`,
+    );
+
+    try {
+      const authentication = await this.createOAuthClient();
+      const accessToken = authentication.accessToken.create(this.storedToken);
+
+      const newToken = (await accessToken.refresh()).token;
+      newToken.expires_at_timestamp = newToken.expires_at.toISOString();
+
+      console.log(
+        `Refreshed Microsoft graph access token for ${this.userEmail} with expiration: ${
+          newToken.expires_at_timestamp
+        }`,
+      );
+
+      await storeCalendarAuthenticationToken(this.userEmail, newToken);
+      return newToken.access_token;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 }

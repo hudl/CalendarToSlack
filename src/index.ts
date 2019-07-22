@@ -2,7 +2,13 @@ import AWS from 'aws-sdk';
 import oauth from 'simple-oauth2';
 import { WebClient } from '@slack/web-api';
 import { getEventsForUser, CalendarEvent, ShowAs } from './services/calendar/calendar';
-import { getAllUserSettings, getSettingsForUsers, upsertSlackToken } from './services/dynamo';
+import {
+  getAllUserSettings,
+  getSettingsForUsers,
+  upsertSlackToken,
+  upsertCurrentEvent,
+  removeCurrentEvent,
+} from './services/dynamo';
 import { setUserStatus, setUserPresence } from './services/slack';
 import { Handler } from 'aws-lambda';
 import { InvocationRequest } from 'aws-sdk/clients/lambda';
@@ -27,6 +33,9 @@ const microsoftAuthRedirect = (email: string) => ({
     }&response_type=code&redirect_uri=${authorizeMicrosoftGraphUrl()}&response_mode=query&scope=calendars.read&state=${email}`,
   },
 });
+
+const shouldUpdate = (e1: CalendarEvent | undefined, e2: CalendarEvent | null) =>
+  (!e1 && e2) || (e1 && !e2) || (e1 && e2 && e1.id !== e2.id);
 
 export const update: Handler = async () => {
   const batchSize = 10;
@@ -61,15 +70,16 @@ export const updateBatch: Handler = async (event: any) => {
 
       const relevantEvent = getHighestPriorityEvent(userEvents);
 
+      if (!shouldUpdate(us.currentEvent, relevantEvent)) return;
+
       const status = getStatusForUserEvent(us, relevantEvent);
-
-      console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${us.email}`);
-      await setUserStatus(us.email, us.slackToken, status);
-
       const presence = relevantEvent && relevantEvent.showAs > ShowAs.Tentative ? 'away' : 'auto';
 
-      console.log(`Setting presence to '${presence}' for ${us.email}`);
-      await setUserPresence(us.email, us.slackToken, presence);
+      await Promise.all([
+        setUserStatus(us.email, us.slackToken, status),
+        setUserPresence(us.email, us.slackToken, presence),
+        relevantEvent ? upsertCurrentEvent(us.email, relevantEvent) : removeCurrentEvent(us.email),
+      ]);
     }),
   );
 };

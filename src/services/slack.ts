@@ -30,8 +30,10 @@ const handleError = async (error: any, email: string) => {
   }
 };
 
-export const setUserPresence = async (email: string, token: string, presence: 'auto' | 'away') => {
+export const setUserPresence = async (email: string, token: string | undefined, presence: 'auto' | 'away') => {
   if (!token) return;
+
+  console.log(`Setting presence to '${presence}' for ${email}`);
 
   const slackClient = new WebClient(token);
 
@@ -42,8 +44,10 @@ export const setUserPresence = async (email: string, token: string, presence: 'a
   }
 };
 
-export const setUserStatus = async (email: string, token: string, status: SlackStatus) => {
+export const setUserStatus = async (email: string, token: string | undefined, status: SlackStatus) => {
   if (!token) return;
+
+  console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email}`);
 
   const slackClient = new WebClient(token);
   const profile = JSON.stringify({ status_text: status.text || '', status_emoji: status.emoji || '' });
