@@ -9,7 +9,7 @@ import {
   upsertCurrentEvent,
   removeCurrentEvent,
 } from './services/dynamo';
-import { setUserStatus, setUserPresence } from './services/slack';
+import { setUserStatus, setUserPresence, getUserByEmail, postMessage } from './services/slack';
 import { Handler } from 'aws-lambda';
 import { InvocationRequest } from 'aws-sdk/clients/lambda';
 import { getStatusForUserEvent } from './utils/map-event-status';
@@ -36,6 +36,21 @@ const microsoftAuthRedirect = (email: string) => ({
 
 const shouldUpdate = (e1: CalendarEvent | undefined, e2: CalendarEvent | null) =>
   (!e1 && e2) || (e1 && !e2) || (e1 && e2 && e1.id !== e2.id);
+
+const sendUpcomingEventMessage = async (event: CalendarEvent | null, email: string) => {
+  if (!event || !event.location || !(event.location.startsWith('http://') || event.location.startsWith('https://')))
+    return;
+
+  const botToken = await getSlackSecretWithKey('bot-token');
+  const user = await getUserByEmail(botToken, email);
+
+  if (!user) {
+    console.warn(`Could not find user for email: ${email}`);
+    return;
+  }
+
+  return await postMessage(botToken, { text: `Join *${event.name}* at: ${event.location}`, channel: user.id });
+};
 
 export const update: Handler = async () => {
   const batchSize = 10;
@@ -78,6 +93,7 @@ export const updateBatch: Handler = async (event: any) => {
       await Promise.all([
         setUserStatus(us.email, us.slackToken, status),
         setUserPresence(us.email, us.slackToken, presence),
+        sendUpcomingEventMessage(relevantEvent, us.email),
         relevantEvent ? upsertCurrentEvent(us.email, relevantEvent) : removeCurrentEvent(us.email),
       ]);
     }),
