@@ -14,6 +14,10 @@ export type SlackUserProfile = {
   email: string;
 };
 
+export type SlackUser = {
+  id: string;
+};
+
 const handleError = async (error: any, email: string) => {
   console.error(error);
   error.data;
@@ -59,12 +63,20 @@ export const setUserStatus = async (email: string, token: string | undefined, st
   }
 };
 
-export const getUserProfile = async (token: string, slackUserId: string): Promise<SlackUserProfile | undefined> => {
-  if (!token) return undefined;
+export const getUserInfo = async (token: string, slackUserId: string): Promise<SlackUserProfile | undefined> => {
+  if (!token) return;
 
   const slackClient = new WebClient(token);
   const response: any = await slackClient.users.info({ user: slackUserId });
   return response.user.profile as SlackUserProfile;
+};
+
+export const getUserByEmail = async (token: string, email: string): Promise<SlackUser | undefined> => {
+  if (!token) return;
+
+  const slackClient = new WebClient(token);
+
+  return (await slackClient.users.lookupByEmail({ token, email })).user as SlackUser;
 };
 
 export const postMessage = async (token: string, params: ChatPostMessageArguments): Promise<boolean> => {
