@@ -33,7 +33,14 @@ describe('getStatusForUserEvent', () => {
           },
         ],
       },
-      { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Busy },
+      {
+        id: '1',
+        name: 'Quick Chat',
+        startTime: new Date(),
+        endTime: new Date(),
+        location: 'Zoom',
+        showAs: ShowAs.Busy,
+      },
     );
 
     expect(status).toEqual({
@@ -59,7 +66,14 @@ describe('getStatusForUserEvent', () => {
             },
           ],
         },
-        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Free },
+        {
+          id: '1',
+          name: 'Quick Chat',
+          startTime: new Date(),
+          endTime: new Date(),
+          location: 'Zoom',
+          showAs: ShowAs.Free,
+        },
       );
 
       expect(status).toEqual({
@@ -84,7 +98,14 @@ describe('getStatusForUserEvent', () => {
             },
           ],
         },
-        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Free },
+        {
+          id: '1',
+          name: 'Quick Chat',
+          startTime: new Date(),
+          endTime: new Date(),
+          location: 'Zoom',
+          showAs: ShowAs.Free,
+        },
       );
 
       expect(status).toEqual(defaultStatus);
@@ -94,7 +115,14 @@ describe('getStatusForUserEvent', () => {
       const defaultStatus = { text: 'Hi', emoji: ':wave:' };
       const status = getStatusForUserEvent(
         { ...baseUserSettings, defaultStatus },
-        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Free },
+        {
+          id: '1',
+          name: 'Quick Chat',
+          startTime: new Date(),
+          endTime: new Date(),
+          location: 'Zoom',
+          showAs: ShowAs.Free,
+        },
       );
 
       expect(status).toEqual(defaultStatus);
@@ -102,6 +130,7 @@ describe('getStatusForUserEvent', () => {
 
     test('Returns an empty status without a status mapping or default status', () => {
       const status = getStatusForUserEvent(baseUserSettings, {
+        id: '1',
         name: 'Quick Chat',
         startTime: new Date(),
         endTime: new Date(),
@@ -130,7 +159,14 @@ describe('getStatusForUserEvent', () => {
             },
           ],
         },
-        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Busy },
+        {
+          id: '1',
+          name: 'Quick Chat',
+          startTime: new Date(),
+          endTime: new Date(),
+          location: 'Zoom',
+          showAs: ShowAs.Busy,
+        },
       );
 
       expect(status).toEqual({
@@ -155,7 +191,14 @@ describe('getStatusForUserEvent', () => {
             },
           ],
         },
-        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Busy },
+        {
+          id: '1',
+          name: 'Quick Chat',
+          startTime: new Date(),
+          endTime: new Date(),
+          location: 'Zoom',
+          showAs: ShowAs.Busy,
+        },
       );
 
       expect(status).toEqual({ text: 'Away', emoji: ':spiral_calendar_pad:' });
@@ -163,6 +206,7 @@ describe('getStatusForUserEvent', () => {
 
     test(`Returns "Away" and :spiral_calendar_pad: when the user has no status mappings`, () => {
       const status = getStatusForUserEvent(baseUserSettings, {
+        id: '1',
         name: 'Quick Chat',
         startTime: new Date(),
         endTime: new Date(),
@@ -191,7 +235,14 @@ describe('getStatusForUserEvent', () => {
             },
           ],
         },
-        { name: 'Quick Chat', startTime: new Date(), endTime: new Date(), location: 'Zoom', showAs: ShowAs.Tentative },
+        {
+          id: '1',
+          name: 'Quick Chat',
+          startTime: new Date(),
+          endTime: new Date(),
+          location: 'Zoom',
+          showAs: ShowAs.Tentative,
+        },
       );
 
       expect(status).toEqual({
@@ -215,6 +266,7 @@ describe('getStatusForUserEvent', () => {
           ],
         },
         {
+          id: '1',
           name: 'Quick Chat',
           startTime: new Date(),
           endTime: new Date(),
@@ -228,6 +280,7 @@ describe('getStatusForUserEvent', () => {
 
     test(`Returns "Away" and :spiral_calendar_pad: when the user has no status mappings`, () => {
       const status = getStatusForUserEvent(baseUserSettings, {
+        id: '1',
         name: 'Quick Chat',
         startTime: new Date(),
         endTime: new Date(),
@@ -257,6 +310,7 @@ describe('getStatusForUserEvent', () => {
           ],
         },
         {
+          id: '1',
           name: 'Quick Chat',
           startTime: new Date(),
           endTime: new Date(),
@@ -275,6 +329,7 @@ describe('getStatusForUserEvent', () => {
       test(`Returns "OOO until {date}" and :ooo: when the OOO event lasts beyond the current day`, () => {
         const today = new Date();
         const status = getStatusForUserEvent(baseUserSettings, {
+          id: '1',
           name: 'Quick Chat',
           startTime: new Date(),
           endTime: {
@@ -293,6 +348,7 @@ describe('getStatusForUserEvent', () => {
       test(`Returns "OOO until {time}" and :ooo: when the OOO event ends on the current day`, () => {
         const today = new Date();
         const status = getStatusForUserEvent(baseUserSettings, {
+          id: '1',
           name: 'Quick Chat',
           startTime: new Date(),
           endTime: {
@@ -326,6 +382,7 @@ describe('getStatusForUserEvent', () => {
             ],
           },
           {
+            id: '1',
             name: 'Quick Chat',
             startTime: new Date(),
             endTime: {
@@ -358,6 +415,7 @@ describe('getStatusForUserEvent', () => {
             ],
           },
           {
+            id: '1',
             name: 'Quick Chat',
             startTime: new Date(),
             endTime: {

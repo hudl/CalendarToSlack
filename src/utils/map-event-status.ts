@@ -15,20 +15,14 @@ const getOOODateString = (endDateTime: Date | null) => {
 
 export const getStatusForUserEvent = (settings: UserSettings, event: CalendarEvent | null): SlackStatus => {
   const defaultStatusByVisibility = {
-    [ShowAs.Free]: { text: '', emoji: '' },
+    [ShowAs.Free]: settings.defaultStatus || { text: '', emoji: '' },
     [ShowAs.Busy]: { text: 'Away', emoji: ':spiral_calendar_pad:' },
     [ShowAs.Tentative]: { text: 'Away', emoji: ':spiral_calendar_pad:' },
     [ShowAs.OutOfOffice]: { text: `OOO until ${getOOODateString(event && event.endTime)}`, emoji: ':ooo:' },
   };
 
-  if (!event) return settings.defaultStatus || { text: '', emoji: '' };
-
-  const defaultStatus =
-    event.showAs === ShowAs.Free && settings.defaultStatus
-      ? settings.defaultStatus
-      : defaultStatusByVisibility[event.showAs];
-
-  if (!settings.statusMappings) return defaultStatus;
+  if (!event) return defaultStatusByVisibility[ShowAs.Free];
+  if (!settings.statusMappings) return defaultStatusByVisibility[event.showAs];
 
   // TODO: Consider a less naive approach than finding the first event that contains the mapping's text
   const relevantStatus =
@@ -37,5 +31,5 @@ export const getStatusForUserEvent = (settings: UserSettings, event: CalendarEve
       sm => sm.calendarText && event.name.toLowerCase().includes(sm.calendarText.toLowerCase()),
     );
 
-  return relevantStatus ? relevantStatus.slackStatus : defaultStatus;
+  return relevantStatus ? relevantStatus.slackStatus : defaultStatusByVisibility[event.showAs];
 };
