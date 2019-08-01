@@ -23,7 +23,11 @@ type GetProfileResult = {
 };
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) =>
-  events.length ? events.sort((event1, event2) => event2.showAs - event1.showAs)[0] : null;
+  events.length
+    ? events.sort(
+        (event1, event2) => event2.startTime.getTime() - event1.startTime.getTime() || event2.showAs - event1.showAs,
+      )[0]
+    : null;
 
 const microsoftAuthRedirect = (email: string) => ({
   statusCode: 301,
