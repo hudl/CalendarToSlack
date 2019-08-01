@@ -59,7 +59,6 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
   try {
     const outlookEvents = await getAuthenticatedClient(email, storedToken)
       .api(`/users/${email}/calendarView?startDateTime=${startTime.toISOString()}&endDateTime=${endTime.toISOString()}`)
-      .orderby('start/dateTime')
       .select('start,end,subject,showAs,location,sensitivity')
       .get();
 
