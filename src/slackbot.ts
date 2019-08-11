@@ -242,7 +242,7 @@ const commandHandlerMap: {
   remove: handleRemove,
   'set-default': handleSetDefault,
   'remove-default': handleRemoveDefault,
-  'update-settings': handleUpdateSettings,
+  settings: handleUpdateSettings,
 };
 
 const handleSlackEventCallback = async ({
