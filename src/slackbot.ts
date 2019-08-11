@@ -7,6 +7,7 @@ import {
   UserSettings,
   upsertDefaultStatus,
   removeDefaultStatus,
+  setZoomLinksDisabled,
 } from './services/dynamo';
 import { slackInstallUrl } from './utils/urls';
 
@@ -45,10 +46,14 @@ type SlackEventCallback = {
   authed_users: Array<string>;
 };
 
-type CommandArguments = {
+type CalendarCommandArguments = {
   meeting?: string;
   message?: string;
   emoji?: string;
+};
+
+type SettingsCommandArguments = {
+  zoomLinksEnabled?: boolean;
 };
 
 interface SlackResponse {}
@@ -89,7 +94,7 @@ const serializeStatusMappings = (userSettings: UserSettings): string[] => {
   return [];
 };
 
-const constructCommandArgs = (argList: string[]): CommandArguments => {
+const constructCalendarCommandArgs = (argList: string[]): CalendarCommandArguments => {
   const args: { [key: string]: string } = { meeting: '', message: '', emoji: '' };
 
   for (let arg of argList) {
@@ -106,6 +111,21 @@ const constructCommandArgs = (argList: string[]): CommandArguments => {
   };
 };
 
+const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArguments => {
+  const args: { [key: string]: string } = { 'zoom-links': '' };
+
+  for (let arg of argList) {
+    const [key, value] = arg.split('=');
+    if (key in args) {
+      args[key] = value.replace(/["”“]/g, '');
+    }
+  }
+
+  return {
+    zoomLinksEnabled: args['zoom-links'].length ? args['zoom-links'].toLowerCase() === 'true' : undefined,
+  };
+};
+
 const handleHelp = async (): Promise<string> => {
   return ':information_desk_person: Please visit https://github.com/hudl/CalendarToSlack/wiki for more information on how to use this app!';
 };
@@ -119,7 +139,8 @@ const handleShow = async (userSettings: UserSettings): Promise<string> => {
   return "You don't have any status mappings yet. Try `set`";
 };
 
-const handleSet = async (userSettings: UserSettings, args: CommandArguments): Promise<string> => {
+const handleSet = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
+  const args = constructCalendarCommandArgs(argList);
   if (!args.meeting) {
     return `You must specify a meeting using \`meeting="My Meeting"\`.`;
   }
@@ -151,7 +172,8 @@ const handleSet = async (userSettings: UserSettings, args: CommandArguments): Pr
   return `Added! Here's what I got: ${serialized}`;
 };
 
-const handleRemove = async (userSettings: UserSettings, args: CommandArguments): Promise<string> => {
+const handleRemove = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
+  const args = constructCalendarCommandArgs(argList);
   if (!args.meeting) {
     return `You must specify a meeting using \`meeting="My Meeting"\`.`;
   }
@@ -170,7 +192,8 @@ const handleRemove = async (userSettings: UserSettings, args: CommandArguments):
   return `Removed! Here's what I got: ${serialized}`;
 };
 
-const handleSetDefault = async (userSettings: UserSettings, args: CommandArguments): Promise<string> => {
+const handleSetDefault = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
+  const args = constructCalendarCommandArgs(argList);
   const { message, emoji } = args;
 
   if (!message && !emoji) {
@@ -201,8 +224,19 @@ const handleRemoveDefault = async (userSettings: UserSettings): Promise<string> 
   return 'Your default status has been removed.';
 };
 
+const handleUpdateSettings = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
+  const args = constructSettingsCommandArgs(argList);
+
+  if (args.zoomLinksEnabled !== undefined) {
+    await setZoomLinksDisabled(userSettings.email, !args.zoomLinksEnabled);
+  }
+
+  // TODO: Once more settings are present, change this to echo their settings
+  return 'Your settings have been updated.';
+};
+
 const commandHandlerMap: {
-  [command: string]: (userSettings: UserSettings, args: CommandArguments) => Promise<string>;
+  [command: string]: (userSettings: UserSettings, argList: string[]) => Promise<string>;
 } = {
   help: handleHelp,
   show: handleShow,
@@ -210,6 +244,7 @@ const commandHandlerMap: {
   remove: handleRemove,
   'set-default': handleSetDefault,
   'remove-default': handleRemoveDefault,
+  settings: handleUpdateSettings,
 };
 
 const handleSlackEventCallback = async ({
@@ -252,7 +287,7 @@ You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   const args = tokens.slice(1);
 
   if (subcommand in commandHandlerMap) {
-    const message = await commandHandlerMap[subcommand](userSettings[0], constructCommandArgs(args));
+    const message = await commandHandlerMap[subcommand](userSettings[0], args);
     return await sendMessage(message);
   }
 

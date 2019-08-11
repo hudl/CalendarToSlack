@@ -16,6 +16,7 @@ export type UserSettings = {
   defaultStatus?: SlackStatus;
   statusMappings?: StatusMapping[];
   currentEvent?: CalendarEvent;
+  zoomLinksDisabled?: boolean;
 };
 
 const toDynamoStatus = (status: SlackStatus) => ({
@@ -292,6 +293,34 @@ export const getSettingsForUsers = async (emails: string[]): Promise<UserSetting
         }
 
         resolve(data.Responses ? (data.Responses[config.dynamoDb.tableName] as UserSettings[]) : []);
+      },
+    ),
+  );
+};
+
+export const setZoomLinksDisabled = async (email: string, zoomLinksDisabled: boolean): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email,
+        },
+        UpdateExpression: 'set zoomLinksDisabled = :z',
+        ExpressionAttributeValues: {
+          ':z': zoomLinksDisabled,
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
       },
     ),
   );
