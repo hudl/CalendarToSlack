@@ -80,18 +80,28 @@ const validateSlackRequest = async (event: ApiGatewayEvent): Promise<boolean> =>
   return crypto.timingSafeEqual(Buffer.from(calculatedSignature, 'utf8'), Buffer.from(slackHash, 'utf8'));
 };
 
-const serializeStatusMappings = (userSettings: UserSettings): string[] => {
-  if (userSettings.statusMappings) {
-    const serialized = userSettings.statusMappings.map(
-      m =>
-        `\n${m.slackStatus.emoji || ':transparent:'} \`${m.calendarText}\` ${
-          m.slackStatus.text ? 'uses status `' + m.slackStatus.text + '`' : ''
-        }`,
-    );
-    return serialized;
+const serializeStatusMappings = ({ defaultStatus, statusMappings }: UserSettings): string => {
+  let defaultStatusString = '_Not set_';
+  if (defaultStatus) {
+    const statusText = defaultStatus.text ? ` \`${defaultStatus.text}\`` : '';
+    const emojiText = defaultStatus.emoji || ':speech_balloon:';
+    defaultStatusString = `${emojiText}${statusText}`;
   }
 
-  return [];
+  let serialized = `\n*Your default status is*: ${defaultStatusString}`;
+  if (statusMappings) {
+    serialized = serialized.concat(
+      '\n',
+      ...statusMappings.map(
+        m =>
+          `\n${m.slackStatus.emoji || ':transparent:'} \`${m.calendarText}\` ${
+            m.slackStatus.text ? `uses status \`${m.slackStatus.text}\`` : ''
+          }`,
+      ),
+    );
+  }
+
+  return serialized;
 };
 
 const constructCalendarCommandArgs = (argList: string[]): CalendarCommandArguments => {
@@ -126,17 +136,16 @@ const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArgumen
   };
 };
 
-const handleHelp = async (): Promise<string> => {
-  return ':information_desk_person: Please visit https://github.com/hudl/CalendarToSlack/wiki for more information on how to use this app!';
-};
+const handleHelp = async (): Promise<string> =>
+  ':information_desk_person: Please visit https://github.com/hudl/CalendarToSlack/wiki for more information on how to use this app!';
 
 const handleShow = async (userSettings: UserSettings): Promise<string> => {
   const serialized = serializeStatusMappings(userSettings);
   if (serialized.length) {
-    return `Here's what I've got for you:${serialized}`;
+    return `Here's what I've got for you:\n${serialized}`;
   }
 
-  return "You don't have any status mappings yet. Try `set`";
+  return "You don't have any status mappings yet. Try `set`.";
 };
 
 const handleSet = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
@@ -169,7 +178,7 @@ const handleSet = async (userSettings: UserSettings, argList: string[]): Promise
   const updateResult = await Promise.all([upsertStatusMappings(userSettings.email, updatedMappings), slackPromise]);
   const serialized = serializeStatusMappings(updateResult[0]);
 
-  return `Added! Here's what I got: ${serialized}`;
+  return `Added! Here's what I've got for you:\n${serialized}`;
 };
 
 const handleRemove = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
@@ -189,7 +198,7 @@ const handleRemove = async (userSettings: UserSettings, argList: string[]): Prom
   const updated = await upsertStatusMappings(userSettings.email, filteredMappings);
   const serialized = serializeStatusMappings(updated);
 
-  return `Removed! Here's what I got: ${serialized}`;
+  return `Removed! Here's what I've got for you:\n${serialized}`;
 };
 
 const handleSetDefault = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
