@@ -122,7 +122,7 @@ const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArgumen
   }
 
   return {
-    zoomLinksEnabled: args['zoom-links'].length ? args['zoom-links'] === 'true' : undefined,
+    zoomLinksEnabled: args['zoom-links'].length ? args['zoom-links'].toLowerCase() === 'true' : undefined,
   };
 };
 
