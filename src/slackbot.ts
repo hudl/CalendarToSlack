@@ -112,7 +112,7 @@ const constructCalendarCommandArgs = (argList: string[]): CalendarCommandArgumen
 };
 
 const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArguments => {
-  const args: { [key: string]: string } = { 'zoom-links': 'true' };
+  const args: { [key: string]: string } = { 'zoom-links': '' };
 
   for (let arg of argList) {
     const [key, value] = arg.split('=');
@@ -122,7 +122,7 @@ const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArgumen
   }
 
   return {
-    zoomLinksEnabled: args['zoom-links'] === 'true',
+    zoomLinksEnabled: args['zoom-links'].length ? args['zoom-links'] === 'true' : undefined,
   };
 };
 
@@ -227,7 +227,9 @@ const handleRemoveDefault = async (userSettings: UserSettings): Promise<string> 
 const handleUpdateSettings = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
   const args = constructSettingsCommandArgs(argList);
 
-  await setZoomLinksDisabled(userSettings.email, !args.zoomLinksEnabled);
+  if (args.zoomLinksEnabled !== undefined) {
+    await setZoomLinksDisabled(userSettings.email, !args.zoomLinksEnabled);
+  }
 
   // TODO: Once more settings are present, change this to echo their settings
   return 'Your settings have been updated.';
