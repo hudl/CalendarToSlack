@@ -1,5 +1,7 @@
 import { WebClient, ChatPostMessageArguments } from '@slack/web-api';
 import { clearUserTokens } from './dynamo';
+import { getSlackSecretWithKey } from '../utils/secrets';
+import { slackInstallUrl } from '../utils/urls';
 
 export type SlackStatus = {
   text?: string;
@@ -20,13 +22,14 @@ export type SlackUser = {
 
 const handleError = async (error: any, email: string) => {
   console.error(error);
-  error.data;
+
   const {
     data: { error: errorMessage },
   } = error;
   if (errorMessage === 'token_revoked' || errorMessage === 'invalid_auth') {
     console.error(`No authorization for Slack for user ${email}`);
     try {
+      await sendAuthErrorMessage(email);
       await clearUserTokens(email);
     } finally {
       return;
@@ -75,8 +78,11 @@ export const getUserByEmail = async (token: string, email: string): Promise<Slac
   if (!token) return;
 
   const slackClient = new WebClient(token);
+  const user = (await slackClient.users.lookupByEmail({ token, email })).user as SlackUser;
 
-  return (await slackClient.users.lookupByEmail({ token, email })).user as SlackUser;
+  if (!user) console.warn(`Could not find Slack user for email: ${email}`);
+
+  return user;
 };
 
 export const postMessage = async (token: string, params: ChatPostMessageArguments): Promise<boolean> => {
@@ -85,4 +91,16 @@ export const postMessage = async (token: string, params: ChatPostMessageArgument
   const slackClient = new WebClient(token);
   const response = await slackClient.chat.postMessage(params);
   return response.ok;
+};
+
+export const sendAuthErrorMessage = async (email: string): Promise<boolean> => {
+  const botToken = await getSlackSecretWithKey('bot-token');
+  const user = await getUserByEmail(botToken, email);
+
+  if (!user) return false;
+
+  return await postMessage(botToken, {
+    text: `Oops! CalendarToSlack had an authorization-related problem with one or more of your access tokens. Please re-authorize the app at ${slackInstallUrl()}.`,
+    channel: user.id,
+  });
 };

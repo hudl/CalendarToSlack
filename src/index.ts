@@ -55,10 +55,7 @@ const sendUpcomingEventMessage = async (event: CalendarEvent | null, settings: U
   const botToken = await getSlackSecretWithKey('bot-token');
   const user = await getUserByEmail(botToken, settings.email);
 
-  if (!user) {
-    console.warn(`Could not find user for email: ${settings.email}`);
-    return;
-  }
+  if (!user) return;
 
   return await postMessage(botToken, { text: `Join *${event.name}* at: ${event.location}`, channel: user.id });
 };

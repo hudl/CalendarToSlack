@@ -2,6 +2,7 @@ import { Client, ClientOptions } from '@microsoft/microsoft-graph-client';
 import { GraphApiAuthenticationProvider } from './graphApiAuthenticationProvider';
 import { Token } from 'simple-oauth2';
 import { clearUserTokens } from '../../services/dynamo';
+import { sendAuthErrorMessage } from '../slack';
 
 export enum ShowAs {
   Free = 1,
@@ -80,6 +81,7 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
     if (statusCode === 401 || statusCode === 403) {
       console.error(`No authorization for Graph API for user ${email}`);
       try {
+        await sendAuthErrorMessage(email);
         await clearUserTokens(email);
       } finally {
         return null;
