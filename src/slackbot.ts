@@ -108,7 +108,7 @@ const constructCalendarCommandArgs = (argList: string[]): CalendarCommandArgumen
   const args: { [key: string]: string } = { meeting: '', message: '', emoji: '' };
 
   for (let arg of argList) {
-    const [key, value] = arg.split('=');
+    const [key, value] = arg.split(/\s?=\s?/g);
     if (key in args) {
       args[key] = value.replace(/["”“]/g, '');
     }
@@ -125,7 +125,7 @@ const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArgumen
   const args: { [key: string]: string } = { 'zoom-links': '' };
 
   for (let arg of argList) {
-    const [key, value] = arg.split('=');
+    const [key, value] = arg.split(/\s?=\s?/g);
     if (key in args) {
       args[key] = value.replace(/["”“]/g, '');
     }
@@ -289,9 +289,8 @@ const handleSlackEventCallback = async ({
 
 You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   }
-
   const command = text;
-  const tokens = command.match(/[\w]+=["“][^"”]+["”]|[^ "“”]+/g) || [];
+  const tokens = command.match(/[\w]+\s?=\s?["“:][^"”:]+["”:]|[^ "“”:]+/g) || [];
   const subcommand = tokens[0];
   const args = tokens.slice(1);
 
