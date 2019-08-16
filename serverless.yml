@@ -1,0 +1,202 @@
+service: calendar2slack
+
+custom: ${file(./serverless-config.yml)}
+
+provider:
+  name: aws
+  runtime: nodejs10.x
+  stage: prod
+  region: us-east-1
+  stackName: hudl-calendar2slack
+  deploymentBucket:
+    name: ${self:custom.deployment.bucketName}
+    serverSideEncryption: AES256
+  deploymentPrefix: prod
+  stackTags:
+    Environment: internal
+    Group: cal2slack
+
+package:
+  include:
+    - src/**/*
+  exclude:
+    - node_modules/**/*.md
+    - node_modules/**/test/**
+
+functions:
+  slack-install:
+    handler: src/index.slackInstall
+    events:
+      - http:
+          path: 'slack/install'
+          method: get
+  create-user:
+    handler: src/index.createUser
+    events:
+      - http:
+          path: 'create-user'
+          method: get
+    role: slackbotRole
+  update:
+    handler: src/index.update
+    role: updateRole
+    memorySize: 512
+    events:
+      - http:
+          path: 'update'
+          method: post
+      - schedule: rate(1 minute)
+  update-batch:
+    handler: src/index.updateBatch
+    role: slackbotRole
+  authorize-microsoft-graph:
+    handler: src/index.authorizeMicrosoftGraph
+    events:
+      - http:
+          path: 'authorize-microsoft-graph'
+          method: get
+    role: slackbotRole
+  slackbot:
+    handler: src/slackbot.handler
+    role: slackbotRole
+    memorySize: 512
+    events:
+      - http:
+          path: 'bot'
+          method: post
+
+resources:
+  Resources:
+    userSettingsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: cal2slack-usersettings
+        AttributeDefinitions:
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: email
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    updateRole:
+      Type: AWS::IAM::Role
+      Properties:
+        Path: /
+        RoleName: ${self:custom.lambda.update.roleName}
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: ${self:custom.lambda.update.policyName}
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:logs'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'log-group:/aws/lambda/*:*:*'
+                - Effect: Allow
+                  Action:
+                    - dynamodb:Scan
+                    - dynamodb:Query
+                    - dynamodb:GetItem
+                    - dynamodb:BatchGetItem
+                    - dynamodb:PutItem
+                    - dynamodb:UpdateItem
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:dynamodb'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'table/cal2slack-usersettings'
+                - Effect: 'Allow'
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:lambda'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'function:calendar2slack-prod-update-batch'
+
+    slackbotRole:
+      Type: AWS::IAM::Role
+      Properties:
+        Path: /
+        RoleName: ${self:custom.lambda.slackbot.roleName}
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: ${self:custom.lambda.slackbot.policyName}
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:logs'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'log-group:/aws/lambda/*:*:*'
+                - Effect: Allow
+                  Action:
+                    - secretsmanager:GetSecretValue
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:secretsmanager'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'secret:${self:custom.lambda.slackbot.secretsPrefix}/*'
+                - Effect: Allow
+                  Action:
+                    - dynamodb:Scan
+                    - dynamodb:Query
+                    - dynamodb:GetItem
+                    - dynamodb:BatchGetItem
+                    - dynamodb:PutItem
+                    - dynamodb:UpdateItem
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:dynamodb'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'table/cal2slack-usersettings'
+  Outputs:
+    UserSettingsTableArn:
+      Description: 'The ARN for the cal2slack-usersettings table'
+      Value:
+        'Fn::GetAtt': [userSettingsTable, Arn]
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+  - serverless-plugin-include-dependencies
