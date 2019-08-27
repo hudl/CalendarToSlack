@@ -290,7 +290,7 @@ const handleSlackEventCallback = async ({
 You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   }
   const command = text;
-  const tokens = command.match(/emoji\s*=\s*:[^"”:]+:|[\w-]+\s*=\s*["“][^"”]+["”]|[^ "“”]+/gi) || [];
+  const tokens = command.match(/emoji\s*=\s*:[^"”:]+:|[\w-]+\s*=\s*(true|false|["“][^"”]+["”])|[^ "“”]+/gi) || [];
   const subcommand = tokens[0];
   const args = tokens.slice(1);
 
