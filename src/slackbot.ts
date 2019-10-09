@@ -56,6 +56,10 @@ type SettingsCommandArguments = {
   zoomLinksEnabled?: boolean;
 };
 
+const SettingsCommandArgumentsKeys = {
+  zoomLinksEnabled: 'zoom-links',
+};
+
 interface SlackResponse {}
 
 const validateTimestamp = (slackRequestTimestampInSec: number): boolean => {
@@ -122,7 +126,8 @@ const constructCalendarCommandArgs = (argList: string[]): CalendarCommandArgumen
 };
 
 const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArguments => {
-  const args: { [key: string]: string } = { 'zoom-links': '' };
+  const zoomLinksKey = SettingsCommandArgumentsKeys.zoomLinksEnabled;
+  const args: { [key: string]: string } = { [zoomLinksKey]: '' };
 
   for (let arg of argList) {
     const [key, value] = arg.split(/\s?=\s?/g);
@@ -132,7 +137,7 @@ const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArgumen
   }
 
   return {
-    zoomLinksEnabled: args['zoom-links'].length ? args['zoom-links'].toLowerCase() === 'true' : undefined,
+    zoomLinksEnabled: args[zoomLinksKey].length ? args[zoomLinksKey].toLowerCase() === 'true' : undefined,
   };
 };
 
@@ -146,6 +151,10 @@ const handleShow = async (userSettings: UserSettings): Promise<string> => {
   }
 
   return "You don't have any status mappings yet. Try `set`.";
+};
+
+const handleShowSettings = async ({ zoomLinksDisabled }: UserSettings): Promise<string> => {
+  return `\`${SettingsCommandArgumentsKeys.zoomLinksEnabled}\`: \`${!zoomLinksDisabled}\``;
 };
 
 const handleSet = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
@@ -249,6 +258,7 @@ const commandHandlerMap: {
 } = {
   help: handleHelp,
   show: handleShow,
+  'show-settings': handleShowSettings,
   set: handleSet,
   remove: handleRemove,
   'set-default': handleSetDefault,
@@ -302,6 +312,7 @@ You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   return await sendMessage(`:shrug: Maybe try one of these:
   - \`help\`
   - \`show\`
+  - \`show-settings\`
   - \`set\`
   - \`set-default\`
   - \`remove\`
