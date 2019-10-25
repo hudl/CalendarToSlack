@@ -1,10 +1,10 @@
 export default {
   dynamoDb: {
-    tableName: 'cal2slack-usersettings',
+    tableName: '',
   },
-  region: 'us-east-1',
+  region: '',
   hosts: {
-    dev: 'http://localhost:3000',
+    dev: '',
     prod: '',
   },
   slack: {
