@@ -22,10 +22,10 @@ export type CalendarEvent = {
 
 const toShowAsStatus = (status: string): ShowAs => {
   switch (status.toLowerCase()) {
-    case 'oof':
-    case 'workingElsewhere': {
+    case 'oof': {
       return ShowAs.OutOfOffice;
     }
+    case 'workingElsewhere':
     case 'busy': {
       return ShowAs.Busy;
     }
@@ -45,6 +45,10 @@ const getAuthenticatedClient = (email: string, token: Token): Client => {
   };
   return Client.initWithMiddleware(options);
 };
+
+// This method is needed because the Microsoft Graph API returns date strings with unspecified timezone (but prefers UTC without a header)
+// Documentation: https://docs.microsoft.com/en-us/graph/api/user-list-events?view=graph-rest-1.0&tabs=http#support-various-time-zones
+const withUTCSuffix = (date: string) => (!date || date.endsWith('Z') ? date : `${date}Z`);
 
 export const getEventsForUser = async (email: string, storedToken: Token): Promise<CalendarEvent[] | null> => {
   if (!storedToken) return null;
@@ -66,8 +70,8 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
     return outlookEvents.value.map((e: any) => {
       const event: CalendarEvent = {
         id: e.id,
-        startTime: new Date(`${e.start.dateTime}Z`),
-        endTime: new Date(`${e.end.dateTime}Z`),
+        startTime: new Date(withUTCSuffix(e.start.dateTime)),
+        endTime: new Date(withUTCSuffix(e.end.dateTime)),
         location: e.location.displayName,
         showAs: toShowAsStatus(e.showAs),
         name: e.sensitivity === 'normal' ? e.subject : 'Private event',
