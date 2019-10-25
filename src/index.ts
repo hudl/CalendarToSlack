@@ -100,9 +100,7 @@ export const updateBatch: Handler = async (event: any) => {
       const botToken = await getSlackSecretWithKey('bot-token');
       const user = await getUserByEmail(botToken, us.email);
 
-      if (!user) {
-        return;
-      }
+      if (!user) return;
 
       const status = getStatusForUserEvent(us, relevantEvent, user.tz);
       const presence = relevantEvent && relevantEvent.showAs > ShowAs.Tentative ? 'away' : 'auto';
