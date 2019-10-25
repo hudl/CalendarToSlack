@@ -66,12 +66,13 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
     return outlookEvents.value.map((e: any) => {
       const event: CalendarEvent = {
         id: e.id,
-        startTime: new Date(e.start.dateTime),
-        endTime: new Date(e.end.dateTime),
+        startTime: new Date(`${e.start.dateTime}Z`),
+        endTime: new Date(`${e.end.dateTime}Z`),
         location: e.location.displayName,
         showAs: toShowAsStatus(e.showAs),
         name: e.sensitivity === 'normal' ? e.subject : 'Private event',
       };
+
       return event;
     });
   } catch (error) {
