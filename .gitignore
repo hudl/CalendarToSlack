@@ -165,7 +165,6 @@ $RECYCLE.BIN/
 # End of https://www.gitignore.io/api/node,macos,windows,serverless,visualstudiocode
 
 # Configuration
-config.ts
 serverless-config.yml
 
 **/obj/**
