@@ -6,14 +6,14 @@ const baseUserSettings = { email: 'test@email.com', slackToken: 'abc' };
 describe('getStatusForUserEvent', () => {
   describe('Given a null event', () => {
     test('Returns an empty status by default', () => {
-      const status = getStatusForUserEvent(baseUserSettings, null);
+      const status = getStatusForUserEvent(baseUserSettings, null, 'UTC');
 
       expect(status).toEqual({ text: '', emoji: '' });
     });
 
     test(`Returns the user's default status if present`, () => {
       const defaultStatus = { text: 'Hi', emoji: ':wave:' };
-      const status = getStatusForUserEvent({ ...baseUserSettings, defaultStatus }, null);
+      const status = getStatusForUserEvent({ ...baseUserSettings, defaultStatus }, null, 'UTC');
 
       expect(status).toEqual(defaultStatus);
     });
@@ -41,6 +41,7 @@ describe('getStatusForUserEvent', () => {
         location: 'Zoom',
         showAs: ShowAs.Busy,
       },
+      'UTC',
     );
 
     expect(status).toEqual({
@@ -74,6 +75,7 @@ describe('getStatusForUserEvent', () => {
           location: 'Zoom',
           showAs: ShowAs.Free,
         },
+        'UTC',
       );
 
       expect(status).toEqual({
@@ -106,6 +108,7 @@ describe('getStatusForUserEvent', () => {
           location: 'Zoom',
           showAs: ShowAs.Free,
         },
+        'UTC',
       );
 
       expect(status).toEqual(defaultStatus);
@@ -123,20 +126,25 @@ describe('getStatusForUserEvent', () => {
           location: 'Zoom',
           showAs: ShowAs.Free,
         },
+        'UTC',
       );
 
       expect(status).toEqual(defaultStatus);
     });
 
     test('Returns an empty status without a status mapping or default status', () => {
-      const status = getStatusForUserEvent(baseUserSettings, {
-        id: '1',
-        name: 'Quick Chat',
-        startTime: new Date(),
-        endTime: new Date(),
-        location: 'Zoom',
-        showAs: ShowAs.Free,
-      });
+      const status = getStatusForUserEvent(
+        baseUserSettings,
+        {
+          id: '1',
+          name: 'Quick Chat',
+          startTime: new Date(),
+          endTime: new Date(),
+          location: 'Zoom',
+          showAs: ShowAs.Free,
+        },
+        'UTC',
+      );
 
       expect(status).toEqual({ text: '', emoji: '' });
     });
@@ -167,6 +175,7 @@ describe('getStatusForUserEvent', () => {
           location: 'Zoom',
           showAs: ShowAs.Busy,
         },
+        'UTC',
       );
 
       expect(status).toEqual({
@@ -199,20 +208,25 @@ describe('getStatusForUserEvent', () => {
           location: 'Zoom',
           showAs: ShowAs.Busy,
         },
+        'UTC',
       );
 
       expect(status).toEqual({ text: 'Away', emoji: ':spiral_calendar_pad:' });
     });
 
     test(`Returns "Away" and :spiral_calendar_pad: when the user has no status mappings`, () => {
-      const status = getStatusForUserEvent(baseUserSettings, {
-        id: '1',
-        name: 'Quick Chat',
-        startTime: new Date(),
-        endTime: new Date(),
-        location: 'Zoom',
-        showAs: ShowAs.Busy,
-      });
+      const status = getStatusForUserEvent(
+        baseUserSettings,
+        {
+          id: '1',
+          name: 'Quick Chat',
+          startTime: new Date(),
+          endTime: new Date(),
+          location: 'Zoom',
+          showAs: ShowAs.Busy,
+        },
+        'UTC',
+      );
 
       expect(status).toEqual({ text: 'Away', emoji: ':spiral_calendar_pad:' });
     });
@@ -243,6 +257,7 @@ describe('getStatusForUserEvent', () => {
           location: 'Zoom',
           showAs: ShowAs.Tentative,
         },
+        'UTC',
       );
 
       expect(status).toEqual({
@@ -273,20 +288,25 @@ describe('getStatusForUserEvent', () => {
           location: 'Zoom',
           showAs: ShowAs.Tentative,
         },
+        'UTC',
       );
 
       expect(status).toEqual({ text: 'Away', emoji: ':spiral_calendar_pad:' });
     });
 
     test(`Returns "Away" and :spiral_calendar_pad: when the user has no status mappings`, () => {
-      const status = getStatusForUserEvent(baseUserSettings, {
-        id: '1',
-        name: 'Quick Chat',
-        startTime: new Date(),
-        endTime: new Date(),
-        location: 'Zoom',
-        showAs: ShowAs.Tentative,
-      });
+      const status = getStatusForUserEvent(
+        baseUserSettings,
+        {
+          id: '1',
+          name: 'Quick Chat',
+          startTime: new Date(),
+          endTime: new Date(),
+          location: 'Zoom',
+          showAs: ShowAs.Tentative,
+        },
+        'UTC',
+      );
 
       expect(status).toEqual({ text: 'Away', emoji: ':spiral_calendar_pad:' });
     });
@@ -317,6 +337,7 @@ describe('getStatusForUserEvent', () => {
           location: 'Zoom',
           showAs: ShowAs.OutOfOffice,
         },
+        'UTC',
       );
 
       expect(status).toEqual({
@@ -328,38 +349,46 @@ describe('getStatusForUserEvent', () => {
     describe('Given no status mappings', () => {
       test(`Returns "OOO until {date}" and :ooo: when the OOO event lasts beyond the current day`, () => {
         const today = new Date();
-        const status = getStatusForUserEvent(baseUserSettings, {
-          id: '1',
-          name: 'Quick Chat',
-          startTime: new Date(),
-          endTime: {
-            ...today,
-            getDate: jest.fn(() => today.getDate() + 1),
-            toLocaleDateString: jest.fn(() => 'tomorrow'),
-            toLocaleTimeString: jest.fn(() => '2pm'),
+        const status = getStatusForUserEvent(
+          baseUserSettings,
+          {
+            id: '1',
+            name: 'Quick Chat',
+            startTime: new Date(),
+            endTime: {
+              ...today,
+              getDate: jest.fn(() => today.getDate() + 1),
+              toLocaleDateString: jest.fn(() => 'tomorrow'),
+              toLocaleTimeString: jest.fn(() => '2pm'),
+            },
+            location: 'Zoom',
+            showAs: ShowAs.OutOfOffice,
           },
-          location: 'Zoom',
-          showAs: ShowAs.OutOfOffice,
-        });
+          'UTC',
+        );
 
         expect(status).toEqual({ text: 'OOO until tomorrow', emoji: ':ooo:' });
       });
 
-      test(`Returns "OOO until {time}" and :ooo: when the OOO event ends on the current day`, () => {
+      test(`Returns "OOO until {time}" in the user's timezone and :ooo: when the OOO event ends on the current day`, () => {
         const today = new Date();
-        const status = getStatusForUserEvent(baseUserSettings, {
-          id: '1',
-          name: 'Quick Chat',
-          startTime: new Date(),
-          endTime: {
-            ...today,
-            getDate: jest.fn(() => today.getDate()),
-            toLocaleDateString: jest.fn(() => 'tomorrow'),
-            toLocaleTimeString: jest.fn(() => '2pm'),
+        const status = getStatusForUserEvent(
+          baseUserSettings,
+          {
+            id: '1',
+            name: 'Quick Chat',
+            startTime: new Date(),
+            endTime: {
+              ...today,
+              getDate: jest.fn(() => today.getDate()),
+              toLocaleDateString: jest.fn(() => 'tomorrow'),
+              toLocaleTimeString: jest.fn(() => '2pm'),
+            },
+            location: 'Zoom',
+            showAs: ShowAs.OutOfOffice,
           },
-          location: 'Zoom',
-          showAs: ShowAs.OutOfOffice,
-        });
+          'UTC',
+        );
 
         expect(status).toEqual({ text: 'OOO until 2pm', emoji: ':ooo:' });
       });
@@ -394,6 +423,7 @@ describe('getStatusForUserEvent', () => {
             location: 'Zoom',
             showAs: ShowAs.OutOfOffice,
           },
+          'UTC',
         );
 
         expect(status).toEqual({ text: 'OOO until tomorrow', emoji: ':ooo:' });
@@ -427,6 +457,7 @@ describe('getStatusForUserEvent', () => {
             location: 'Zoom',
             showAs: ShowAs.OutOfOffice,
           },
+          'UTC',
         );
 
         expect(status).toEqual({ text: 'OOO until 2pm', emoji: ':ooo:' });
