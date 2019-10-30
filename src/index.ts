@@ -18,6 +18,7 @@ import { GraphApiAuthenticationProvider } from './services/calendar/graphApiAuth
 import config from '../config';
 import { getSlackSecretWithKey } from './utils/secrets';
 import { authorizeMicrosoftGraphUrl, createUserUrl } from './utils/urls';
+import { getEventLocationUrl } from './utils/eventHelper';
 
 type GetProfileResult = {
   email: string;
@@ -43,12 +44,8 @@ const shouldUpdate = (e1: CalendarEvent | undefined, e2: CalendarEvent | null) =
   (!e1 && e2) || (e1 && !e2) || (e1 && e2 && e1.id !== e2.id);
 
 const sendUpcomingEventMessage = async (event: CalendarEvent | null, settings: UserSettings) => {
-  if (
-    settings.zoomLinksDisabled ||
-    !event ||
-    !event.location ||
-    !(event.location.startsWith('http://') || event.location.startsWith('https://'))
-  ) {
+  const url = getEventLocationUrl(event, settings);
+  if (!event || !url) {
     return;
   }
 
@@ -57,7 +54,7 @@ const sendUpcomingEventMessage = async (event: CalendarEvent | null, settings: U
 
   if (!user) return;
 
-  return await postMessage(botToken, { text: `Join *${event.name}* at: ${event.location}`, channel: user.id });
+  return await postMessage(botToken, { text: `Join *${event.name}* at: ${url}`, channel: user.id });
 };
 
 export const update: Handler = async () => {

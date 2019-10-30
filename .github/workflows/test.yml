@@ -11,8 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-
-    - run: yarn run test
-    - uses: ./
-      with: 
-        milliseconds: 1000
+    - uses: borales/actions-yarn@v2.0.0
+      with:
+        cmd: install 
+    - uses: borales/actions-yarn@v2.0.0
+      with:
+        cmd: test
