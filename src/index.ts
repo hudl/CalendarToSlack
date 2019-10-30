@@ -11,6 +11,7 @@ import {
   UserSettings,
 } from './services/dynamo';
 import { setUserStatus, setUserPresence, getUserByEmail, postMessage } from './services/slack';
+import { getUrlForRoom } from './services/rooms';
 import { Handler } from 'aws-lambda';
 import { InvocationRequest } from 'aws-sdk/clients/lambda';
 import { getStatusForUserEvent } from './utils/map-event-status';
@@ -44,7 +45,7 @@ const shouldUpdate = (e1: CalendarEvent | undefined, e2: CalendarEvent | null) =
   (!e1 && e2) || (e1 && !e2) || (e1 && e2 && e1.id !== e2.id);
 
 const sendUpcomingEventMessage = async (event: CalendarEvent | null, settings: UserSettings) => {
-  const url = getEventLocationUrl(event, settings);
+  const url = await getEventLocationUrl(event, settings);
   if (!event || !url) {
     return;
   }

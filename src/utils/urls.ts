@@ -4,3 +4,4 @@ export const createUserUrl = () => `${process.env.IS_OFFLINE ? config.hosts.dev 
 export const slackInstallUrl = () => `${process.env.IS_OFFLINE ? config.hosts.dev : config.hosts.prod}/slack/install`;
 export const authorizeMicrosoftGraphUrl = () =>
   `${process.env.IS_OFFLINE ? config.hosts.dev : config.hosts.prod}/authorize-microsoft-graph`;
+export const roomsJsonUrl = () => 'https://rooms.hudltools.com/static/data/rooms.json';

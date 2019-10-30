@@ -14,8 +14,8 @@ const baseEvent: CalendarEvent = {
 
 describe('getEventLocationUrl', () => {
   describe('Given a null event', () => {
-    test('Returns null', () => {
-      const url = getEventLocationUrl(null, baseUserSettings);
+    test('Returns null', async () => {
+      const url = await getEventLocationUrl(null, baseUserSettings);
 
       expect(url).toBeNull();
     });
@@ -24,73 +24,73 @@ describe('getEventLocationUrl', () => {
   describe('Url-only locations', () => {
     const testUrl = 'https://my.test.url';
 
-    test('Url-only returns the url', () => {
+    test('Url-only returns the url', async () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: `${testUrl}`,
       };
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBe(testUrl);
     });
-    test('Front-padded url returns just the url', () => {
+    test('Front-padded url returns just the url', async () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: `   ${testUrl}`,
       };
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBe(testUrl);
     });
-    test('Back-padded url returns just the url', () => {
+    test('Back-padded url returns just the url', async () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: `${testUrl}     `,
       };
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBe(testUrl);
     });
   });
 
   describe('Non-url locations', () => {
-    test('Gibberish returns null', () => {
+    test('Gibberish returns null', async () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: 'asdfqweoriu-123-wequio',
       };
 
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBeNull();
     });
-    test('Names returns null', () => {
+    test('Names returns null', async () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: 'Jane Smith',
       };
 
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBeNull();
     });
-    test('Meeting room names return null', () => {
+    test('Meeting room names return null', async () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: 'Michael Jordan',
       };
 
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBeNull();
     });
-    test('Semicolon-separated names return null', () => {
+    test('Semicolon-separated names return null', async () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: 'Michael Jordan; Candace Parker; Bob Smith',
       };
 
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBeNull();
     });
@@ -98,53 +98,53 @@ describe('getEventLocationUrl', () => {
 
   describe('Mixed locations', () => {
     const testUrl = 'https://my.test.url/stuff?123';
-    test('Url-first returns the url', () => {
+    test('Url-first returns the url', async () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: `${testUrl} Michael Jordan`,
       };
 
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBe(testUrl);
     });
-    test('Semicolon-separated returns the url', () => {
+    test('Semicolon-separated returns the url', async() => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: `${testUrl}; Michael Jordan`,
       };
 
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBe(testUrl);
     });
-    test('Url last returns the url', () => {
+    test('Url last returns the url', async () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: `Michael Jordan; ${testUrl}`,
       };
 
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBe(testUrl);
     });
-    test('Url last with semicolon returns the url', () => {
+    test('Url last with semicolon returns the url', async () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: `Michael Jordan; ${testUrl};`,
       };
 
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBe(testUrl);
     });
-    test('Url middle returns the url', () => {
+    test('Url middle returns the url', async () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: `Michael Jordan; ${testUrl}; Scrum Masters;`,
       };
 
-      const url = getEventLocationUrl(event, baseUserSettings);
+      const url = await getEventLocationUrl(event, baseUserSettings);
 
       expect(url).toBe(testUrl);
     });
