@@ -28,13 +28,15 @@ const hasNickname = (room: Room, query: string) => {
   );
 };
 
-const http = async <T>(url: string): Promise<T> => {
-  return fetch(url).then(response => {
-    if (!response.ok) {
-      throw new Error(response.statusText);
-    }
-    return response.json() as Promise<T>;
-  });
+const http = async <T>(url: string): Promise<Room[]> => {
+  return fetch(url)
+    .then(response => {
+      return response.json() as Promise<Room[]>;
+    })
+    .catch(e => {
+      console.log('Failed to fetch rooms data', e);
+      return [];
+    });
 };
 
 const fetchRoomsData = async (): Promise<Room[]> => {
