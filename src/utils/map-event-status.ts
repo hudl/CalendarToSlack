@@ -16,7 +16,7 @@ const getOOODateString = (endDateTime: Date | null, timeZone: string) => {
 export const getStatusForUserEvent = (
   settings: UserSettings,
   event: CalendarEvent | null,
-  userTimeZone: string,
+  userTimeZone: string = 'UTC',
 ): SlackStatus => {
   const defaultStatusByVisibility = {
     [ShowAs.Free]: settings.defaultStatus || { text: '', emoji: '' },
