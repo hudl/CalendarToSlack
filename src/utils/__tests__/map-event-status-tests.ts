@@ -345,7 +345,7 @@ describe('getStatusForUserEvent', () => {
         expect(status).toEqual({ text: 'OOO until tomorrow', emoji: ':ooo:' });
       });
 
-      test(`Returns "OOO until {time}" and :ooo: when the OOO event ends on the current day`, () => {
+      test(`Returns "OOO until {time}" in the user's timezone and :ooo: when the OOO event ends on the current day`, () => {
         const today = new Date();
         const status = getStatusForUserEvent(baseUserSettings, {
           id: '1',
