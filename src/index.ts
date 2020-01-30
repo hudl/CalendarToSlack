@@ -11,6 +11,7 @@ import {
   UserSettings,
 } from './services/dynamo';
 import { setUserStatus, setUserPresence, getUserByEmail, postMessage, SlackUser } from './services/slack';
+import { getUrlForRoom } from './services/rooms';
 import { Handler } from 'aws-lambda';
 import { InvocationRequest } from 'aws-sdk/clients/lambda';
 import { getStatusForUserEvent } from './utils/map-event-status';
@@ -49,9 +50,11 @@ const sendUpcomingEventMessage = async (
   event: CalendarEvent | null,
   settings: UserSettings,
 ) => {
-  if (!event || !user) return;
+  if (!event || !user) {
+    return;
+  }
+  const url = await getEventLocationUrl(event, settings);
 
-  const url = getEventLocationUrl(event, settings);
   if (!url) return;
 
   return await postMessage(token, { text: `Join *${event.name}* at: ${url}`, channel: user.id });
