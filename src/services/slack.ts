@@ -18,6 +18,7 @@ export type SlackUserProfile = {
 
 export type SlackUser = {
   id: string;
+  tz: string;
 };
 
 const handleError = async (error: any, email: string) => {

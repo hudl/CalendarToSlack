@@ -10,7 +10,7 @@ import {
   removeCurrentEvent,
   UserSettings,
 } from './services/dynamo';
-import { setUserStatus, setUserPresence, getUserByEmail, postMessage } from './services/slack';
+import { setUserStatus, setUserPresence, getUserByEmail, postMessage, SlackUser } from './services/slack';
 import { getUrlForRoom } from './services/rooms';
 import { Handler } from 'aws-lambda';
 import { InvocationRequest } from 'aws-sdk/clients/lambda';
@@ -28,7 +28,7 @@ type GetProfileResult = {
 const getHighestPriorityEvent = (events: CalendarEvent[]) =>
   events.length
     ? events.sort(
-        (event1, event2) => event2.startTime.getTime() - event1.startTime.getTime() || event2.showAs - event1.showAs,
+        (event1, event2) => event2.showAs - event1.showAs || event2.startTime.getTime() - event1.startTime.getTime(),
       )[0]
     : null;
 
@@ -44,18 +44,20 @@ const microsoftAuthRedirect = (email: string) => ({
 const shouldUpdate = (e1: CalendarEvent | undefined, e2: CalendarEvent | null) =>
   (!e1 && e2) || (e1 && !e2) || (e1 && e2 && e1.id !== e2.id);
 
-const sendUpcomingEventMessage = async (event: CalendarEvent | null, settings: UserSettings) => {
-  const url = await getEventLocationUrl(event, settings);
-  if (!event || !url) {
+const sendUpcomingEventMessage = async (
+  token: string,
+  user: SlackUser,
+  event: CalendarEvent | null,
+  settings: UserSettings,
+) => {
+  if (!event || !user) {
     return;
   }
+  const url = await getEventLocationUrl(event, settings);
 
-  const botToken = await getSlackSecretWithKey('bot-token');
-  const user = await getUserByEmail(botToken, settings.email);
+  if (!url) return;
 
-  if (!user) return;
-
-  return await postMessage(botToken, { text: `Join *${event.name}* at: ${url}`, channel: user.id });
+  return await postMessage(token, { text: `Join *${event.name}* at: ${url}`, channel: user.id });
 };
 
 export const update: Handler = async () => {
@@ -93,13 +95,18 @@ export const updateBatch: Handler = async (event: any) => {
 
       if (!shouldUpdate(us.currentEvent, relevantEvent)) return;
 
-      const status = getStatusForUserEvent(us, relevantEvent);
+      const botToken = await getSlackSecretWithKey('bot-token');
+      const user = await getUserByEmail(botToken, us.email);
+
+      if (!user) return;
+
+      const status = getStatusForUserEvent(us, relevantEvent, user.tz);
       const presence = relevantEvent && relevantEvent.showAs > ShowAs.Tentative ? 'away' : 'auto';
 
       await Promise.all([
         setUserStatus(us.email, us.slackToken, status),
         setUserPresence(us.email, us.slackToken, presence),
-        sendUpcomingEventMessage(relevantEvent, us),
+        sendUpcomingEventMessage(botToken, user, relevantEvent, us),
         relevantEvent ? upsertCurrentEvent(us.email, relevantEvent) : removeCurrentEvent(us.email),
       ]);
     }),
