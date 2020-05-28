@@ -46,7 +46,8 @@ const getAuthenticatedClient = (email: string, token: Token): Client => {
   return Client.initWithMiddleware(options);
 };
 
-// This method is needed because the Microsoft Graph API returns date strings with unspecified timezone (but prefers UTC without a header)
+// This method is needed because the Microsoft Graph API returns date strings with unspecified timezone 
+// (but prefers UTC without a header)
 // Documentation: https://docs.microsoft.com/en-us/graph/api/user-list-events?view=graph-rest-1.0&tabs=http#support-various-time-zones
 const withUTCSuffix = (date: string) => (!date || date.endsWith('Z') ? date : `${date}Z`);
 
@@ -56,7 +57,7 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
   const now = new Date();
 
   const startTime = new Date(now);
-  startTime.setMinutes(now.getMinutes() - 1);
+  startTime.setMinutes(now.getMinutes() - 2);
 
   const endTime = new Date(now);
   endTime.setMinutes(now.getMinutes() + 1);
