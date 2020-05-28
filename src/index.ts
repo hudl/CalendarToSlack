@@ -18,7 +18,7 @@ import { GraphApiAuthenticationProvider } from './services/calendar/graphApiAuth
 import config from '../config';
 import { getSlackSecretWithKey } from './utils/secrets';
 import { authorizeMicrosoftGraphUrl, createUserUrl } from './utils/urls';
-import { getEventLocationUrl } from './utils/eventHelper';
+import { getEventUrl } from './utils/eventHelper';
 
 type GetProfileResult = {
   email: string;
@@ -51,7 +51,7 @@ const sendUpcomingEventMessage = async (
 ) => {
   if (!event || !user) return;
 
-  const url = getEventLocationUrl(event, settings);
+  const url = getEventUrl(event, settings);
   if (!url) return;
 
   return await postMessage(token, { text: `Join *${event.name}* at: ${url}`, channel: user.id });
@@ -74,7 +74,7 @@ export const update: Handler = async () => {
 
   const userSettings = await getAllUserSettings();
   for (var i = 0; i < userSettings.length; i += batchSize) {
-    const batch = userSettings.slice(i, i + batchSize).map(us => us.email);
+    const batch = userSettings.slice(i, i + batchSize).map((us) => us.email);
 
     lambda.invoke({ Payload: JSON.stringify({ emails: batch }), ...invokeParams }).send();
   }
@@ -84,7 +84,7 @@ export const updateBatch: Handler = async (event: any) => {
   const userSettings = await getSettingsForUsers(event.emails);
 
   await Promise.all(
-    userSettings.map(async us => {
+    userSettings.map(async (us) => {
       const userEvents = await getEventsForUser(us.email, us.calendarStoredToken);
       if (!userEvents) return;
 
