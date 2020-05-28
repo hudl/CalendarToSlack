@@ -36,6 +36,7 @@ describe('getStatusForUserEvent', () => {
       {
         id: '1',
         name: 'Quick Chat',
+        body: '',
         startTime: new Date(),
         endTime: new Date(),
         location: 'Zoom',
@@ -69,6 +70,7 @@ describe('getStatusForUserEvent', () => {
         {
           id: '1',
           name: 'Quick Chat',
+          body: '',
           startTime: new Date(),
           endTime: new Date(),
           location: 'Zoom',
@@ -101,6 +103,7 @@ describe('getStatusForUserEvent', () => {
         {
           id: '1',
           name: 'Quick Chat',
+          body: '',
           startTime: new Date(),
           endTime: new Date(),
           location: 'Zoom',
@@ -118,6 +121,7 @@ describe('getStatusForUserEvent', () => {
         {
           id: '1',
           name: 'Quick Chat',
+          body: '',
           startTime: new Date(),
           endTime: new Date(),
           location: 'Zoom',
@@ -132,6 +136,7 @@ describe('getStatusForUserEvent', () => {
       const status = getStatusForUserEvent(baseUserSettings, {
         id: '1',
         name: 'Quick Chat',
+        body: '',
         startTime: new Date(),
         endTime: new Date(),
         location: 'Zoom',
@@ -162,6 +167,7 @@ describe('getStatusForUserEvent', () => {
         {
           id: '1',
           name: 'Quick Chat',
+          body: '',
           startTime: new Date(),
           endTime: new Date(),
           location: 'Zoom',
@@ -194,6 +200,7 @@ describe('getStatusForUserEvent', () => {
         {
           id: '1',
           name: 'Quick Chat',
+          body: '',
           startTime: new Date(),
           endTime: new Date(),
           location: 'Zoom',
@@ -208,6 +215,7 @@ describe('getStatusForUserEvent', () => {
       const status = getStatusForUserEvent(baseUserSettings, {
         id: '1',
         name: 'Quick Chat',
+        body: '',
         startTime: new Date(),
         endTime: new Date(),
         location: 'Zoom',
@@ -238,6 +246,7 @@ describe('getStatusForUserEvent', () => {
         {
           id: '1',
           name: 'Quick Chat',
+          body: '',
           startTime: new Date(),
           endTime: new Date(),
           location: 'Zoom',
@@ -268,6 +277,7 @@ describe('getStatusForUserEvent', () => {
         {
           id: '1',
           name: 'Quick Chat',
+          body: '',
           startTime: new Date(),
           endTime: new Date(),
           location: 'Zoom',
@@ -282,6 +292,7 @@ describe('getStatusForUserEvent', () => {
       const status = getStatusForUserEvent(baseUserSettings, {
         id: '1',
         name: 'Quick Chat',
+        body: '',
         startTime: new Date(),
         endTime: new Date(),
         location: 'Zoom',
@@ -312,6 +323,7 @@ describe('getStatusForUserEvent', () => {
         {
           id: '1',
           name: 'Quick Chat',
+          body: '',
           startTime: new Date(),
           endTime: new Date(),
           location: 'Zoom',
@@ -331,6 +343,7 @@ describe('getStatusForUserEvent', () => {
         const status = getStatusForUserEvent(baseUserSettings, {
           id: '1',
           name: 'Quick Chat',
+          body: '',
           startTime: new Date(),
           endTime: {
             ...today,
@@ -350,6 +363,7 @@ describe('getStatusForUserEvent', () => {
         const status = getStatusForUserEvent(baseUserSettings, {
           id: '1',
           name: 'Quick Chat',
+          body: '',
           startTime: new Date(),
           endTime: {
             ...today,
@@ -384,6 +398,7 @@ describe('getStatusForUserEvent', () => {
           {
             id: '1',
             name: 'Quick Chat',
+            body: '',
             startTime: new Date(),
             endTime: {
               ...today,
@@ -417,6 +432,7 @@ describe('getStatusForUserEvent', () => {
           {
             id: '1',
             name: 'Quick Chat',
+            body: '',
             startTime: new Date(),
             endTime: {
               ...today,
