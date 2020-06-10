@@ -153,6 +153,7 @@ describe('getEventLocationUrl', () => {
   describe('Bodies with zoom links', () => {
     const testUrl = 'https://my.test.url/stuff?123';
     const testZoomUrl = 'https://hudl.zoom.us/j/1234?param=5678';
+    const nonHudlTestZoomUrl = 'https://cats_and_dogs.zoom.us/j/1234?param=5678';
 
     test('Non-zoom url in body returns null', () => {
       const event: CalendarEvent = {
@@ -173,6 +174,16 @@ describe('getEventLocationUrl', () => {
       const url = getEventUrl(event, baseUserSettings);
 
       expect(url).toBe(testZoomUrl);
+    });
+    test('Zoom url in body returns zoom link', () => {
+      const event: CalendarEvent = {
+        ...baseEvent,
+        location: 'Test Location',
+        body: `Check out my link ${nonHudlTestZoomUrl}`,
+      };
+      const url = getEventUrl(event, baseUserSettings);
+
+      expect(url).toBe(nonHudlTestZoomUrl);
     });
     test('Url in location overrides body', () => {
       const event: CalendarEvent = {
