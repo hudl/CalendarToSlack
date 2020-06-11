@@ -175,7 +175,7 @@ describe('getEventLocationUrl', () => {
 
       expect(url).toBe(testZoomUrl);
     });
-    test('Zoom url in body returns zoom link', () => {
+    test('Non-Hudl Zoom url in body returns zoom link', () => {
       const event: CalendarEvent = {
         ...baseEvent,
         location: 'Test Location',
@@ -184,6 +184,26 @@ describe('getEventLocationUrl', () => {
       const url = getEventUrl(event, baseUserSettings);
 
       expect(url).toBe(nonHudlTestZoomUrl);
+    });
+    test('Zoom url in html body returns zoom link', () => {
+      const event: CalendarEvent = {
+        ...baseEvent,
+        location: 'Test Location',
+        body: `Check out my <a href="${testZoomUrl}">Link</a>`,
+      };
+      const url = getEventUrl(event, baseUserSettings);
+
+      expect(url).toBe(testZoomUrl);
+    });
+    test('Zoom url in html body returns zoom link', () => {
+      const event: CalendarEvent = {
+        ...baseEvent,
+        location: 'Test Location',
+        body: `Join us here <${testZoomUrl}> at 12:00!`,
+      };
+      const url = getEventUrl(event, baseUserSettings);
+
+      expect(url).toBe(testZoomUrl);
     });
     test('Url in location overrides body', () => {
       const event: CalendarEvent = {

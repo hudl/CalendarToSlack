@@ -10,7 +10,7 @@ export const getEventUrl = (event: CalendarEvent | null, settings: UserSettings)
   let urlMatches = location.match(allUrlRegex);
   
   if (!location || !urlMatches || urlMatches.length === 0) {
-    const zoomUrlRegex = /https:\/\/\w*.zoom.us(\/\S*)?/g;
+    const zoomUrlRegex = /https:\/\/\w*.zoom.us(\/[^\s"'<>]*)?/g;
     urlMatches = event.body.match(zoomUrlRegex);
   }
 
