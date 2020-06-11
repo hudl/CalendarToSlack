@@ -17,6 +17,7 @@ export type CalendarEvent = {
   startTime: Date;
   endTime: Date;
   location: string;
+  body: string;
   showAs: ShowAs;
 };
 
@@ -46,7 +47,8 @@ const getAuthenticatedClient = (email: string, token: Token): Client => {
   return Client.initWithMiddleware(options);
 };
 
-// This method is needed because the Microsoft Graph API returns date strings with unspecified timezone (but prefers UTC without a header)
+// This method is needed because the Microsoft Graph API returns date strings 
+// with unspecified timezone (but prefers UTC without a header)
 // Documentation: https://docs.microsoft.com/en-us/graph/api/user-list-events?view=graph-rest-1.0&tabs=http#support-various-time-zones
 const withUTCSuffix = (date: string) => (!date || date.endsWith('Z') ? date : `${date}Z`);
 
@@ -56,7 +58,7 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
   const now = new Date();
 
   const startTime = new Date(now);
-  startTime.setMinutes(now.getMinutes() - 1);
+  startTime.setMinutes(now.getMinutes() - 2);
 
   const endTime = new Date(now);
   endTime.setMinutes(now.getMinutes() + 1);
@@ -64,7 +66,7 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
   try {
     const outlookEvents = await getAuthenticatedClient(email, storedToken)
       .api(`/users/${email}/calendarView?startDateTime=${startTime.toISOString()}&endDateTime=${endTime.toISOString()}`)
-      .select('start,end,subject,showAs,location,sensitivity')
+      .select('start,end,subject,body,showAs,location,sensitivity')
       .get();
 
     return outlookEvents.value.map((e: any) => {
@@ -73,6 +75,7 @@ export const getEventsForUser = async (email: string, storedToken: Token): Promi
         startTime: new Date(withUTCSuffix(e.start.dateTime)),
         endTime: new Date(withUTCSuffix(e.end.dateTime)),
         location: e.location.displayName,
+        body: e.body.content,
         showAs: toShowAsStatus(e.showAs),
         name: e.sensitivity === 'normal' ? e.subject : 'Private event',
       };

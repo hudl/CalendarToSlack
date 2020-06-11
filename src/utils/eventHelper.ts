@@ -1,12 +1,20 @@
 import { CalendarEvent } from '../services/calendar/calendar';
 import { UserSettings } from '../services/dynamo';
 
-export const getEventLocationUrl = (event: CalendarEvent | null, settings: UserSettings) => {
-  const urlRegex = /((\w+:\/\/)[-a-zA-Z0-9:@;?&=\/%\+\.\*!'\(\),\$_\{\}\^~\[\]`#|]+)/g;
+export const getEventUrl = (event: CalendarEvent | null, settings: UserSettings) => {
+  if (settings.zoomLinksDisabled || !event) {
+    return null;
+  }
+  const allUrlRegex = /((\w+:\/\/)[-a-zA-Z0-9:@;?&=\/%\+\.\*!'\(\),\$_\{\}\^~\[\]`#|]+)/g;
   const location = (event && event.location) || '';
-  const urlMatches = location.match(urlRegex);
+  let urlMatches = location.match(allUrlRegex);
+  
+  if (!location || !urlMatches || urlMatches.length === 0) {
+    const zoomUrlRegex = /https:\/\/\w*.zoom.us(\/[^\s"'<>]*)?/g;
+    urlMatches = event.body.match(zoomUrlRegex);
+  }
 
-  if (settings.zoomLinksDisabled || !event || !location || !urlMatches || urlMatches.length === 0) {
+  if (!urlMatches || urlMatches.length === 0) {
     return null;
   }
 
