@@ -14,6 +14,11 @@ jobs:
         env:
           FILE_NAME: config.ts
           FILE_DATA: ${{ secrets.CONFIG_FILE_DATA }}
+      - name: create serverless config
+        uses: finnp/create-file-action@1.0.0
+        env:
+          FILE_NAME: serverless-config.yml
+          FILE_DATA: ${{ secrets.SERVERLESS_CONFIG_FILE_DATA }}
       - name: yarn
         uses: borales/actions-yarn@master
         with:
