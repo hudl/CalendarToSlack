@@ -1,0 +1,28 @@
+name: "Prod Deploy"
+on:
+  push:
+    branches:
+      - master
+name: Deploy master branch
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: create config
+      uses: finnp/create-file-action@1.0.0
+      env:
+          FILE_NAME: config.ts
+          FILE_DATA: ${{ secrets.CONFIG_FILE_DATA }}
+    - name: yarn
+      uses: borales/actions-yarn@master
+      with:
+        cmd: install
+    - name: serverless deploy
+      uses: serverless/github-action@master
+      with:
+        args: deploy
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
