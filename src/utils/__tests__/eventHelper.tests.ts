@@ -306,5 +306,18 @@ describe('getUpcomingEventMessage', () => {
 * https://cool.url`,
       );
     });
+    test('Does not consider the location an additional URL when present in the body', () => {
+      const event = {
+        ...baseEvent,
+        location: 'https://my.test.url',
+        body: `Blah blah blah meetings. Here's the agenda: https://agenda.url. Join the meeting at: https://my.test.url`,
+      };
+      const message = getUpcomingEventMessage(event, baseUserSettings);
+
+      expect(message).toBe(
+        `Join *${event.name}* at: https://my.test.url. Helpful links:
+* https://agenda.url`,
+      );
+    });
   });
 });

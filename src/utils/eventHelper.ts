@@ -51,7 +51,10 @@ export const getUpcomingEventMessage = (event: CalendarEvent | null, settings: U
   let message = `Join *${event.name}* at: ${locationUrl}`;
 
   if (additionalUrls.length) {
-    message = message.concat('. Helpful links:', ...additionalUrls.map((url) => `\n* ${url}`));
+    message = message.concat(
+      '. Helpful links:',
+      ...additionalUrls.filter((url) => url.toLowerCase() !== locationUrl.toLowerCase()).map((url) => `\n* ${url}`),
+    );
   }
 
   return message;
