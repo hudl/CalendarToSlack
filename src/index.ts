@@ -9,6 +9,7 @@ import {
   upsertCurrentEvent,
   removeCurrentEvent,
   UserSettings,
+  setLastReminderEventId,
 } from './services/dynamo';
 import { setUserStatus, setUserPresence, getUserByEmail, postMessage, SlackUser } from './services/slack';
 import { Handler } from 'aws-lambda';
@@ -40,7 +41,7 @@ const microsoftAuthRedirect = (email: string) => ({
   },
 });
 
-const shouldUpdate = (e1: CalendarEvent | undefined, e2: CalendarEvent | null) =>
+const areEventsDifferent = (e1: CalendarEvent | undefined, e2: CalendarEvent | null) =>
   (!e1 && e2) || (e1 && !e2) || (e1 && e2 && e1.id !== e2.id);
 
 const sendUpcomingEventMessage = async (
@@ -54,7 +55,8 @@ const sendUpcomingEventMessage = async (
   const message = getUpcomingEventMessage(event, settings);
   if (!message) return;
 
-  return await postMessage(token, { text: message, channel: user.id });
+  await postMessage(token, { text: message, channel: user.id });
+  await setLastReminderEventId(settings.email, event.id);
 };
 
 export const update: Handler = async () => {
@@ -90,7 +92,20 @@ export const updateBatch: Handler = async (event: any) => {
 
       const relevantEvent = getHighestPriorityEvent(userEvents);
 
-      if (!shouldUpdate(us.currentEvent, relevantEvent)) return;
+      let reminderEvent = relevantEvent;
+      if (us.meetingReminderTimingOverride) {
+        const upcomingEvents = await getEventsForUser(
+          us.email,
+          us.calendarStoredToken,
+          us.meetingReminderTimingOverride,
+        );
+        reminderEvent = getHighestPriorityEvent(upcomingEvents || []);
+      }
+
+      const shouldUpdateSlackStatus = areEventsDifferent(us.currentEvent, relevantEvent);
+      const shouldSendReminder = reminderEvent && reminderEvent.id !== us.lastReminderEventId;
+
+      if (!shouldUpdateSlackStatus && !shouldSendReminder) return;
 
       const botToken = await getSlackSecretWithKey('bot-token');
       const user = await getUserByEmail(botToken, us.email);
@@ -100,12 +115,20 @@ export const updateBatch: Handler = async (event: any) => {
       const status = getStatusForUserEvent(us, relevantEvent, user.tz);
       const presence = relevantEvent && relevantEvent.showAs > ShowAs.Tentative ? 'away' : 'auto';
 
-      await Promise.all([
-        setUserStatus(us.email, us.slackToken, status),
-        setUserPresence(us.email, us.slackToken, presence),
-        sendUpcomingEventMessage(botToken, user, relevantEvent, us),
-        relevantEvent ? upsertCurrentEvent(us.email, relevantEvent) : removeCurrentEvent(us.email),
-      ]);
+      const promises: Promise<UserSettings | void>[] = [];
+      if (shouldUpdateSlackStatus) {
+        promises.push(
+          setUserStatus(us.email, us.slackToken, status),
+          setUserPresence(us.email, us.slackToken, presence),
+          relevantEvent ? upsertCurrentEvent(us.email, relevantEvent) : removeCurrentEvent(us.email),
+        );
+      }
+
+      if (shouldSendReminder) {
+        promises.push(sendUpcomingEventMessage(botToken, user, reminderEvent, us));
+      }
+
+      await Promise.all(promises);
     }),
   );
 };

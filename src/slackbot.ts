@@ -8,6 +8,7 @@ import {
   upsertDefaultStatus,
   removeDefaultStatus,
   setZoomLinksDisabled,
+  setMeetingReminderTimingOverride,
 } from './services/dynamo';
 import { slackInstallUrl } from './utils/urls';
 
@@ -54,7 +55,13 @@ type CalendarCommandArguments = {
 
 type SettingsCommandArguments = {
   zoomLinksEnabled?: boolean;
+  meetingReminderOverride?: number;
 };
+
+enum SettingsArguments {
+  ZoomLinks = 'zoom-links',
+  ReminderTiming = 'reminder-timing',
+}
 
 interface SlackResponse {}
 
@@ -93,7 +100,7 @@ const serializeStatusMappings = ({ defaultStatus, statusMappings }: UserSettings
     serialized = serialized.concat(
       '\n',
       ...statusMappings.map(
-        m =>
+        (m) =>
           `\n${m.slackStatus.emoji || ':transparent:'} \`${m.calendarText}\` ${
             m.slackStatus.text ? `uses status \`${m.slackStatus.text}\`` : ''
           }`,
@@ -122,7 +129,10 @@ const constructCalendarCommandArgs = (argList: string[]): CalendarCommandArgumen
 };
 
 const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArguments => {
-  const args: { [key: string]: string } = { 'zoom-links': '' };
+  const args: { [key: string]: string } = {
+    [SettingsArguments.ZoomLinks]: '',
+    [SettingsArguments.ReminderTiming]: '',
+  };
 
   for (let arg of argList) {
     const [key, value] = arg.split(/\s?=\s?/g);
@@ -131,8 +141,12 @@ const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArgumen
     }
   }
 
+  const zoomLinksArg = args[SettingsArguments.ZoomLinks];
+  const reminderTimingArg = args[SettingsArguments.ReminderTiming];
+
   return {
-    zoomLinksEnabled: args['zoom-links'].length ? args['zoom-links'].toLowerCase() === 'true' : undefined,
+    zoomLinksEnabled: zoomLinksArg.length ? zoomLinksArg.toLowerCase() === 'true' : undefined,
+    meetingReminderOverride: reminderTimingArg.length ? Number(reminderTimingArg) : undefined,
   };
 };
 
@@ -161,7 +175,7 @@ const handleSet = async (userSettings: UserSettings, argList: string[]): Promise
 
   const updatedMappings = userSettings.statusMappings || [];
   const existingMapping = updatedMappings.find(
-    m => args.meeting && m.calendarText.toLowerCase() === args.meeting.toLowerCase(),
+    (m) => args.meeting && m.calendarText.toLowerCase() === args.meeting.toLowerCase(),
   );
 
   if (existingMapping) {
@@ -192,7 +206,7 @@ const handleRemove = async (userSettings: UserSettings, argList: string[]): Prom
   }
 
   const filteredMappings = userSettings.statusMappings.filter(
-    sm => !args.meeting || sm.calendarText.toLowerCase() !== args.meeting.toLowerCase(),
+    (sm) => !args.meeting || sm.calendarText.toLowerCase() !== args.meeting.toLowerCase(),
   );
 
   const updated = await upsertStatusMappings(userSettings.email, filteredMappings);
@@ -238,6 +252,9 @@ const handleUpdateSettings = async (userSettings: UserSettings, argList: string[
 
   if (args.zoomLinksEnabled !== undefined) {
     await setZoomLinksDisabled(userSettings.email, !args.zoomLinksEnabled);
+  }
+  if (args.meetingReminderOverride !== undefined) {
+    await setMeetingReminderTimingOverride(userSettings.email, args.meetingReminderOverride);
   }
 
   // TODO: Once more settings are present, change this to echo their settings
