@@ -301,9 +301,9 @@ describe('getUpcomingEventMessage', () => {
       const message = getUpcomingEventMessage(event, baseUserSettings);
 
       expect(message).toBe(
-        `Join *${event.name}* at: https://my.test.url. Helpful links:
-* https://agenda.url
-* https://cool.url`,
+        `Join *${event.name}* at: https://my.test.url. Here are some links I found in the event:
+• https://agenda.url
+• https://cool.url`,
       );
     });
     test('Does not consider the location an additional URL when present in the body', () => {
@@ -315,8 +315,8 @@ describe('getUpcomingEventMessage', () => {
       const message = getUpcomingEventMessage(event, baseUserSettings);
 
       expect(message).toBe(
-        `Join *${event.name}* at: https://my.test.url. Helpful links:
-* https://agenda.url`,
+        `Join *${event.name}* at: https://my.test.url. Here are some links I found in the event:
+• https://agenda.url`,
       );
     });
   });

@@ -52,8 +52,8 @@ export const getUpcomingEventMessage = (event: CalendarEvent | null, settings: U
 
   if (additionalUrls.length) {
     message = message.concat(
-      '. Helpful links:',
-      ...additionalUrls.filter((url) => url.toLowerCase() !== locationUrl.toLowerCase()).map((url) => `\n* ${url}`),
+      '. Here are some links I found in the event:',
+      ...additionalUrls.filter((url) => url.toLowerCase() !== locationUrl.toLowerCase()).map((url) => `\n• ${url}`),
     );
   }
 
