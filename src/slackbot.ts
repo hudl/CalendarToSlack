@@ -7,10 +7,9 @@ import {
   UserSettings,
   upsertDefaultStatus,
   removeDefaultStatus,
-  setZoomLinksDisabled,
-  setMeetingReminderTimingOverride,
 } from './services/dynamo';
 import { slackInstallUrl } from './utils/urls';
+import { handleUpdateSettings } from './slackbot/settings';
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
@@ -52,16 +51,6 @@ type CalendarCommandArguments = {
   message?: string;
   emoji?: string;
 };
-
-type SettingsCommandArguments = {
-  zoomLinksEnabled?: boolean;
-  meetingReminderOverride?: number;
-};
-
-enum SettingsArguments {
-  ZoomLinks = 'zoom-links',
-  ReminderTiming = 'reminder-timing',
-}
 
 interface SlackResponse {}
 
@@ -125,28 +114,6 @@ const constructCalendarCommandArgs = (argList: string[]): CalendarCommandArgumen
     meeting: args['meeting'],
     message: args['message'],
     emoji: args['emoji'],
-  };
-};
-
-const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArguments => {
-  const args: { [key: string]: string } = {
-    [SettingsArguments.ZoomLinks]: '',
-    [SettingsArguments.ReminderTiming]: '',
-  };
-
-  for (let arg of argList) {
-    const [key, value] = arg.split(/\s?=\s?/g);
-    if (key in args) {
-      args[key] = value.replace(/["”“]/g, '');
-    }
-  }
-
-  const zoomLinksArg = args[SettingsArguments.ZoomLinks];
-  const reminderTimingArg = args[SettingsArguments.ReminderTiming];
-
-  return {
-    zoomLinksEnabled: zoomLinksArg.length ? zoomLinksArg.toLowerCase() === 'true' : undefined,
-    meetingReminderOverride: reminderTimingArg.length ? Number(reminderTimingArg) : undefined,
   };
 };
 
@@ -245,20 +212,6 @@ const handleRemoveDefault = async (userSettings: UserSettings): Promise<string> 
   await Promise.all([removeDefaultStatus(userSettings.email), slackPromise]);
 
   return 'Your default status has been removed.';
-};
-
-const handleUpdateSettings = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
-  const args = constructSettingsCommandArgs(argList);
-
-  if (args.zoomLinksEnabled !== undefined) {
-    await setZoomLinksDisabled(userSettings.email, !args.zoomLinksEnabled);
-  }
-  if (args.meetingReminderOverride !== undefined) {
-    await setMeetingReminderTimingOverride(userSettings.email, args.meetingReminderOverride);
-  }
-
-  // TODO: Once more settings are present, change this to echo their settings
-  return 'Your settings have been updated.';
 };
 
 const commandHandlerMap: {
