@@ -1,4 +1,4 @@
-import { getStatusForUserEvent } from '../map-event-status';
+import { getStatusForUserEvent } from '../mapEventStatus';
 import { ShowAs } from '../../services/calendar/calendar';
 
 const baseUserSettings = { email: 'test@email.com', slackToken: 'abc' };

@@ -13,12 +13,12 @@ import {
 import { setUserStatus, setUserPresence, getUserByEmail, postMessage, SlackUser } from './services/slack';
 import { Handler } from 'aws-lambda';
 import { InvocationRequest } from 'aws-sdk/clients/lambda';
-import { getStatusForUserEvent } from './utils/map-event-status';
+import { getStatusForUserEvent } from './utils/mapEventStatus';
 import { GraphApiAuthenticationProvider } from './services/calendar/graphApiAuthenticationProvider';
 import config from '../config';
 import { getSlackSecretWithKey } from './utils/secrets';
 import { authorizeMicrosoftGraphUrl, createUserUrl } from './utils/urls';
-import { getEventUrl } from './utils/eventHelper';
+import { getUpcomingEventMessage } from './utils/eventHelper';
 
 type GetProfileResult = {
   email: string;
@@ -51,10 +51,10 @@ const sendUpcomingEventMessage = async (
 ) => {
   if (!event || !user) return;
 
-  const url = getEventUrl(event, settings);
-  if (!url) return;
+  const message = getUpcomingEventMessage(event, settings);
+  if (!message) return;
 
-  return await postMessage(token, { text: `Join *${event.name}* at: ${url}`, channel: user.id });
+  return await postMessage(token, { text: message, channel: user.id });
 };
 
 export const update: Handler = async () => {
@@ -120,7 +120,7 @@ export const authorizeMicrosoftGraph: Handler = async (event: any) => {
   return {
     statusCode: 301,
     headers: {
-      Location: 'https://github.com/hudl/CalendarToSlack/wiki/Cal2Slack-Home',
+      Location: 'https://github.com/hudl/CalendarToSlack/wiki',
     },
   };
 };
