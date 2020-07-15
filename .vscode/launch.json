@@ -2,10 +2,20 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Debug Serverless",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceRoot}",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["debug"],
+      "port": 5858
+    },
+    {
       "name": "Debug Jest Tests",
       "type": "node",
       "request": "launch",
-      "runtimeArgs": ["--inspect-brk", "${workspaceRoot}/node_modules/.bin/jest", "--runInBand", "--coverage", "false"],
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["debug-tests"],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     }
