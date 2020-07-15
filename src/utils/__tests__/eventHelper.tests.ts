@@ -283,13 +283,19 @@ describe('getUpcomingEventMessage', () => {
       expect(message).toBeNull();
     });
   });
-  describe('With only a location URL', () => {
+  describe('With only a location URL in the location', () => {
     test('Returns a message with the URL', () => {
       const event = { ...baseEvent, location: 'https://my.test.url' };
       const message = getUpcomingEventMessage(event, baseUserSettings);
 
       expect(message).toBe(`Join *${event.name}* at: https://my.test.url`);
     });
+  });
+  describe('With only a location URL in the body', () => {
+    const event = { ...baseEvent, body: 'Join here: https://hudl.zoom.us/my/blahblah' };
+    const message = getUpcomingEventMessage(event, baseUserSettings);
+
+    expect(message).toBe(`Join *${event.name}* at: https://hudl.zoom.us/my/blahblah`);
   });
   describe('With a location and additional links', () => {
     test('Returns a message with the location and additional URLs', () => {

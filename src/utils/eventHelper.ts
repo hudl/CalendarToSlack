@@ -48,13 +48,11 @@ export const getUpcomingEventMessage = (event: CalendarEvent | null, settings: U
   if (!locationUrl) return null;
 
   const additionalUrls = getAdditionalEventLinks(event);
-  let message = `Join *${event.name}* at: ${locationUrl}`;
+  const filteredUrls = additionalUrls.filter((url) => url.toLowerCase() !== locationUrl.toLowerCase());
 
-  if (additionalUrls.length) {
-    message = message.concat(
-      '. Here are some links I found in the event:',
-      ...additionalUrls.filter((url) => url.toLowerCase() !== locationUrl.toLowerCase()).map((url) => `\n• ${url}`),
-    );
+  let message = `Join *${event.name}* at: ${locationUrl}`;
+  if (filteredUrls.length) {
+    message = message.concat('. Here are some links I found in the event:', ...filteredUrls.map((url) => `\n• ${url}`));
   }
 
   return message;
