@@ -1,7 +1,7 @@
 import AWS from 'aws-sdk';
 import oauth from 'simple-oauth2';
 import { WebClient } from '@slack/web-api';
-import { getEventsForUser, CalendarEvent, ShowAs } from './services/calendar/calendar';
+import { getEventsForUser, CalendarEvent, ShowAs } from './services/calendar';
 import {
   getAllUserSettings,
   getSettingsForUsers,
@@ -85,52 +85,48 @@ export const update: Handler = async () => {
 export const updateBatch: Handler = async (event: any) => {
   const userSettings = await getSettingsForUsers(event.emails);
 
-  await Promise.all(
-    userSettings.map(async (us) => {
-      const userEvents = await getEventsForUser(us.email, us.calendarStoredToken);
-      if (!userEvents) return;
+  await Promise.all(userSettings.map(updateOne));
+};
 
-      const relevantEvent = getHighestPriorityEvent(userEvents);
+export const updateOne = async (us: UserSettings) => {
+  const userEvents = await getEventsForUser(us.email, us.calendarStoredToken);
+  if (!userEvents) return;
 
-      let reminderEvent = relevantEvent;
-      if (us.meetingReminderTimingOverride) {
-        const upcomingEvents = await getEventsForUser(
-          us.email,
-          us.calendarStoredToken,
-          us.meetingReminderTimingOverride,
-        );
-        reminderEvent = getHighestPriorityEvent(upcomingEvents || []);
-      }
+  const relevantEvent = getHighestPriorityEvent(userEvents);
 
-      const shouldUpdateSlackStatus = areEventsDifferent(us.currentEvent, relevantEvent);
-      const shouldSendReminder = reminderEvent && reminderEvent.id !== us.lastReminderEventId;
+  let reminderEvent = relevantEvent;
+  if (us.meetingReminderTimingOverride) {
+    const upcomingEvents = await getEventsForUser(us.email, us.calendarStoredToken, us.meetingReminderTimingOverride);
+    reminderEvent = getHighestPriorityEvent(upcomingEvents || []);
+  }
 
-      if (!shouldUpdateSlackStatus && !shouldSendReminder) return;
+  const shouldUpdateSlackStatus = areEventsDifferent(us.currentEvent, relevantEvent);
+  const shouldSendReminder = reminderEvent && reminderEvent.id !== us.lastReminderEventId;
 
-      const botToken = await getSlackSecretWithKey('bot-token');
-      const user = await getUserByEmail(botToken, us.email);
+  if (!shouldUpdateSlackStatus && !shouldSendReminder) return;
 
-      if (!user) return;
+  const botToken = await getSlackSecretWithKey('bot-token');
+  const user = await getUserByEmail(botToken, us.email);
 
-      const status = getStatusForUserEvent(us, relevantEvent, user.tz);
-      const presence = relevantEvent && relevantEvent.showAs > ShowAs.Tentative ? 'away' : 'auto';
+  if (!user) return;
 
-      const promises: Promise<UserSettings | void>[] = [];
-      if (shouldUpdateSlackStatus) {
-        promises.push(
-          setUserStatus(us.email, us.slackToken, status),
-          setUserPresence(us.email, us.slackToken, presence),
-          relevantEvent ? upsertCurrentEvent(us.email, relevantEvent) : removeCurrentEvent(us.email),
-        );
-      }
+  const status = getStatusForUserEvent(us, relevantEvent, user.tz);
+  const presence = relevantEvent && relevantEvent.showAs > ShowAs.Tentative ? 'away' : 'auto';
 
-      if (shouldSendReminder) {
-        promises.push(sendUpcomingEventMessage(botToken, user, reminderEvent, us));
-      }
+  const promises: Promise<UserSettings | void>[] = [];
+  if (shouldUpdateSlackStatus) {
+    promises.push(
+      setUserStatus(us.email, us.slackToken, status),
+      setUserPresence(us.email, us.slackToken, presence),
+      relevantEvent ? upsertCurrentEvent(us.email, relevantEvent) : removeCurrentEvent(us.email),
+    );
+  }
 
-      await Promise.all(promises);
-    }),
-  );
+  if (shouldSendReminder) {
+    promises.push(sendUpcomingEventMessage(botToken, user, reminderEvent, us));
+  }
+
+  await Promise.all(promises);
 };
 
 export const authorizeMicrosoftGraph: Handler = async (event: any) => {

@@ -2,7 +2,7 @@ import { SlackStatus } from './slack';
 import { Token } from 'simple-oauth2';
 import AWS from 'aws-sdk';
 import config from '../../config';
-import { CalendarEvent } from './calendar/calendar';
+import { CalendarEvent } from './calendar';
 
 type StatusMapping = {
   calendarText: string;

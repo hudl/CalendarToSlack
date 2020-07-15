@@ -1,7 +1,7 @@
 import { Client, ClientOptions } from '@microsoft/microsoft-graph-client';
 import { GraphApiAuthenticationProvider } from './graphApiAuthenticationProvider';
 import { Token } from 'simple-oauth2';
-import { clearUserTokens } from '../../services/dynamo';
+import { clearUserTokens } from '../dynamo';
 import { sendAuthErrorMessage } from '../slack';
 
 export enum ShowAs {
