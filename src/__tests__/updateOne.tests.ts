@@ -248,7 +248,7 @@ describe('updateOne', () => {
             await updateOne(userWithCurrentEvent);
 
             expect(postMessageMock).toBeCalledWith(botToken, {
-              text: 'Join *meetings* at: https://my.test.url',
+              text: 'You have an upcoming meeting: *meetings* at https://my.test.url',
               channel: slackUser.id,
             });
           });
@@ -314,7 +314,7 @@ describe('updateOne', () => {
             await updateOne(overrideUser);
 
             expect(postMessageMock).toBeCalledWith(botToken, {
-              text: 'Join *anotha one* at: https://my.test.url/2',
+              text: 'You have an upcoming meeting: *anotha one* at https://my.test.url/2',
               channel: slackUser.id,
             });
           });

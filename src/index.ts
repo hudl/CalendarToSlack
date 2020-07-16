@@ -95,7 +95,7 @@ export const updateOne = async (us: UserSettings) => {
   const relevantEvent = getHighestPriorityEvent(userEvents);
 
   let reminderEvent = relevantEvent;
-  if (us.meetingReminderTimingOverride) {
+  if (us.meetingReminderTimingOverride && us.meetingReminderTimingOverride > 1) {
     const upcomingEvents = await getEventsForUser(us.email, us.calendarStoredToken, us.meetingReminderTimingOverride);
     reminderEvent = getHighestPriorityEvent(upcomingEvents || []);
   }
