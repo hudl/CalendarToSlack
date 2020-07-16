@@ -2,18 +2,19 @@ import { UserSettings, setZoomLinksDisabled, setMeetingReminderTimingOverride } 
 
 type SettingsCommandArguments = {
   zoomLinksEnabled?: boolean;
-  meetingReminderOverride?: number;
+  meetingReminderTimingOverride?: number;
 };
 
-enum SettingsArguments {
+enum SettingsCommandArgumentKeys {
+  Show = 'show',
   ZoomLinks = 'zoom-links',
   ReminderTiming = 'reminder-timing',
 }
 
 const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArguments => {
   const args: { [key: string]: string } = {
-    [SettingsArguments.ZoomLinks]: '',
-    [SettingsArguments.ReminderTiming]: '',
+    [SettingsCommandArgumentKeys.ZoomLinks]: '',
+    [SettingsCommandArgumentKeys.ReminderTiming]: '',
   };
 
   for (let arg of argList) {
@@ -23,34 +24,44 @@ const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArgumen
     }
   }
 
-  const zoomLinksArg = args[SettingsArguments.ZoomLinks];
-  const reminderTimingArg = args[SettingsArguments.ReminderTiming];
+  const zoomLinksArg = args[SettingsCommandArgumentKeys.ZoomLinks];
+  const reminderTimingArg = args[SettingsCommandArgumentKeys.ReminderTiming];
 
   return {
     zoomLinksEnabled: zoomLinksArg.length ? zoomLinksArg.toLowerCase() === 'true' : undefined,
-    meetingReminderOverride: reminderTimingArg.length ? Number(reminderTimingArg) : undefined,
+    meetingReminderTimingOverride: reminderTimingArg.length ? Number(reminderTimingArg) : undefined,
   };
 };
 
-export const handleUpdateSettings = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
+const stringifySettings = ({ zoomLinksDisabled, meetingReminderTimingOverride }: UserSettings) => {
+  const zoomLinksString = `• \`${SettingsCommandArgumentKeys.ZoomLinks}\`: \`${!zoomLinksDisabled}\``;
+  const reminderTimingString = `• \`${SettingsCommandArgumentKeys.ReminderTiming}\`: \`${
+    meetingReminderTimingOverride || 1
+  }\``;
+
+  return `${zoomLinksString}\n${reminderTimingString}`;
+};
+
+export const handleSettings = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
   if (!argList.length) {
     return 'You must provide at least one argument. See the wiki for more information: https://github.com/hudl/CalendarToSlack/wiki';
   }
 
+  if (argList[0].toLowerCase() === SettingsCommandArgumentKeys.Show) {
+    return `Here are your current settings:\n${stringifySettings(userSettings)}`;
+  }
+
   const args = constructSettingsCommandArgs(argList);
 
-  let settingsUpdated = false;
+  let newSettings;
   if (args.zoomLinksEnabled !== undefined) {
-    await setZoomLinksDisabled(userSettings.email, !args.zoomLinksEnabled);
-    settingsUpdated = true;
+    newSettings = await setZoomLinksDisabled(userSettings.email, !args.zoomLinksEnabled);
   }
-  if (args.meetingReminderOverride !== undefined) {
-    await setMeetingReminderTimingOverride(userSettings.email, args.meetingReminderOverride);
-    settingsUpdated = true;
+  if (args.meetingReminderTimingOverride !== undefined) {
+    newSettings = await setMeetingReminderTimingOverride(userSettings.email, args.meetingReminderTimingOverride);
   }
 
-  // TODO: Once more settings are present, change this to echo their settings
-  return settingsUpdated
-    ? 'Your settings have been updated.'
+  return newSettings
+    ? `Your settings have been updated:\n${stringifySettings(newSettings)}`
     : 'No supported arguments given. See the wiki for more information: https://github.com/hudl/CalendarToSlack/wiki';
 };
