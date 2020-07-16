@@ -2,7 +2,7 @@ import { SlackStatus } from './slack';
 import { Token } from 'simple-oauth2';
 import AWS from 'aws-sdk';
 import config from '../../config';
-import { CalendarEvent } from './calendar/calendar';
+import { CalendarEvent } from './calendar';
 
 type StatusMapping = {
   calendarText: string;
@@ -17,6 +17,8 @@ export type UserSettings = {
   statusMappings?: StatusMapping[];
   currentEvent?: CalendarEvent;
   zoomLinksDisabled?: boolean;
+  meetingReminderTimingOverride?: number;
+  lastReminderEventId?: string;
 };
 
 const toDynamoStatus = (status: SlackStatus) => ({
@@ -27,7 +29,7 @@ const toDynamoStatus = (status: SlackStatus) => ({
 const toDynamoStatusMappings = (statusMappings?: StatusMapping[]) => {
   return (
     statusMappings &&
-    statusMappings.map(sm => ({
+    statusMappings.map((sm) => ({
       ...sm,
       slackStatus: toDynamoStatus(sm.slackStatus),
     }))
@@ -283,7 +285,7 @@ export const getSettingsForUsers = async (emails: string[]): Promise<UserSetting
     dynamoDb.batchGet(
       {
         RequestItems: {
-          [config.dynamoDb.tableName]: { Keys: emails.map(email => ({ email })) },
+          [config.dynamoDb.tableName]: { Keys: emails.map((email) => ({ email })) },
         },
       },
       (err, data) => {
@@ -311,6 +313,65 @@ export const setZoomLinksDisabled = async (email: string, zoomLinksDisabled: boo
         UpdateExpression: 'set zoomLinksDisabled = :z',
         ExpressionAttributeValues: {
           ':z': zoomLinksDisabled,
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
+};
+
+export const setMeetingReminderTimingOverride = async (
+  email: string,
+  meetingReminderTimingOverride: number,
+): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email,
+        },
+        UpdateExpression: 'set meetingReminderTimingOverride = :o',
+        ExpressionAttributeValues: {
+          ':o': meetingReminderTimingOverride,
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
+};
+
+export const setLastReminderEventId = async (email: string, lastReminderEventId: string): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email,
+        },
+        UpdateExpression: 'set lastReminderEventId = :id',
+        ExpressionAttributeValues: {
+          ':id': lastReminderEventId,
         },
         ReturnValues: 'ALL_NEW',
       },

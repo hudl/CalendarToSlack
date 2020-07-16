@@ -1,5 +1,5 @@
 import { getEventLocationUrl, getAdditionalEventLinks, getUpcomingEventMessage } from '../eventHelper';
-import { ShowAs, CalendarEvent } from '../../services/calendar/calendar';
+import { ShowAs, CalendarEvent } from '../../services/calendar';
 import { UserSettings } from '../../services/dynamo';
 
 const baseUserSettings: UserSettings = { email: 'test@email.com', slackToken: 'abc' };

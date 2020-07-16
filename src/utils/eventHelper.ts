@@ -1,4 +1,4 @@
-import { CalendarEvent } from '../services/calendar/calendar';
+import { CalendarEvent } from '../services/calendar';
 import { UserSettings } from '../services/dynamo';
 
 const allUrlRegex = /((\w+:\/\/)[-a-zA-Z0-9:@;?&=\/%\+\.\*!'\(\),\$_\{\}\^~\[\]`#|]+)/g;

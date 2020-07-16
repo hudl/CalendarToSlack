@@ -1,5 +1,5 @@
 import { UserSettings } from '../services/dynamo';
-import { CalendarEvent, ShowAs } from '../services/calendar/calendar';
+import { CalendarEvent, ShowAs } from '../services/calendar';
 import { SlackStatus } from '../services/slack';
 
 const getOOODateString = (endDateTime: Date | null, timeZone: string) => {
@@ -35,7 +35,7 @@ export const getStatusForUserEvent = (
   const relevantStatus =
     settings.statusMappings &&
     settings.statusMappings.find(
-      sm => sm.calendarText && event.name.toLowerCase().includes(sm.calendarText.toLowerCase()),
+      (sm) => sm.calendarText && event.name.toLowerCase().includes(sm.calendarText.toLowerCase()),
     );
 
   return relevantStatus ? relevantStatus.slackStatus : defaultStatusByVisibility[event.showAs];
