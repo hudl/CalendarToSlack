@@ -84,10 +84,17 @@ describe('handleSettings', () => {
     });
   });
   describe('With zoom-links argument', () => {
+    beforeEach(() => {
+      setZoomLinksMock.mockResolvedValueOnce({ ...userSettings, zoomLinksDisabled: true });
+    });
     test('Returns settings updated message', async () => {
-      const message = await handleSettings(userSettings, ['zoom-links=true']);
+      const message = await handleSettings(userSettings, ['zoom-links=false']);
 
-      expect(message).toBe('Your settings have been updated.');
+      expect(message).toBe(
+        `Your settings have been updated:
+• \`zoom-links\`: \`false\`
+• \`reminder-timing\`: \`1\``,
+      );
     });
     test('Updates the zoom-links setting in DynamoDB', async () => {
       await handleSettings(userSettings, ['zoom-links=true']);
@@ -96,10 +103,17 @@ describe('handleSettings', () => {
     });
   });
   describe('With reminder-timing argument', () => {
+    beforeEach(() => {
+      meetingReminderMock.mockResolvedValueOnce({ ...userSettings, meetingReminderTimingOverride: 15 });
+    });
     test('Returns settings updated message', async () => {
       const message = await handleSettings(userSettings, ['reminder-timing=15']);
 
-      expect(message).toBe('Your settings have been updated.');
+      expect(message).toBe(
+        `Your settings have been updated:
+• \`zoom-links\`: \`true\`
+• \`reminder-timing\`: \`15\``,
+      );
     });
     test('Updates the reminder-timing setting in DynamoDB', async () => {
       await handleSettings(userSettings, ['reminder-timing=15']);
@@ -108,10 +122,22 @@ describe('handleSettings', () => {
     });
   });
   describe('With multiple arguments', () => {
+    beforeEach(() => {
+      setZoomLinksMock.mockResolvedValueOnce({ ...userSettings, zoomLinksDisabled: true });
+      meetingReminderMock.mockResolvedValueOnce({
+        ...userSettings,
+        zoomLinksDisabled: true,
+        meetingReminderTimingOverride: 15,
+      });
+    });
     test('Returns settings updated message', async () => {
-      const message = await handleSettings(userSettings, ['zoom-links=true', 'reminder-timing=15']);
+      const message = await handleSettings(userSettings, ['zoom-links=false', 'reminder-timing=15']);
 
-      expect(message).toBe('Your settings have been updated.');
+      expect(message).toBe(
+        `Your settings have been updated:
+• \`zoom-links\`: \`false\`
+• \`reminder-timing\`: \`15\``,
+      );
     });
     test('Updates the zoom-links setting in DynamoDB', async () => {
       await handleSettings(userSettings, ['zoom-links=true', 'reminder-timing=15']);

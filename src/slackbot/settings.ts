@@ -62,6 +62,6 @@ export const handleSettings = async (userSettings: UserSettings, argList: string
   }
 
   return newSettings
-    ? 'Your settings have been updated.'
+    ? `Your settings have been updated:\n${stringifySettings(newSettings)}`
     : 'No supported arguments given. See the wiki for more information: https://github.com/hudl/CalendarToSlack/wiki';
 };
