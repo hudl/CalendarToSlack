@@ -302,7 +302,7 @@ describe('updateOne', () => {
         });
       });
     });
-    describe('with an override set', () => {
+    describe('with a valid override set', () => {
       const overrideUser = { ...userWithCurrentEvent, meetingReminderTimingOverride: 15 };
       describe('and an upcoming meeting with a location', () => {
         beforeEach(() => {
@@ -368,6 +368,14 @@ describe('updateOne', () => {
 
           expect(setLastReminderEventIdMock).not.toBeCalled();
         });
+      });
+    });
+    describe('with an override that matches the default value', () => {
+      test('does not make an additional request for user events', async () => {
+        getEventsForUserMock.mockResolvedValueOnce([oooEvent]);
+        await updateOne({ ...userWithCurrentEvent, meetingReminderTimingOverride: 1 });
+
+        expect(getEventsForUserMock).toBeCalledTimes(1);
       });
     });
   });
