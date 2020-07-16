@@ -288,14 +288,14 @@ describe('getUpcomingEventMessage', () => {
       const event = { ...baseEvent, location: 'https://my.test.url' };
       const message = getUpcomingEventMessage(event, baseUserSettings);
 
-      expect(message).toBe(`Join *${event.name}* at: https://my.test.url`);
+      expect(message).toBe(`You have an upcoming meeting: *${event.name}* at https://my.test.url`);
     });
   });
   describe('With only a location URL in the body', () => {
     const event = { ...baseEvent, body: 'Join here: https://hudl.zoom.us/my/blahblah' };
     const message = getUpcomingEventMessage(event, baseUserSettings);
 
-    expect(message).toBe(`Join *${event.name}* at: https://hudl.zoom.us/my/blahblah`);
+    expect(message).toBe(`You have an upcoming meeting: *${event.name}* at https://hudl.zoom.us/my/blahblah`);
   });
   describe('With a location and additional links', () => {
     test('Returns a message with the location and additional URLs', () => {
@@ -307,7 +307,7 @@ describe('getUpcomingEventMessage', () => {
       const message = getUpcomingEventMessage(event, baseUserSettings);
 
       expect(message).toBe(
-        `Join *${event.name}* at: https://my.test.url. Here are some links I found in the event:
+        `You have an upcoming meeting: *${event.name}* at https://my.test.url. Here are some links I found in the event:
 • https://agenda.url
 • https://cool.url`,
       );
@@ -321,7 +321,7 @@ describe('getUpcomingEventMessage', () => {
       const message = getUpcomingEventMessage(event, baseUserSettings);
 
       expect(message).toBe(
-        `Join *${event.name}* at: https://my.test.url. Here are some links I found in the event:
+        `You have an upcoming meeting: *${event.name}* at https://my.test.url. Here are some links I found in the event:
 • https://agenda.url`,
       );
     });
