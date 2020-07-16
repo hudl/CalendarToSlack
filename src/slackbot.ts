@@ -9,7 +9,7 @@ import {
   removeDefaultStatus,
 } from './services/dynamo';
 import { slackInstallUrl } from './utils/urls';
-import { handleUpdateSettings } from './slackbot/settings';
+import { handleSettings } from './slackbot/settings';
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
@@ -223,7 +223,7 @@ const commandHandlerMap: {
   remove: handleRemove,
   'set-default': handleSetDefault,
   'remove-default': handleRemoveDefault,
-  settings: handleUpdateSettings,
+  settings: handleSettings,
 };
 
 const handleSlackEventCallback = async ({
