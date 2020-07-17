@@ -1,7 +1,7 @@
 import { Client, ClientOptions } from '@microsoft/microsoft-graph-client';
 import { GraphApiAuthenticationProvider } from './graphApiAuthenticationProvider';
 import { Token } from 'simple-oauth2';
-import { clearUserTokens } from '../../services/dynamo';
+import { clearUserTokens } from '../dynamo';
 import { sendAuthErrorMessage } from '../slack';
 
 export enum ShowAs {
@@ -47,21 +47,25 @@ const getAuthenticatedClient = (email: string, token: Token): Client => {
   return Client.initWithMiddleware(options);
 };
 
-// This method is needed because the Microsoft Graph API returns date strings 
+// This method is needed because the Microsoft Graph API returns date strings
 // with unspecified timezone (but prefers UTC without a header)
 // Documentation: https://docs.microsoft.com/en-us/graph/api/user-list-events?view=graph-rest-1.0&tabs=http#support-various-time-zones
 const withUTCSuffix = (date: string) => (!date || date.endsWith('Z') ? date : `${date}Z`);
 
-export const getEventsForUser = async (email: string, storedToken: Token): Promise<CalendarEvent[] | null> => {
+export const getEventsForUser = async (
+  email: string,
+  storedToken: Token,
+  lookaheadTimeMinutes: number = 1,
+): Promise<CalendarEvent[] | null> => {
   if (!storedToken) return null;
 
   const now = new Date();
 
   const startTime = new Date(now);
-  startTime.setMinutes(now.getMinutes() - 2);
+  startTime.setMinutes(now.getMinutes() - (lookaheadTimeMinutes + 1));
 
   const endTime = new Date(now);
-  endTime.setMinutes(now.getMinutes() + 1);
+  endTime.setMinutes(now.getMinutes() + lookaheadTimeMinutes);
 
   try {
     const outlookEvents = await getAuthenticatedClient(email, storedToken)

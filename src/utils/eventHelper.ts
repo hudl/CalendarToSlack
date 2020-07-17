@@ -1,14 +1,16 @@
-import { CalendarEvent } from '../services/calendar/calendar';
+import { CalendarEvent } from '../services/calendar';
 import { UserSettings } from '../services/dynamo';
 
-export const getEventUrl = (event: CalendarEvent | null, settings: UserSettings) => {
+const allUrlRegex = /((\w+:\/\/)[-a-zA-Z0-9:@;?&=\/%\+\.\*!'\(\),\$_\{\}\^~\[\]`#|]+)/g;
+
+export const getEventLocationUrl = (event: CalendarEvent | null, settings: UserSettings) => {
   if (settings.zoomLinksDisabled || !event) {
     return null;
   }
-  const allUrlRegex = /((\w+:\/\/)[-a-zA-Z0-9:@;?&=\/%\+\.\*!'\(\),\$_\{\}\^~\[\]`#|]+)/g;
+
   const location = (event && event.location) || '';
   let urlMatches = location.match(allUrlRegex);
-  
+
   if (!location || !urlMatches || urlMatches.length === 0) {
     const zoomUrlRegex = /https:\/\/\w*.zoom.us(\/[^\s"'<>]*)?/g;
     urlMatches = event.body.match(zoomUrlRegex);
@@ -23,4 +25,35 @@ export const getEventUrl = (event: CalendarEvent | null, settings: UserSettings)
   // intended to include it.
   const url = urlMatches[0];
   return url.endsWith(';') ? url.slice(0, url.length - 1) : url;
+};
+
+export const getAdditionalEventLinks = (event: CalendarEvent | null) => {
+  if (!event) {
+    return [];
+  }
+
+  // It's obviously valid for URLs to include periods, but it's common for people to put a URL
+  // right before a period, like https://google.com. In that case, we'll truncate the trailing period.
+  const urlMatches = (event.body.match(allUrlRegex) || []).map((match) =>
+    match.endsWith('.') ? match.slice(0, match.length - 1) : match,
+  );
+
+  return urlMatches && urlMatches.length ? [...new Set(urlMatches)] : [];
+};
+
+export const getUpcomingEventMessage = (event: CalendarEvent | null, settings: UserSettings) => {
+  if (!event) return null;
+
+  const locationUrl = getEventLocationUrl(event, settings);
+  if (!locationUrl) return null;
+
+  const additionalUrls = getAdditionalEventLinks(event);
+  const filteredUrls = additionalUrls.filter((url) => url.toLowerCase() !== locationUrl.toLowerCase());
+
+  let message = `You have an upcoming meeting: *${event.name}* at ${locationUrl}`;
+  if (filteredUrls.length) {
+    message = message.concat('. Here are some links I found in the event:', ...filteredUrls.map((url) => `\n• ${url}`));
+  }
+
+  return message;
 };

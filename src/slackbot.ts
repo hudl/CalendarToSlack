@@ -7,9 +7,9 @@ import {
   UserSettings,
   upsertDefaultStatus,
   removeDefaultStatus,
-  setZoomLinksDisabled,
 } from './services/dynamo';
 import { slackInstallUrl } from './utils/urls';
+import { handleSettings } from './slackbot/settings';
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
@@ -52,10 +52,6 @@ type CalendarCommandArguments = {
   emoji?: string;
 };
 
-type SettingsCommandArguments = {
-  zoomLinksEnabled?: boolean;
-};
-
 interface SlackResponse {}
 
 const validateTimestamp = (slackRequestTimestampInSec: number): boolean => {
@@ -93,7 +89,7 @@ const serializeStatusMappings = ({ defaultStatus, statusMappings }: UserSettings
     serialized = serialized.concat(
       '\n',
       ...statusMappings.map(
-        m =>
+        (m) =>
           `\n${m.slackStatus.emoji || ':transparent:'} \`${m.calendarText}\` ${
             m.slackStatus.text ? `uses status \`${m.slackStatus.text}\`` : ''
           }`,
@@ -118,21 +114,6 @@ const constructCalendarCommandArgs = (argList: string[]): CalendarCommandArgumen
     meeting: args['meeting'],
     message: args['message'],
     emoji: args['emoji'],
-  };
-};
-
-const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArguments => {
-  const args: { [key: string]: string } = { 'zoom-links': '' };
-
-  for (let arg of argList) {
-    const [key, value] = arg.split(/\s?=\s?/g);
-    if (key in args) {
-      args[key] = value.replace(/["”“]/g, '');
-    }
-  }
-
-  return {
-    zoomLinksEnabled: args['zoom-links'].length ? args['zoom-links'].toLowerCase() === 'true' : undefined,
   };
 };
 
@@ -161,7 +142,7 @@ const handleSet = async (userSettings: UserSettings, argList: string[]): Promise
 
   const updatedMappings = userSettings.statusMappings || [];
   const existingMapping = updatedMappings.find(
-    m => args.meeting && m.calendarText.toLowerCase() === args.meeting.toLowerCase(),
+    (m) => args.meeting && m.calendarText.toLowerCase() === args.meeting.toLowerCase(),
   );
 
   if (existingMapping) {
@@ -192,7 +173,7 @@ const handleRemove = async (userSettings: UserSettings, argList: string[]): Prom
   }
 
   const filteredMappings = userSettings.statusMappings.filter(
-    sm => !args.meeting || sm.calendarText.toLowerCase() !== args.meeting.toLowerCase(),
+    (sm) => !args.meeting || sm.calendarText.toLowerCase() !== args.meeting.toLowerCase(),
   );
 
   const updated = await upsertStatusMappings(userSettings.email, filteredMappings);
@@ -233,17 +214,6 @@ const handleRemoveDefault = async (userSettings: UserSettings): Promise<string> 
   return 'Your default status has been removed.';
 };
 
-const handleUpdateSettings = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
-  const args = constructSettingsCommandArgs(argList);
-
-  if (args.zoomLinksEnabled !== undefined) {
-    await setZoomLinksDisabled(userSettings.email, !args.zoomLinksEnabled);
-  }
-
-  // TODO: Once more settings are present, change this to echo their settings
-  return 'Your settings have been updated.';
-};
-
 const commandHandlerMap: {
   [command: string]: (userSettings: UserSettings, argList: string[]) => Promise<string>;
 } = {
@@ -253,7 +223,7 @@ const commandHandlerMap: {
   remove: handleRemove,
   'set-default': handleSetDefault,
   'remove-default': handleRemoveDefault,
-  settings: handleUpdateSettings,
+  settings: handleSettings,
 };
 
 const handleSlackEventCallback = async ({
