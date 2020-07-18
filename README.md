@@ -67,7 +67,7 @@ Ran all test suites.
 
 ### Writing and debugging Lambda code
 
-You can refer to [serverless.yml](./serverless.yml)—specifically the `functions` block—to see how the Lambda functions in AWS map to code entrypoints within the repository. All entrypoints other than the Slackbot handler currently live in [index.ts](./src/index.ts).
+You can refer to [serverless.yml](./serverless.yml)—specifically the `functions` block—to see how the Lambda functions in AWS map to code entrypoints within the repository. All entrypoints other than the Slackbot handler currently live in the [src/handlers](./src/handlers) directory.
 
 **Before running locally, please note**: The offline application still makes requests to production DynamoDB in the app's current state and can negatively affect the production environment, so please run locally with caution. It will also make requests to whatever Slack and Microsoft Graph clients you have configured in `config.ts`.
 

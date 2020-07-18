@@ -1,13 +1,13 @@
-import { getEventsForUser, CalendarEvent, ShowAs } from '../services/calendar';
-import { upsertCurrentEvent, removeCurrentEvent, setLastReminderEventId, UserSettings } from '../services/dynamo';
-import { getSlackSecretWithKey } from '../utils/secrets';
-import { getUserByEmail, setUserPresence, setUserStatus, postMessage, SlackUser } from '../services/slack';
-import { updateOne } from '..';
+import { getEventsForUser, CalendarEvent, ShowAs } from '../../services/calendar';
+import { upsertCurrentEvent, removeCurrentEvent, setLastReminderEventId, UserSettings } from '../../services/dynamo';
+import { getSlackSecretWithKey } from '../../services/secretsManager';
+import { getUserByEmail, setUserPresence, setUserStatus, postMessage, SlackUser } from '../../services/slack';
+import { updateOne } from '../updateBatch';
 
-jest.mock('../services/calendar');
-jest.mock('../services/dynamo');
-jest.mock('../utils/secrets');
-jest.mock('../services/slack');
+jest.mock('../../services/calendar');
+jest.mock('../../services/dynamo');
+jest.mock('../../services/secretsManager');
+jest.mock('../../services/slack');
 
 const getEventsForUserMock = <jest.Mock>getEventsForUser;
 const upsertCurrentEventMock = <jest.Mock>upsertCurrentEvent;
@@ -59,6 +59,13 @@ getSlackSecretWithKeyMock.mockResolvedValue(botToken);
 const slackUser: SlackUser = {
   id: '12345',
   tz: 'America/Chicago',
+  profile: {
+    display_name: 'Bob',
+    email: 'blah@blah.com',
+    real_name: 'Bob Loblaw',
+    status_emoji: '',
+    status_text: '',
+  },
 };
 getUserByEmailMock.mockResolvedValue(slackUser);
 

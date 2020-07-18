@@ -1,4 +1,4 @@
-import { getEventLocationUrl, getAdditionalEventLinks, getUpcomingEventMessage } from '../eventHelper';
+import { getEventLocationUrl, getAdditionalEventLinks, getUpcomingEventMessage } from '../eventReminders';
 import { ShowAs, CalendarEvent } from '../../services/calendar';
 import { UserSettings } from '../../services/dynamo';
 

@@ -2,7 +2,7 @@ import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
 import oauth2, { OAuthClient, Token } from 'simple-oauth2';
 import { storeCalendarAuthenticationToken } from '../dynamo';
 import config from '../../../config';
-import { getMicrosoftGraphSecretWithKey } from '../../utils/secrets';
+import { getMicrosoftGraphSecretWithKey } from '../secretsManager';
 import { authorizeMicrosoftGraphUrl } from '../../utils/urls';
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
@@ -70,9 +70,7 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     }
 
     console.log(
-      `Microsoft Graph access token expired for ${this.userEmail} at ${
-        this.storedToken.expires_at_timestamp
-      }. Refreshing...`,
+      `Microsoft Graph access token expired for ${this.userEmail} at ${this.storedToken.expires_at_timestamp}. Refreshing...`,
     );
 
     try {
@@ -83,9 +81,7 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       newToken.expires_at_timestamp = newToken.expires_at.toISOString();
 
       console.log(
-        `Refreshed Microsoft graph access token for ${this.userEmail} with expiration: ${
-          newToken.expires_at_timestamp
-        }`,
+        `Refreshed Microsoft graph access token for ${this.userEmail} with expiration: ${newToken.expires_at_timestamp}`,
       );
 
       await storeCalendarAuthenticationToken(this.userEmail, newToken);

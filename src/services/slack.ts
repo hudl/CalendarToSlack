@@ -1,6 +1,6 @@
 import { WebClient, ChatPostMessageArguments } from '@slack/web-api';
 import { clearUserTokens } from './dynamo';
-import { getSlackSecretWithKey } from '../utils/secrets';
+import { getSlackSecretWithKey } from './secretsManager';
 import { slackInstallUrl } from '../utils/urls';
 
 export type SlackStatus = {
@@ -19,6 +19,7 @@ export type SlackUserProfile = {
 export type SlackUser = {
   id: string;
   tz: string;
+  profile: SlackUserProfile;
 };
 
 const handleError = async (error: any, email: string) => {
@@ -67,12 +68,18 @@ export const setUserStatus = async (email: string, token: string | undefined, st
   }
 };
 
-export const getUserInfo = async (token: string, slackUserId: string): Promise<SlackUserProfile | undefined> => {
+export const getUserProfile = async (token: string): Promise<SlackUserProfile | undefined> => {
   if (!token) return;
 
   const slackClient = new WebClient(token);
-  const response: any = await slackClient.users.info({ user: slackUserId });
-  return response.user.profile as SlackUserProfile;
+  return (await slackClient.users.profile.get()).profile as SlackUserProfile;
+};
+
+export const getUserById = async (token: string, slackUserId: string): Promise<SlackUser | undefined> => {
+  if (!token) return;
+
+  const slackClient = new WebClient(token);
+  return (await slackClient.users.info({ user: slackUserId })).user as SlackUser;
 };
 
 export const getUserByEmail = async (token: string, email: string): Promise<SlackUser | undefined> => {

@@ -1,6 +1,6 @@
 import crypto from 'crypto';
-import { getSlackSecretWithKey } from './utils/secrets';
-import { getUserInfo, postMessage, setUserStatus } from './services/slack';
+import { getSlackSecretWithKey } from './services/secretsManager';
+import { getUserById, postMessage, setUserStatus } from './services/slack';
 import {
   getSettingsForUsers,
   upsertStatusMappings,
@@ -246,12 +246,12 @@ const handleSlackEventCallback = async ({
     return EMPTY_RESPONSE_BODY;
   };
 
-  const userProfile = await getUserInfo(botToken, user);
-  if (!userProfile) {
+  const userInfo = await getUserById(botToken, user);
+  if (!userInfo) {
     return await sendMessage('Something went wrong fetching your user profile. Maybe try again?');
   }
 
-  const userEmail = userProfile.email;
+  const userEmail = userInfo.profile.email;
   const userSettings = await getSettingsForUsers([userEmail]);
 
   if (!userSettings.length || !userSettings[0].slackToken) {
