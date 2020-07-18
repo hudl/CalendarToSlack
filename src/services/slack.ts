@@ -76,14 +76,21 @@ export const getUserInfo = async (token: string, slackUserId: string): Promise<S
 };
 
 export const getUserByEmail = async (token: string, email: string): Promise<SlackUser | undefined> => {
-  if (!token) return;
+  if (!token || !email) return;
 
   const slackClient = new WebClient(token);
-  const user = (await slackClient.users.lookupByEmail({ token, email })).user as SlackUser;
 
-  if (!user) console.warn(`Could not find Slack user for email: ${email}`);
+  try {
+    return (await slackClient.users.lookupByEmail({ token, email })).user as SlackUser;
+  } catch (e) {
+    if (e.data.error === 'users_not_found') {
+      console.warn(`Could not find Slack user for email: ${email}`);
+      return;
+    }
 
-  return user;
+    console.error(`Error getting Slack user for email: ${email}`, e);
+    throw e;
+  }
 };
 
 export const postMessage = async (token: string, params: ChatPostMessageArguments): Promise<boolean> => {
