@@ -1,5 +1,7 @@
 # CalendarToSlack
 
+[![Coverage Status](https://coveralls.io/repos/github/hudl/CalendarToSlack/badge.svg?branch=master)](https://coveralls.io/github/hudl/CalendarToSlack?branch=master)
+
 CalendarToSlack is a Slack integration that updates your status and presence in Slack whenever you're in an event according to Outlook. In a nutshell, it can:
 
 - Set custom status messages and emoji based on your event names, once configured
