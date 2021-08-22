@@ -1,3 +1,4 @@
+import 'isomorphic-fetch';
 import { Client, ClientOptions } from '@microsoft/microsoft-graph-client';
 import { GraphApiAuthenticationProvider } from './graphApiAuthenticationProvider';
 import { Token } from 'simple-oauth2';
