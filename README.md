@@ -12,7 +12,7 @@ Check out the [Wiki](https://github.com/hudl/CalendarToSlack/wiki) for more info
 
 ### Initial setup
 
-The Lambda functions in this project use the Node 10.x runtime. Ensure you're running Node 10.x on the command line using a tool like [nvm](https://github.com/nvm-sh/nvm) or [nodist](https://github.com/nullivex/nodist). Then, clone the repository and install dependencies with [Yarn](https://yarnpkg.com/):
+The Lambda functions in this project use the Node 10.x runtime. Ensure you're running Node 14.x on the command line using a tool like [nvm](https://github.com/nvm-sh/nvm) or [nodist](https://github.com/nullivex/nodist). Then, clone the repository and install dependencies with [Yarn](https://yarnpkg.com/):
 
 ```bash
 ~$ git clone https://github.com/hudl/CalendarToSlack.git

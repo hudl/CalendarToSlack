@@ -4,7 +4,7 @@ custom: ${file(./serverless-config.yml)}
 
 provider:
   name: aws
-  runtime: nodejs10.x
+  runtime: nodejs14.x
   stage: prod
   region: us-east-1
   stackName: hudl-calendar2slack

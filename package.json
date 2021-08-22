@@ -33,18 +33,18 @@
     "@types/jest": "^24.0.15",
     "@types/node": "^12.6.2",
     "@types/simple-oauth2": "^2.2.1",
-    "jest": "^24.8.0",
-    "serverless": "^1.75.0",
-    "serverless-offline": "^5.7.3",
-    "serverless-plugin-include-dependencies": "^3.2.1",
+    "jest": "^27.0.4",
+    "serverless": "^2.44.0",
+    "serverless-offline": "^7.0.0",
+    "serverless-plugin-include-dependencies": "^4.1.0",
     "serverless-plugin-typescript": "^1.1.9",
-    "ts-jest": "^24.0.2",
+    "ts-jest": "^27.0.2",
     "ts-node": "^8.3.0",
     "typescript": "^3.5.3"
   },
   "dependencies": {
-    "@microsoft/microsoft-graph-client": "^1.7.0",
-    "@slack/web-api": "^5.0.1",
+    "@microsoft/microsoft-graph-client": "^2.2.1",
+    "@slack/web-api": "^6.2.4",
     "aws-sdk": "^2.493.0",
     "simple-oauth2": "^2.2.1"
   }
