@@ -8,7 +8,7 @@ jobs:
     name: deploy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
           node-version: '14.x'
@@ -24,10 +24,7 @@ jobs:
         env:
           FILE_NAME: serverless-config.yml
           FILE_BASE64: ${{ secrets.SERVERLESS_CONFIG_FILE_DATA }}
-      - name: yarn
-        uses: borales/actions-yarn@master
-        with:
-          cmd: install
+      - run: yarn install
       - name: serverless deploy
         uses: serverless/github-action@master
         with:
