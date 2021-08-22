@@ -1,3 +1,4 @@
+import 'isomorphic-fetch';
 import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
 import oauth2, { OAuthClient, Token } from 'simple-oauth2';
 import { storeCalendarAuthenticationToken } from '../dynamo';
