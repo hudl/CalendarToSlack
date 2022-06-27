@@ -108,7 +108,7 @@ export const sendAuthErrorMessage = async (email: string): Promise<boolean> => {
   if (!user) return false;
 
   return await postMessage(botToken, {
-    text: `Oops! CalendarToSlack had an authorization-related problem with one or more of your access tokens. Please re-authorize the app at ${slackInstallUrl()}.`,
+    text: `Oops! CalendarToSlack had an authorization-related problem with one or more of your access tokens. Please re-authorize the app at ${slackInstallUrl()}. **Note:** If you want to disable Cal2Slack, ignore this message. *Please* do not remove the app from the Slack workspace.`,
     channel: user.id,
   });
 };
