@@ -368,7 +368,7 @@ describe('getStatusForUserEvent', () => {
           endTime: {
             ...today,
             getDate: jest.fn(() => today.getDate()),
-            toLocaleDateString: jest.fn(() => 'tomorrow'),
+            toLocaleDateString: jest.fn((...args) => today.toLocaleDateString(...args)),
             toLocaleTimeString: jest.fn(() => '2pm'),
           },
           location: 'Zoom',
@@ -437,7 +437,7 @@ describe('getStatusForUserEvent', () => {
             endTime: {
               ...today,
               getDate: jest.fn(() => today.getDate()),
-              toLocaleDateString: jest.fn(() => 'tomorrow'),
+              toLocaleDateString: jest.fn((...args) => today.toLocaleDateString(...args)),
               toLocaleTimeString: jest.fn(() => '2pm'),
             },
             location: 'Zoom',

@@ -75,6 +75,7 @@ export const update: Handler = async () => {
   };
 
   const userSettings = await getAllUserSettings();
+  
   for (var i = 0; i < userSettings.length; i += batchSize) {
     const batch = userSettings.slice(i, i + batchSize).map((us) => us.email);
 
@@ -89,6 +90,8 @@ export const updateBatch: Handler = async (event: any) => {
 };
 
 export const updateOne = async (us: UserSettings) => {
+  if (us.snoozed) return;
+
   const userEvents = await getEventsForUser(us.email, us.calendarStoredToken);
   if (!userEvents) return;
 

@@ -19,6 +19,7 @@ export type UserSettings = {
   zoomLinksDisabled?: boolean;
   meetingReminderTimingOverride?: number;
   lastReminderEventId?: string;
+  snoozed?: boolean;
 };
 
 const toDynamoStatus = (status: SlackStatus) => ({
@@ -372,6 +373,34 @@ export const setLastReminderEventId = async (email: string, lastReminderEventId:
         UpdateExpression: 'set lastReminderEventId = :id',
         ExpressionAttributeValues: {
           ':id': lastReminderEventId,
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
+};
+
+export const setSnoozed = async (email: string, snoozed: boolean): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email,
+        },
+        UpdateExpression: 'set snoozed = :s',
+        ExpressionAttributeValues: {
+          ':s': snoozed,
         },
         ReturnValues: 'ALL_NEW',
       },

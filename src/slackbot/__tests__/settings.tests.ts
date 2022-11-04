@@ -1,5 +1,5 @@
 import { handleSettings } from '../settings';
-import { setZoomLinksDisabled, setMeetingReminderTimingOverride } from '../../services/dynamo';
+import { setZoomLinksDisabled, setMeetingReminderTimingOverride, setSnoozed } from '../../services/dynamo';
 
 jest.mock('../../services/dynamo');
 
@@ -8,6 +8,9 @@ setZoomLinksMock.mockResolvedValue({});
 
 const meetingReminderMock = <jest.Mock>setMeetingReminderTimingOverride;
 meetingReminderMock.mockResolvedValue({});
+
+const setSnoozedMock = <jest.Mock>setSnoozed;
+setSnoozedMock.mockResolvedValue({});
 
 const userSettings = {
   email: 'blah@blah.com',
@@ -44,7 +47,8 @@ describe('handleSettings', () => {
 
       expect(message).toBe(`Here are your current settings:
 • \`zoom-links\`: \`true\`
-• \`reminder-timing\`: \`1\``);
+• \`reminder-timing\`: \`1\`
+• \`snoozed\`: \`false\``);
     });
   });
   describe('With show argument for user with zoom-links set', () => {
@@ -54,7 +58,8 @@ describe('handleSettings', () => {
       expect(message).toBe(
         `Here are your current settings:
 • \`zoom-links\`: \`false\`
-• \`reminder-timing\`: \`1\``,
+• \`reminder-timing\`: \`1\`
+• \`snoozed\`: \`false\``,
       );
     });
   });
@@ -65,21 +70,23 @@ describe('handleSettings', () => {
       expect(message).toBe(
         `Here are your current settings:
 • \`zoom-links\`: \`true\`
-• \`reminder-timing\`: \`15\``,
+• \`reminder-timing\`: \`15\`
+• \`snoozed\`: \`false\``,
       );
     });
   });
   describe('With show argument for user with all settings set', () => {
     test('Returns message displaying current value for all settings', async () => {
       const message = await handleSettings(
-        { ...userSettings, zoomLinksDisabled: true, meetingReminderTimingOverride: 15 },
+        { ...userSettings, zoomLinksDisabled: true, meetingReminderTimingOverride: 15, snoozed: true },
         ['show'],
       );
 
       expect(message).toBe(
         `Here are your current settings:
 • \`zoom-links\`: \`false\`
-• \`reminder-timing\`: \`15\``,
+• \`reminder-timing\`: \`15\`
+• \`snoozed\`: \`true\``,
       );
     });
   });
@@ -93,13 +100,34 @@ describe('handleSettings', () => {
       expect(message).toBe(
         `Your settings have been updated:
 • \`zoom-links\`: \`false\`
-• \`reminder-timing\`: \`1\``,
+• \`reminder-timing\`: \`1\`
+• \`snoozed\`: \`false\``,
       );
     });
     test('Updates the zoom-links setting in DynamoDB', async () => {
       await handleSettings(userSettings, ['zoom-links=true']);
 
       expect(setZoomLinksMock).toBeCalledWith(userSettings.email, false);
+    });
+  });
+  describe('With snoozed argument', () => {
+    beforeEach(() => {
+      setSnoozedMock.mockResolvedValueOnce({ ...userSettings, snoozed: true });
+    });
+    test('Returns settings updated message', async () => {
+      const message = await handleSettings(userSettings, ['snoozed=true']);
+
+      expect(message).toBe(
+        `Your settings have been updated:
+• \`zoom-links\`: \`true\`
+• \`reminder-timing\`: \`1\`
+• \`snoozed\`: \`true\``,
+      );
+    });
+    test('Updates the snoozed setting in DynamoDB', async () => {
+      await handleSettings(userSettings, ['snoozed=true']);
+
+      expect(setSnoozedMock).toBeCalledWith(userSettings.email, true);
     });
   });
   describe('With reminder-timing argument', () => {
@@ -112,7 +140,8 @@ describe('handleSettings', () => {
       expect(message).toBe(
         `Your settings have been updated:
 • \`zoom-links\`: \`true\`
-• \`reminder-timing\`: \`15\``,
+• \`reminder-timing\`: \`15\`
+• \`snoozed\`: \`false\``,
       );
     });
     test('Updates the reminder-timing setting in DynamoDB', async () => {
@@ -129,25 +158,37 @@ describe('handleSettings', () => {
         zoomLinksDisabled: true,
         meetingReminderTimingOverride: 15,
       });
+      setSnoozedMock.mockResolvedValueOnce({
+        ...userSettings,
+        zoomLinksDisabled: true,
+        meetingReminderTimingOverride: 15,
+        snoozed: true,
+      });
     });
     test('Returns settings updated message', async () => {
-      const message = await handleSettings(userSettings, ['zoom-links=false', 'reminder-timing=15']);
+      const message = await handleSettings(userSettings, ['zoom-links=false', 'reminder-timing=15', 'snoozed=true']);
 
       expect(message).toBe(
         `Your settings have been updated:
 • \`zoom-links\`: \`false\`
-• \`reminder-timing\`: \`15\``,
+• \`reminder-timing\`: \`15\`
+• \`snoozed\`: \`true\``,
       );
     });
     test('Updates the zoom-links setting in DynamoDB', async () => {
-      await handleSettings(userSettings, ['zoom-links=true', 'reminder-timing=15']);
+      await handleSettings(userSettings, ['zoom-links=false', 'reminder-timing=15', 'snoozed=true']);
 
-      expect(setZoomLinksMock).toBeCalledWith(userSettings.email, false);
+      expect(setZoomLinksMock).toBeCalledWith(userSettings.email, true);
     });
     test('Updates the reminder-timing setting in DynamoDB', async () => {
-      await handleSettings(userSettings, ['zoom-links=true', 'reminder-timing=15']);
+      await handleSettings(userSettings, ['zoom-links=false', 'reminder-timing=15', 'snoozed=true']);
 
       expect(meetingReminderMock).toBeCalledWith(userSettings.email, 15);
+    });
+    test('Updates the snoozed setting in DynamoDB', async () => {
+      await handleSettings(userSettings, ['zoom-links=false', 'reminder-timing=15', 'snoozed=true']);
+
+      expect(setSnoozedMock).toBeCalledWith(userSettings.email, true);
     });
   });
 });

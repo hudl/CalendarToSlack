@@ -63,6 +63,15 @@ const slackUser: SlackUser = {
 getUserByEmailMock.mockResolvedValue(slackUser);
 
 describe('updateOne', () => {
+  test('skips updates for snoozed users', () => {
+    updateOne({ ...baseUserSettings, snoozed: true });
+
+    expect(setUserStatusMock).not.toBeCalled();
+    expect(setUserPresenceMock).not.toBeCalled();
+    expect(upsertCurrentEventMock).not.toBeCalled();
+    expect(postMessageMock).not.toBeCalled();
+  });
+
   describe('updating Slack status', () => {
     describe('with no events found for the next minute', () => {
       beforeEach(() => {
