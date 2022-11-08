@@ -1,20 +1,23 @@
-import { UserSettings, setZoomLinksDisabled, setMeetingReminderTimingOverride } from '../services/dynamo';
+import { UserSettings, setZoomLinksDisabled, setMeetingReminderTimingOverride, setSnoozed } from '../services/dynamo';
 
 type SettingsCommandArguments = {
   zoomLinksEnabled?: boolean;
   meetingReminderTimingOverride?: number;
+  snoozed?: boolean;
 };
 
 enum SettingsCommandArgumentKeys {
   Show = 'show',
   ZoomLinks = 'zoom-links',
   ReminderTiming = 'reminder-timing',
+  Snoozed = 'snoozed',
 }
 
 const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArguments => {
   const args: { [key: string]: string } = {
     [SettingsCommandArgumentKeys.ZoomLinks]: '',
     [SettingsCommandArgumentKeys.ReminderTiming]: '',
+    [SettingsCommandArgumentKeys.Snoozed]: '',
   };
 
   for (let arg of argList) {
@@ -26,20 +29,23 @@ const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArgumen
 
   const zoomLinksArg = args[SettingsCommandArgumentKeys.ZoomLinks];
   const reminderTimingArg = args[SettingsCommandArgumentKeys.ReminderTiming];
+  const snoozedArg = args[SettingsCommandArgumentKeys.Snoozed];
 
   return {
     zoomLinksEnabled: zoomLinksArg.length ? zoomLinksArg.toLowerCase() === 'true' : undefined,
     meetingReminderTimingOverride: reminderTimingArg.length ? Number(reminderTimingArg) : undefined,
+    snoozed: snoozedArg.length ? snoozedArg.toLowerCase() === 'true' : undefined,
   };
 };
 
-const stringifySettings = ({ zoomLinksDisabled, meetingReminderTimingOverride }: UserSettings) => {
+const stringifySettings = ({ zoomLinksDisabled, meetingReminderTimingOverride, snoozed }: UserSettings) => {
   const zoomLinksString = `• \`${SettingsCommandArgumentKeys.ZoomLinks}\`: \`${!zoomLinksDisabled}\``;
   const reminderTimingString = `• \`${SettingsCommandArgumentKeys.ReminderTiming}\`: \`${
     meetingReminderTimingOverride || 1
-  }\``;
+    }\``;
+  const snoozedString = `• \`${SettingsCommandArgumentKeys.Snoozed}\`: \`${!!snoozed}\``;
 
-  return `${zoomLinksString}\n${reminderTimingString}`;
+  return `${zoomLinksString}\n${reminderTimingString}\n${snoozedString}`;
 };
 
 export const handleSettings = async (userSettings: UserSettings, argList: string[]): Promise<string> => {
@@ -59,6 +65,9 @@ export const handleSettings = async (userSettings: UserSettings, argList: string
   }
   if (args.meetingReminderTimingOverride !== undefined) {
     newSettings = await setMeetingReminderTimingOverride(userSettings.email, args.meetingReminderTimingOverride);
+  }
+  if (args.snoozed !== undefined) {
+    newSettings = await setSnoozed(userSettings.email, args.snoozed);
   }
 
   return newSettings

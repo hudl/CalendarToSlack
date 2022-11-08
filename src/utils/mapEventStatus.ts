@@ -7,8 +7,11 @@ const getOOODateString = (endDateTime: Date | null, timeZone: string) => {
 
   const today = new Date();
 
+  const endDateString = endDateTime.toLocaleDateString('en-us', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone });
+  const todayDateString = today.toLocaleDateString('en-us', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone });
+
   // TODO: We have no good way of knowing an intl locale at the moment—is this something we need to supply via Office365 or store in user settings?
-  return endDateTime.getDate() === today.getDate()
+  return endDateString === todayDateString
     ? endDateTime.toLocaleTimeString('en-us', { hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone })
     : endDateTime.toLocaleDateString('en-us', { weekday: 'long', day: 'numeric', month: 'long', timeZone });
 };
