@@ -1,4 +1,4 @@
-import { WebClient, ChatPostMessageArguments } from '@slack/web-api';
+import { WebClient, ChatPostMessageArguments, WebAPIPlatformError } from '@slack/web-api';
 import { clearUserTokens } from './dynamo';
 import { getSlackSecretWithKey } from '../utils/secrets';
 import { slackInstallUrl } from '../utils/urls';
@@ -83,7 +83,7 @@ export const getUserByEmail = async (token: string, email: string): Promise<Slac
   try {
     return (await slackClient.users.lookupByEmail({ token, email })).user as SlackUser;
   } catch (e) {
-    if (e.data.error === 'users_not_found') {
+    if (isPlatformError(e) && e.data.error === 'users_not_found') {
       console.warn(`Could not find Slack user for email: ${email}`);
       return;
     }
@@ -92,6 +92,8 @@ export const getUserByEmail = async (token: string, email: string): Promise<Slac
     throw e;
   }
 };
+
+const isPlatformError = (error: any): error is WebAPIPlatformError => !!error.data;
 
 export const postMessage = async (token: string, params: ChatPostMessageArguments): Promise<boolean> => {
   if (!token) return false;
