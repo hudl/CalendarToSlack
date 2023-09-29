@@ -1,7 +1,7 @@
 module.exports = {
   roots: ['<rootDir>/src'],
   transform: {
-    '^.+\\.tsx?$': 'ts-jest',
+    '^.+\\.tsx?$': '@swc/jest',
   },
   clearMocks: true,
 };

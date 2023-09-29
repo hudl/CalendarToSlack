@@ -115,6 +115,9 @@ typings/
 .serverless/
 .build/
 
+# TS output
+dist/
+
 # FuseBox cache
 .fusebox/
 
