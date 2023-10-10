@@ -114,6 +114,7 @@ typings/
 # Serverless directories
 .serverless/
 .build/
+dist/
 
 # FuseBox cache
 .fusebox/

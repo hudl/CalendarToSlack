@@ -75,7 +75,7 @@ export const update: Handler = async () => {
   };
 
   const userSettings = await getAllUserSettings();
-  
+
   for (var i = 0; i < userSettings.length; i += batchSize) {
     const batch = userSettings.slice(i, i + batchSize).map((us) => us.email);
 
@@ -84,6 +84,7 @@ export const update: Handler = async () => {
 };
 
 export const updateBatch: Handler = async (event: any) => {
+  console.log(event);
   const userSettings = await getSettingsForUsers(event.emails);
 
   await Promise.all(userSettings.map(updateOne));

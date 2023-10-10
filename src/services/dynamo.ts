@@ -1,6 +1,7 @@
 import { SlackStatus } from './slack';
 import { Token } from 'simple-oauth2';
-import AWS from 'aws-sdk';
+import { DynamoDBClient, BatchGetItemCommand, ScanCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import config from '../../config';
 import { CalendarEvent } from './calendar';
 
@@ -27,391 +28,309 @@ const toDynamoStatus = (status: SlackStatus) => ({
   emoji: status.emoji || null,
 });
 
-const toDynamoStatusMappings = (statusMappings?: StatusMapping[]) => {
-  return (
-    statusMappings &&
-    statusMappings.map((sm) => ({
-      ...sm,
-      slackStatus: toDynamoStatus(sm.slackStatus),
-    }))
-  );
+const getKeyForEmail = (email: string) => {
+  return {
+    email: { S: email },
+  };
 };
 
-export const clearUserTokens = async (email: string): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+export const clearUserTokens = async (email: string) => {
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: getKeyForEmail(email),
+    UpdateExpression: 'remove calendarStoredToken, slackToken',
+    ReturnValues: 'ALL_NEW',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: { email: email },
-        UpdateExpression: 'remove calendarStoredToken, slackToken',
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data as UserSettings);
-      },
-    ),
-  );
+  try {
+    await dynamoDb.send(command);
+  } catch (err) {
+    console.error(err, 'Error clearing user tokens for email: ', email);
+    throw err;
+  }
 };
 
-export const storeCalendarAuthenticationToken = async (
-  email: string,
-  calendarStoredToken: Token,
-): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+export const storeCalendarAuthenticationToken = async (email: string, calendarStoredToken: Token) => {
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: getKeyForEmail(email),
+    UpdateExpression: 'set calendarStoredToken = :t',
+    ExpressionAttributeValues: {
+      ':t': { M: marshall(calendarStoredToken) },
+    },
+    ReturnValues: 'ALL_NEW',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: { email: email },
-        UpdateExpression: 'set calendarStoredToken = :t',
-        ExpressionAttributeValues: {
-          ':t': calendarStoredToken,
-        },
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data.Attributes as UserSettings);
-      },
-    ),
-  );
+  try {
+    await dynamoDb.send(command);
+  } catch (err) {
+    console.error(err, 'Error storing calendar token for email: ', email);
+    throw err;
+  }
 };
 
-export const upsertSlackToken = async (email: string, slackToken: string): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+export const upsertSlackToken = async (email: string, slackToken: string) => {
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: getKeyForEmail(email),
+    UpdateExpression: 'set slackToken = :t',
+    ExpressionAttributeValues: {
+      ':t': { S: slackToken },
+    },
+    ReturnValues: 'ALL_NEW',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: {
-          email: email,
-        },
-        UpdateExpression: 'set slackToken = :t',
-        ExpressionAttributeValues: {
-          ':t': slackToken,
-        },
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data.Attributes as UserSettings);
-      },
-    ),
-  );
+  try {
+    await dynamoDb.send(command);
+  } catch (err) {
+    console.error(err, 'Error storing slack token for email: ', email);
+    throw err;
+  }
 };
 
-export const upsertDefaultStatus = async (email: string, defaultStatus: SlackStatus): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
-
+export const upsertDefaultStatus = async (email: string, defaultStatus: SlackStatus) => {
   if (!defaultStatus) {
     return await removeDefaultStatus(email);
   }
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: {
-          email: email,
-        },
-        UpdateExpression: 'set defaultStatus = :s',
-        ExpressionAttributeValues: {
-          ':s': toDynamoStatus(defaultStatus),
-        },
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: getKeyForEmail(email),
+    UpdateExpression: 'set defaultStatus = :s',
+    ExpressionAttributeValues: {
+      ':s': { M: marshall(toDynamoStatus(defaultStatus)) },
+    },
+    ReturnValues: 'ALL_NEW',
+  });
 
-        resolve(data.Attributes as UserSettings);
-      },
-    ),
-  );
+  try {
+    await dynamoDb.send(command);
+  } catch (err) {
+    console.error(err, 'Error storing default status for email: ', email);
+    throw err;
+  }
 };
 
-export const removeDefaultStatus = async (email: string): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+export const removeDefaultStatus = async (email: string) => {
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: getKeyForEmail(email),
+    UpdateExpression: 'remove defaultStatus',
+    ReturnValues: 'ALL_NEW',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: {
-          email: email,
-        },
-        UpdateExpression: 'remove defaultStatus',
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data.Attributes as UserSettings);
-      },
-    ),
-  );
+  try {
+    await dynamoDb.send(command);
+  } catch (err) {
+    console.error(err, 'Error removing default status for email: ', email);
+    throw err;
+  }
 };
 
 export const upsertStatusMappings = async (email: string, statusMappings: StatusMapping[]): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: getKeyForEmail(email),
+    UpdateExpression: 'set statusMappings = :s',
+    ExpressionAttributeValues: {
+      ':s': { L: statusMappings.map((sm) => ({ M: marshall(sm) })) },
+    },
+    ReturnValues: 'ALL_NEW',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: {
-          email: email,
-        },
-        UpdateExpression: 'set statusMappings = :s',
-        ExpressionAttributeValues: {
-          ':s': toDynamoStatusMappings(statusMappings),
-        },
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data.Attributes as UserSettings);
-      },
-    ),
-  );
+  try {
+    const response = await dynamoDb.send(command);
+    if (!response?.Attributes) {
+      return {} as UserSettings;
+    }
+    return unmarshall(response.Attributes) as UserSettings;
+  } catch (err) {
+    console.error(err, 'Error storing status mappings for email: ', email);
+    throw err;
+  }
 };
 
-export const upsertCurrentEvent = async (email: string, event: CalendarEvent): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+export const upsertCurrentEvent = async (email: string, event: CalendarEvent) => {
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: getKeyForEmail(email),
+    UpdateExpression: 'set currentEvent = :e',
+    ExpressionAttributeValues: {
+      ':e': { M: marshall({ ...event, location: event.location || null }) },
+    },
+    ReturnValues: 'ALL_NEW',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: {
-          email: email,
-        },
-        UpdateExpression: 'set currentEvent = :e',
-        ExpressionAttributeValues: {
-          ':e': {
-            ...event,
-            location: event.location || null,
-          },
-        },
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data.Attributes as UserSettings);
-      },
-    ),
-  );
+  try {
+    await dynamoDb.send(command);
+  } catch (err) {
+    console.error(err, 'Error storing current event for email: ', email);
+    throw err;
+  }
 };
 
-export const removeCurrentEvent = async (email: string): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+export const removeCurrentEvent = async (email: string) => {
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: getKeyForEmail(email),
+    UpdateExpression: 'remove currentEvent',
+    ReturnValues: 'ALL_NEW',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: {
-          email: email,
-        },
-        UpdateExpression: 'remove currentEvent',
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data.Attributes as UserSettings);
-      },
-    ),
-  );
+  try {
+    await dynamoDb.send(command);
+  } catch (err) {
+    console.error(err, 'Error removing current event for email: ', email);
+    throw err;
+  }
 };
 
 export const getAllUserSettings = async (): Promise<UserSettings[]> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+  const dynamoDb = new DynamoDBClient();
+  const command = new ScanCommand({
+    TableName: config.dynamoDb.tableName,
+    ProjectionExpression: 'email',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.scan(
-      {
-        TableName: config.dynamoDb.tableName,
-        ProjectionExpression: 'email',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data.Items as UserSettings[]);
-      },
-    ),
-  );
+  try {
+    const response = await dynamoDb.send(command);
+    if (!response.Items) return [];
+    return response.Items.map((item) => unmarshall(item) as UserSettings);
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
 };
 
 export const getSettingsForUsers = async (emails: string[]): Promise<UserSettings[]> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
-
-  return new Promise((resolve, reject) =>
-    dynamoDb.batchGet(
-      {
-        RequestItems: {
-          [config.dynamoDb.tableName]: { Keys: emails.map((email) => ({ email })) },
-        },
+  const dynamoDb = new DynamoDBClient();
+  const command = new BatchGetItemCommand({
+    RequestItems: {
+      [config.dynamoDb.tableName]: {
+        Keys: emails.map(getKeyForEmail),
       },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
+    },
+  });
 
-        resolve(data.Responses ? (data.Responses[config.dynamoDb.tableName] as UserSettings[]) : []);
-      },
-    ),
-  );
+  try {
+    const response = await dynamoDb.send(command);
+    if (!response.Responses?.[config.dynamoDb.tableName]) return [];
+    return response.Responses[config.dynamoDb.tableName].map((item) => unmarshall(item) as UserSettings);
+  } catch (err) {
+    console.error(err, 'Error getting user settings for emails: ', emails.join(', '));
+    throw err;
+  }
 };
 
 export const setZoomLinksDisabled = async (email: string, zoomLinksDisabled: boolean): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: getKeyForEmail(email),
+    UpdateExpression: 'set zoomLinksDisabled = :z',
+    ExpressionAttributeValues: {
+      ':z': { BOOL: zoomLinksDisabled },
+    },
+    ReturnValues: 'ALL_NEW',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: {
-          email,
-        },
-        UpdateExpression: 'set zoomLinksDisabled = :z',
-        ExpressionAttributeValues: {
-          ':z': zoomLinksDisabled,
-        },
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data.Attributes as UserSettings);
-      },
-    ),
-  );
+  try {
+    const response = await dynamoDb.send(command);
+    if (!response?.Attributes) {
+      return {} as UserSettings;
+    }
+    return unmarshall(response.Attributes) as UserSettings;
+  } catch (err) {
+    console.error(err, 'Error setting zoom links disabled for email: ', email);
+    throw err;
+  }
 };
 
 export const setMeetingReminderTimingOverride = async (
   email: string,
   meetingReminderTimingOverride: number,
 ): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: getKeyForEmail(email),
+    UpdateExpression: 'set meetingReminderTimingOverride = :o',
+    ExpressionAttributeValues: {
+      ':o': { N: meetingReminderTimingOverride.toString() },
+    },
+    ReturnValues: 'ALL_NEW',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: {
-          email,
-        },
-        UpdateExpression: 'set meetingReminderTimingOverride = :o',
-        ExpressionAttributeValues: {
-          ':o': meetingReminderTimingOverride,
-        },
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data.Attributes as UserSettings);
-      },
-    ),
-  );
+  try {
+    const response = await dynamoDb.send(command);
+    if (!response?.Attributes) {
+      return {} as UserSettings;
+    }
+    return unmarshall(response.Attributes) as UserSettings;
+  } catch (err) {
+    console.error(
+      err,
+      'Error setting meeting reminder timing override for email: ',
+      email,
+      ' to ',
+      meetingReminderTimingOverride,
+    );
+    throw err;
+  }
 };
 
-export const setLastReminderEventId = async (email: string, lastReminderEventId: string): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+export const setLastReminderEventId = async (email: string, lastReminderEventId: string) => {
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: {
+      email: { S: email },
+    },
+    UpdateExpression: 'set lastReminderEventId = :id',
+    ExpressionAttributeValues: {
+      ':id': { S: lastReminderEventId },
+    },
+    ReturnValues: 'ALL_NEW',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: {
-          email,
-        },
-        UpdateExpression: 'set lastReminderEventId = :id',
-        ExpressionAttributeValues: {
-          ':id': lastReminderEventId,
-        },
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data.Attributes as UserSettings);
-      },
-    ),
-  );
+  try {
+    await dynamoDb.send(command);
+  } catch (err) {
+    console.error(err, 'Error setting last reminder event id for email: ', email, ' to ', lastReminderEventId);
+    throw err;
+  }
 };
 
 export const setSnoozed = async (email: string, snoozed: boolean): Promise<UserSettings> => {
-  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+  const dynamoDb = new DynamoDBClient();
+  const command = new UpdateItemCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: {
+      email: { S: email },
+    },
+    UpdateExpression: 'set snoozed = :s',
+    ExpressionAttributeValues: {
+      ':s': { BOOL: snoozed },
+    },
+    ReturnValues: 'ALL_NEW',
+  });
 
-  return new Promise((resolve, reject) =>
-    dynamoDb.update(
-      {
-        TableName: config.dynamoDb.tableName,
-        Key: {
-          email,
-        },
-        UpdateExpression: 'set snoozed = :s',
-        ExpressionAttributeValues: {
-          ':s': snoozed,
-        },
-        ReturnValues: 'ALL_NEW',
-      },
-      (err, data) => {
-        if (err) {
-          reject(err.message);
-          return;
-        }
-
-        resolve(data.Attributes as UserSettings);
-      },
-    ),
-  );
+  try {
+    const response = await dynamoDb.send(command);
+    if (!response?.Attributes) {
+      return {} as UserSettings;
+    }
+    return unmarshall(response.Attributes) as UserSettings;
+  } catch (err) {
+    console.error(err, 'Error setting snoozed for email: ', email, ' to ', snoozed);
+    throw err;
+  }
 };
