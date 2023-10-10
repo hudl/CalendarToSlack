@@ -135,6 +135,10 @@ export const updateOne = async (us: UserSettings) => {
 export const authorizeMicrosoftGraph: Handler = async (event: any) => {
   if (!event.queryStringParameters || !event.queryStringParameters.code || !event.queryStringParameters.state) {
     console.error('Invalid request to Microsoft Graph authorization endpoint', event);
+    return {
+      statusCode: 400,
+      body: 'Invalid request to Microsoft Graph authorization endpoint.',
+    };
   }
 
   const {
@@ -164,7 +168,11 @@ export const slackInstall: Handler = async () => ({
 
 export const createUser: Handler = async (event: any) => {
   if (!event.queryStringParameters || !event.queryStringParameters.code) {
-    console.error('Invalid request to Create user endpoint', event);
+    console.error('Invalid request to Create User endpoint', event);
+    return {
+      statusCode: 400,
+      body: 'Invalid request to Create User endpoint.',
+    };
   }
 
   const code = event.queryStringParameters.code;
