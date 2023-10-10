@@ -1,8 +1,9 @@
 import { SlackStatus } from './slack';
-import { Token } from 'simple-oauth2';
+import { AccessToken } from 'simple-oauth2';
 import AWS from 'aws-sdk';
 import config from '../../config';
 import { CalendarEvent } from './calendar';
+import { String } from 'aws-sdk/clients/codebuild';
 
 type StatusMapping = {
   calendarText: string;
@@ -12,7 +13,7 @@ type StatusMapping = {
 export type UserSettings = {
   email: string;
   slackToken?: string;
-  calendarStoredToken?: any | null;
+  calendarStoredToken?: string | null;
   defaultStatus?: SlackStatus;
   statusMappings?: StatusMapping[];
   currentEvent?: CalendarEvent;
@@ -62,9 +63,11 @@ export const clearUserTokens = async (email: string): Promise<UserSettings> => {
 
 export const storeCalendarAuthenticationToken = async (
   email: string,
-  calendarStoredToken: Token,
+  calendarStoredToken: AccessToken,
 ): Promise<UserSettings> => {
   const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  const serializedToken = JSON.stringify(calendarStoredToken);
 
   return new Promise((resolve, reject) =>
     dynamoDb.update(
@@ -73,7 +76,7 @@ export const storeCalendarAuthenticationToken = async (
         Key: { email: email },
         UpdateExpression: 'set calendarStoredToken = :t',
         ExpressionAttributeValues: {
-          ':t': calendarStoredToken,
+          ':t': serializedToken,
         },
         ReturnValues: 'ALL_NEW',
       },

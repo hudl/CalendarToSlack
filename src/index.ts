@@ -1,5 +1,5 @@
 import AWS from 'aws-sdk';
-import oauth from 'simple-oauth2';
+import { AuthorizationCode } from 'simple-oauth2';
 import { WebClient } from '@slack/web-api';
 import { getEventsForUser, CalendarEvent, ShowAs } from './services/calendar';
 import {
@@ -75,7 +75,7 @@ export const update: Handler = async () => {
   };
 
   const userSettings = await getAllUserSettings();
-  
+
   for (var i = 0; i < userSettings.length; i += batchSize) {
     const batch = userSettings.slice(i, i + batchSize).map((us) => us.email);
 
@@ -92,14 +92,18 @@ export const updateBatch: Handler = async (event: any) => {
 export const updateOne = async (us: UserSettings) => {
   if (us.snoozed) return;
 
-  const userEvents = await getEventsForUser(us.email, us.calendarStoredToken);
+  const userEvents = await getEventsForUser(us.email, us.calendarStoredToken ?? '');
   if (!userEvents) return;
 
   const relevantEvent = getHighestPriorityEvent(userEvents);
 
   let reminderEvent = relevantEvent;
   if (us.meetingReminderTimingOverride && us.meetingReminderTimingOverride > 1) {
-    const upcomingEvents = await getEventsForUser(us.email, us.calendarStoredToken, us.meetingReminderTimingOverride);
+    const upcomingEvents = await getEventsForUser(
+      us.email,
+      us.calendarStoredToken ?? '',
+      us.meetingReminderTimingOverride,
+    );
     reminderEvent = getHighestPriorityEvent(upcomingEvents || []);
   }
 
@@ -133,6 +137,19 @@ export const updateOne = async (us: UserSettings) => {
 };
 
 export const authorizeMicrosoftGraph: Handler = async (event: any) => {
+  if (
+    !event ||
+    !event.queryStringParameters ||
+    !event.queryStringParameters.code ||
+    !event.queryStringParameters.state
+  ) {
+    return {
+      statusCode: 400,
+      headers: {
+        Location: 'https://github.com/hudl/CalendarToSlack/wiki',
+      },
+    };
+  }
   const {
     queryStringParameters: { code, state },
   } = event;
@@ -159,11 +176,11 @@ export const slackInstall: Handler = async () => ({
 });
 
 export const createUser: Handler = async (event: any) => {
-  const code = event.queryStringParameters.code;
+  const code = event.queryStringParameters?.code;
   const clientId = config.slack.clientId;
   const clientSecret = await getSlackSecretWithKey('client-secret');
 
-  const oauthClient = oauth.create({
+  const oauthClient = new AuthorizationCode({
     client: {
       id: clientId,
       secret: clientSecret,
@@ -174,12 +191,11 @@ export const createUser: Handler = async (event: any) => {
     },
   });
 
-  const tokenResult = await oauthClient.authorizationCode.getToken({
+  const tokenResult = await oauthClient.getToken({
     code,
     redirect_uri: createUserUrl(),
   });
-  const accessToken = oauthClient.accessToken.create(tokenResult);
-  const tokenStr: string = accessToken.token.access_token;
+  const tokenStr: string = JSON.stringify(tokenResult.token);
 
   const slackClient = new WebClient(tokenStr);
   const authorizedUser = (await slackClient.users.profile.get()).profile as GetProfileResult;

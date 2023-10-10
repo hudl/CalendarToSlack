@@ -1,7 +1,6 @@
 import 'isomorphic-fetch';
 import { Client, ClientOptions, GraphError } from '@microsoft/microsoft-graph-client';
 import { GraphApiAuthenticationProvider } from './graphApiAuthenticationProvider';
-import { Token } from 'simple-oauth2';
 import { clearUserTokens } from '../dynamo';
 import { sendAuthErrorMessage } from '../slack';
 
@@ -41,7 +40,7 @@ const toShowAsStatus = (status: string): ShowAs => {
   }
 };
 
-const getAuthenticatedClient = (email: string, token: Token): Client => {
+const getAuthenticatedClient = (email: string, token: string): Client => {
   const options: ClientOptions = {
     authProvider: new GraphApiAuthenticationProvider(email, token),
   };
@@ -55,7 +54,7 @@ const withUTCSuffix = (date: string) => (!date || date.endsWith('Z') ? date : `$
 
 export const getEventsForUser = async (
   email: string,
-  storedToken: Token,
+  storedToken: string,
   lookaheadTimeMinutes: number = 1,
 ): Promise<CalendarEvent[] | null> => {
   if (!storedToken) return null;

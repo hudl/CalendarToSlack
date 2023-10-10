@@ -1,13 +1,13 @@
 import 'isomorphic-fetch';
 import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
-import oauth2, { OAuthClient, Token } from 'simple-oauth2';
+import { AccessToken, AuthorizationCode } from 'simple-oauth2';
 import { storeCalendarAuthenticationToken } from '../dynamo';
 import config from '../../../config';
 import { getMicrosoftGraphSecretWithKey } from '../../utils/secrets';
 import { authorizeMicrosoftGraphUrl } from '../../utils/urls';
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
-  private storedToken?: Token;
+  private storedToken?: string;
   private userEmail: string;
 
   private readonly oauthAuthority: string = 'https://login.microsoftonline.com/';
@@ -15,14 +15,16 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   private readonly tokenPath: string = '/oauth2/v2.0/token';
   private readonly scope: string = 'offline_access https://graph.microsoft.com/.default';
 
-  constructor(userEmail: string, storedToken?: Token) {
+  private readonly tokenExpirationWindowInSeconds = 300;
+
+  constructor(userEmail: string, storedToken?: string) {
     this.userEmail = userEmail;
     this.storedToken = storedToken;
   }
 
-  private async createOAuthClient(): Promise<OAuthClient<string>> {
+  private async createOAuthClient(): Promise<AuthorizationCode<string>> {
     const clientSecret = await getMicrosoftGraphSecretWithKey('client-secret');
-    return oauth2.create({
+    return new AuthorizationCode({
       client: {
         id: config.microsoftGraph.clientId || '',
         secret: clientSecret,
@@ -35,17 +37,11 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     });
   }
 
-  private shouldRefreshToken({ expires_at_timestamp: expiresAtTimestamp }: Token) {
-    if (!expiresAtTimestamp) {
-      return true;
-    }
-    const now = new Date();
-    const expiration = new Date(expiresAtTimestamp);
-    expiration.setMinutes(expiration.getMinutes() - 1);
-    return now >= expiration;
+  private shouldRefreshToken(token: AccessToken): boolean {
+    return token.expired(this.tokenExpirationWindowInSeconds);
   }
 
-  public async getTokenWithAuthCode(authCode: string): Promise<Token> {
+  public async getTokenWithAuthCode(authCode: string): Promise<AccessToken> {
     const tokenConfig = {
       scope: this.scope,
       code: authCode || '',
@@ -53,44 +49,38 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     };
 
     const authentication = await this.createOAuthClient();
-    const result = await authentication.authorizationCode.getToken(tokenConfig);
-    const { token } = authentication.accessToken.create(result);
-    token.expires_at_timestamp = token.expires_at.toISOString();
+    const result = await authentication.getToken(tokenConfig);
+    const token = authentication.createToken(result.token);
 
     await storeCalendarAuthenticationToken(this.userEmail, token);
     return token;
   }
 
-  public async getAccessToken(): Promise<any> {
+  public async getAccessToken(): Promise<string> {
     if (!this.storedToken) {
       throw new Error(`Could not authenticate user ${this.userEmail} with Microsoft Graph`);
     }
 
-    if (!this.shouldRefreshToken(this.storedToken)) {
-      return this.storedToken.access_token;
+    const client = await this.createOAuthClient();
+    const tokenFromDb = client.createToken(JSON.parse(this.storedToken));
+
+    if (!this.shouldRefreshToken(tokenFromDb)) {
+      return this.storedToken;
     }
 
     console.log(
-      `Microsoft Graph access token expired for ${this.userEmail} at ${
-        this.storedToken.expires_at_timestamp
-      }. Refreshing...`,
+      `Microsoft Graph access token expired for ${this.userEmail} at ${tokenFromDb?.token['expires_at']}. Refreshing...`,
     );
 
     try {
-      const authentication = await this.createOAuthClient();
-      const accessToken = authentication.accessToken.create(this.storedToken);
-
-      const newToken = (await accessToken.refresh()).token;
-      newToken.expires_at_timestamp = newToken.expires_at.toISOString();
+      const newToken = await tokenFromDb.refresh();
 
       console.log(
-        `Refreshed Microsoft graph access token for ${this.userEmail} with expiration: ${
-          newToken.expires_at_timestamp
-        }`,
+        `Refreshed Microsoft graph access token for ${this.userEmail} with expiration: ${newToken?.token['expires_at']}`,
       );
 
       await storeCalendarAuthenticationToken(this.userEmail, newToken);
-      return newToken.access_token;
+      return JSON.stringify(newToken.token);
     } catch (error) {
       console.error(error);
       throw error;
