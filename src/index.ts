@@ -70,7 +70,7 @@ export const update: Handler = async () => {
     const command = new InvokeCommand({
       FunctionName: 'calendar2slack-prod-update-batch',
       InvocationType: 'Event',
-      LogType: 'Tail',
+      LogType: process.env.IS_OFFLINE ? 'Tail' : 'None',
       Payload: JSON.stringify({ emails: batch }),
     });
     await lambda.send(command);
