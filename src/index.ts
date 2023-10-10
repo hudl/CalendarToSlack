@@ -21,10 +21,6 @@ import { getSlackSecretWithKey } from './utils/secrets';
 import { authorizeMicrosoftGraphUrl, createUserUrl } from './utils/urls';
 import { getUpcomingEventMessage } from './utils/eventHelper';
 
-type GetProfileResult = {
-  email: string;
-};
-
 const getHighestPriorityEvent = (events: CalendarEvent[]) =>
   events.length
     ? events.sort(
