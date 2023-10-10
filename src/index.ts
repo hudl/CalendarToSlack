@@ -84,8 +84,7 @@ export const update: Handler = async () => {
 };
 
 export const updateBatch: Handler = async (event: any) => {
-  console.log(event);
-  const userSettings = await getSettingsForUsers(event.emails);
+  const userSettings = await getSettingsForUsers(event?.emails ?? []);
 
   await Promise.all(userSettings.map(updateOne));
 };
@@ -134,6 +133,14 @@ export const updateOne = async (us: UserSettings) => {
 };
 
 export const authorizeMicrosoftGraph: Handler = async (event: any) => {
+  if (!event.queryStringParameters || !event.queryStringParameters.code || !event.queryStringParameters.state) {
+    console.error('Invalid request to Microsoft Graph authorization endpoint', event);
+    return {
+      statusCode: 400,
+      body: 'Invalid request to Microsoft Graph authorization endpoint.',
+    };
+  }
+
   const {
     queryStringParameters: { code, state },
   } = event;
@@ -160,6 +167,14 @@ export const slackInstall: Handler = async () => ({
 });
 
 export const createUser: Handler = async (event: any) => {
+  if (!event.queryStringParameters || !event.queryStringParameters.code) {
+    console.error('Invalid request to Create User endpoint', event);
+    return {
+      statusCode: 400,
+      body: 'Invalid request to Create User endpoint.',
+    };
+  }
+
   const code = event.queryStringParameters.code;
   const clientId = config.slack.clientId;
   const clientSecret = await getSlackSecretWithKey('client-secret');
