@@ -198,9 +198,27 @@ export const createUser: Handler = async (event: any) => {
   const tokenStr: string = accessToken.token.access_token;
 
   const slackClient = new WebClient(tokenStr);
-  const authorizedUser = (await slackClient.users.profile.get()).profile as GetProfileResult;
+  const profileResult = await slackClient.users.profile.get();
 
-  await upsertSlackToken(authorizedUser.email, tokenStr);
+  if (profileResult.error) {
+    console.error('Error getting profile from Slack', profileResult.error);
+    return {
+      statusCode: 400,
+      body: 'Error getting profile from Slack.',
+    };
+  }
 
-  return microsoftAuthRedirect(authorizedUser.email);
+  if (!profileResult.profile || !profileResult.profile.email) {
+    console.error('No email returned from Slack', profileResult);
+    return {
+      statusCode: 400,
+      body: 'No email returned from Slack.',
+    };
+  }
+
+  const { email } = profileResult.profile;
+
+  await upsertSlackToken(email, tokenStr);
+
+  return microsoftAuthRedirect(email);
 };
