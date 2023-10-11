@@ -34,7 +34,7 @@ const toDynamoStatus = (status: SlackStatus) => ({
   emoji: status.emoji || null,
 });
 
-const getKeyForEmail = (email: string) => {
+const getKeyForEmail = (email: string): Record<string, string> => {
   return {
     email: email,
   };
@@ -209,7 +209,7 @@ export const setZoomLinksDisabled = async (email: string, zoomLinksDisabled: boo
     return await updateUserSettings(email, {
       UpdateExpression: 'set zoomLinksDisabled = :z',
       ExpressionAttributeValues: {
-        ':z': { BOOL: zoomLinksDisabled },
+        ':z': zoomLinksDisabled,
       },
     });
   } catch (err) {
@@ -226,7 +226,7 @@ export const setMeetingReminderTimingOverride = async (
     return await updateUserSettings(email, {
       UpdateExpression: 'set meetingReminderTimingOverride = :o',
       ExpressionAttributeValues: {
-        ':o': { N: meetingReminderTimingOverride.toString() },
+        ':o': meetingReminderTimingOverride,
       },
     });
   } catch (err) {
@@ -246,7 +246,7 @@ export const setLastReminderEventId = async (email: string, lastReminderEventId:
     await updateUserSettings(email, {
       UpdateExpression: 'set lastReminderEventId = :id',
       ExpressionAttributeValues: {
-        ':id': { S: lastReminderEventId },
+        ':id': lastReminderEventId,
       },
     });
   } catch (err) {
@@ -260,7 +260,7 @@ export const setSnoozed = async (email: string, snoozed: boolean): Promise<UserS
     return await updateUserSettings(email, {
       UpdateExpression: 'set snoozed = :s',
       ExpressionAttributeValues: {
-        ':s': { BOOL: snoozed },
+        ':s': snoozed,
       },
     });
   } catch (err) {
