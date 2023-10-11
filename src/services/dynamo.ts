@@ -1,13 +1,13 @@
 import { SlackStatus } from './slack';
 import { Token } from 'simple-oauth2';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
-  DynamoDBClient,
-  BatchGetItemCommand,
+  DynamoDBDocumentClient,
+  BatchGetCommand,
   ScanCommand,
-  UpdateItemCommand,
-  UpdateItemCommandInput,
-} from '@aws-sdk/client-dynamodb';
-import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
+  UpdateCommand,
+  UpdateCommandInput,
+} from '@aws-sdk/lib-dynamodb';
 import config from '../../config';
 import { CalendarEvent } from './calendar';
 
@@ -36,24 +36,32 @@ const toDynamoStatus = (status: SlackStatus) => ({
 
 const getKeyForEmail = (email: string) => {
   return {
-    email: { S: email },
+    email: email,
   };
 };
 
-const updateUserSettings = async (email: string, settings: Partial<UpdateItemCommandInput>): Promise<UserSettings> => {
-  const dynamoDb = new DynamoDBClient();
-  const command = new UpdateItemCommand({
+const getClient = () => {
+  return DynamoDBDocumentClient.from(
+    new DynamoDBClient({
+      region: config.region,
+    }),
+  );
+};
+
+const updateUserSettings = async (email: string, settings: Partial<UpdateCommandInput>): Promise<UserSettings> => {
+  const client = getClient();
+  const command = new UpdateCommand({
     ...settings,
     TableName: config.dynamoDb.tableName,
     Key: getKeyForEmail(email),
     ReturnValues: 'ALL_NEW',
   });
 
-  const response = await dynamoDb.send(command);
+  const response = await client.send(command);
   if (!response?.Attributes) {
     return {} as UserSettings;
   }
-  return unmarshall(response.Attributes) as UserSettings;
+  return response.Attributes as UserSettings;
 };
 
 export const clearUserTokens = async (email: string) => {
@@ -70,7 +78,7 @@ export const storeCalendarAuthenticationToken = async (email: string, calendarSt
     await updateUserSettings(email, {
       UpdateExpression: 'set calendarStoredToken = :t',
       ExpressionAttributeValues: {
-        ':t': { M: marshall(calendarStoredToken) },
+        ':t': calendarStoredToken,
       },
     });
   } catch (err) {
@@ -84,7 +92,7 @@ export const upsertSlackToken = async (email: string, slackToken: string) => {
     await updateUserSettings(email, {
       UpdateExpression: 'set slackToken = :t',
       ExpressionAttributeValues: {
-        ':t': { S: slackToken },
+        ':t': slackToken,
       },
     });
   } catch (err) {
@@ -102,7 +110,7 @@ export const upsertDefaultStatus = async (email: string, defaultStatus: SlackSta
     await updateUserSettings(email, {
       UpdateExpression: 'set defaultStatus = :s',
       ExpressionAttributeValues: {
-        ':s': { M: marshall(toDynamoStatus(defaultStatus)) },
+        ':s': toDynamoStatus(defaultStatus),
       },
     });
   } catch (err) {
@@ -125,7 +133,7 @@ export const upsertStatusMappings = async (email: string, statusMappings: Status
     return updateUserSettings(email, {
       UpdateExpression: 'set statusMappings = :s',
       ExpressionAttributeValues: {
-        ':s': { L: statusMappings.map((sm) => ({ M: marshall(sm) })) },
+        ':s': statusMappings,
       },
     });
   } catch (err) {
@@ -139,7 +147,7 @@ export const upsertCurrentEvent = async (email: string, event: CalendarEvent) =>
     await updateUserSettings(email, {
       UpdateExpression: 'set currentEvent = :e',
       ExpressionAttributeValues: {
-        ':e': { M: marshall({ ...event, location: event.location || null }) },
+        ':e': { ...event, location: event.location || null },
       },
     });
   } catch (err) {
@@ -160,7 +168,7 @@ export const removeCurrentEvent = async (email: string) => {
 };
 
 export const getAllUserSettings = async (): Promise<UserSettings[]> => {
-  const dynamoDb = new DynamoDBClient();
+  const dynamoDb = getClient();
   const command = new ScanCommand({
     TableName: config.dynamoDb.tableName,
     ProjectionExpression: 'email',
@@ -169,7 +177,7 @@ export const getAllUserSettings = async (): Promise<UserSettings[]> => {
   try {
     const response = await dynamoDb.send(command);
     if (!response.Items) return [];
-    return response.Items.map((item) => unmarshall(item) as UserSettings);
+    return response.Items.map((item) => item as UserSettings);
   } catch (err) {
     console.error(err);
     throw err;
@@ -177,8 +185,8 @@ export const getAllUserSettings = async (): Promise<UserSettings[]> => {
 };
 
 export const getSettingsForUsers = async (emails: string[]): Promise<UserSettings[]> => {
-  const dynamoDb = new DynamoDBClient();
-  const command = new BatchGetItemCommand({
+  const dynamoDb = getClient();
+  const command = new BatchGetCommand({
     RequestItems: {
       [config.dynamoDb.tableName]: {
         Keys: emails.map(getKeyForEmail),
@@ -189,7 +197,7 @@ export const getSettingsForUsers = async (emails: string[]): Promise<UserSetting
   try {
     const response = await dynamoDb.send(command);
     if (!response.Responses?.[config.dynamoDb.tableName]) return [];
-    return response.Responses[config.dynamoDb.tableName].map((item) => unmarshall(item) as UserSettings);
+    return response.Responses[config.dynamoDb.tableName].map((item) => item as UserSettings);
   } catch (err) {
     console.error(err, 'Error getting user settings for emails: ', emails.join(', '));
     throw err;
