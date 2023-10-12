@@ -45,6 +45,8 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.427.0",
     "@aws-sdk/lib-dynamodb": "^3.427.0",
+    "@aws-sdk/client-lambda": "^3.427.0",
+    "@aws-sdk/client-secrets-manager": "^3.427.0",
     "@microsoft/microsoft-graph-client": "^2.2.1",
     "@slack/web-api": "^6.2.4",
     "isomorphic-fetch": "^3.0.0",

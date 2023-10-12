@@ -1,4 +1,4 @@
-import AWS from 'aws-sdk';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import oauth from 'simple-oauth2';
 import { WebClient } from '@slack/web-api';
 import { getEventsForUser, CalendarEvent, ShowAs } from './services/calendar';
@@ -13,17 +13,12 @@ import {
 } from './services/dynamo';
 import { setUserStatus, setUserPresence, getUserByEmail, postMessage, SlackUser } from './services/slack';
 import { Handler } from 'aws-lambda';
-import { InvocationRequest } from 'aws-sdk/clients/lambda';
 import { getStatusForUserEvent } from './utils/mapEventStatus';
 import { GraphApiAuthenticationProvider } from './services/calendar/graphApiAuthenticationProvider';
 import config from '../config';
 import { getSlackSecretWithKey } from './utils/secrets';
 import { authorizeMicrosoftGraphUrl, createUserUrl } from './utils/urls';
 import { getUpcomingEventMessage } from './utils/eventHelper';
-
-type GetProfileResult = {
-  email: string;
-};
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) =>
   events.length
@@ -62,24 +57,23 @@ const sendUpcomingEventMessage = async (
 export const update: Handler = async () => {
   const batchSize = 10;
 
-  const lambda = new AWS.Lambda({
+  const lambda = new LambdaClient({
     apiVersion: 'latest',
-    region: 'us-east-1',
-    endpoint: process.env.IS_OFFLINE ? 'http://localhost:3000' : undefined,
+    region: config.region,
+    endpoint: process.env.IS_OFFLINE ? config.hosts.dev : undefined,
   });
-
-  const invokeParams: InvocationRequest = {
-    FunctionName: 'calendar2slack-prod-update-batch',
-    InvocationType: 'Event',
-    LogType: 'None',
-  };
 
   const userSettings = await getAllUserSettings();
 
   for (var i = 0; i < userSettings.length; i += batchSize) {
     const batch = userSettings.slice(i, i + batchSize).map((us) => us.email);
-
-    lambda.invoke({ Payload: JSON.stringify({ emails: batch }), ...invokeParams }).send();
+    const command = new InvokeCommand({
+      FunctionName: 'calendar2slack-prod-update-batch',
+      InvocationType: 'Event',
+      LogType: process.env.IS_OFFLINE ? 'Tail' : 'None',
+      Payload: JSON.stringify({ emails: batch }),
+    });
+    await lambda.send(command);
   }
 };
 
@@ -198,9 +192,27 @@ export const createUser: Handler = async (event: any) => {
   const tokenStr: string = accessToken.token.access_token;
 
   const slackClient = new WebClient(tokenStr);
-  const authorizedUser = (await slackClient.users.profile.get()).profile as GetProfileResult;
+  const profileResult = await slackClient.users.profile.get();
 
-  await upsertSlackToken(authorizedUser.email, tokenStr);
+  if (profileResult.error) {
+    console.error('Error getting profile from Slack', profileResult.error);
+    return {
+      statusCode: 400,
+      body: 'Error getting profile from Slack.',
+    };
+  }
 
-  return microsoftAuthRedirect(authorizedUser.email);
+  if (!profileResult.profile || !profileResult.profile.email) {
+    console.error('No email returned from Slack', profileResult);
+    return {
+      statusCode: 400,
+      body: 'No email returned from Slack.',
+    };
+  }
+
+  const { email } = profileResult.profile;
+
+  await upsertSlackToken(email, tokenStr);
+
+  return microsoftAuthRedirect(email);
 };
