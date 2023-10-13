@@ -1,13 +1,6 @@
 import { SlackStatus } from './slack';
 import { Token } from 'simple-oauth2';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import {
-  DynamoDBDocumentClient,
-  BatchGetCommand,
-  ScanCommand,
-  UpdateCommand,
-  UpdateCommandInput,
-} from '@aws-sdk/lib-dynamodb';
+import AWS from 'aws-sdk';
 import config from '../../config';
 import { CalendarEvent } from './calendar';
 
@@ -34,237 +27,391 @@ const toDynamoStatus = (status: SlackStatus) => ({
   emoji: status.emoji || null,
 });
 
-const getKeyForEmail = (email: string): Record<string, string> => {
-  return {
-    email: email,
-  };
-};
-
-const getClient = () => {
-  return DynamoDBDocumentClient.from(
-    new DynamoDBClient({
-      region: config.region,
-    }),
+const toDynamoStatusMappings = (statusMappings?: StatusMapping[]) => {
+  return (
+    statusMappings &&
+    statusMappings.map((sm) => ({
+      ...sm,
+      slackStatus: toDynamoStatus(sm.slackStatus),
+    }))
   );
 };
 
-const updateUserSettings = async (email: string, settings: Partial<UpdateCommandInput>): Promise<UserSettings> => {
-  const client = getClient();
-  const command = new UpdateCommand({
-    ...settings,
-    TableName: config.dynamoDb.tableName,
-    Key: getKeyForEmail(email),
-    ReturnValues: 'ALL_NEW',
-  });
+export const clearUserTokens = async (email: string): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-  const response = await client.send(command);
-  if (!response?.Attributes) {
-    return {} as UserSettings;
-  }
-  return response.Attributes as UserSettings;
-};
-
-export const clearUserTokens = async (email: string) => {
-  try {
-    await updateUserSettings(email, { UpdateExpression: 'remove calendarStoredToken, slackToken' });
-  } catch (err) {
-    console.error(err, 'Error clearing user tokens for email: ', email);
-    throw err;
-  }
-};
-
-export const storeCalendarAuthenticationToken = async (email: string, calendarStoredToken: Token) => {
-  try {
-    await updateUserSettings(email, {
-      UpdateExpression: 'set calendarStoredToken = :t',
-      ExpressionAttributeValues: {
-        ':t': calendarStoredToken,
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: { email: email },
+        UpdateExpression: 'remove calendarStoredToken, slackToken',
+        ReturnValues: 'ALL_NEW',
       },
-    });
-  } catch (err) {
-    console.error(err, 'Error storing calendar token for email: ', email);
-    throw err;
-  }
-};
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
 
-export const upsertSlackToken = async (email: string, slackToken: string) => {
-  try {
-    await updateUserSettings(email, {
-      UpdateExpression: 'set slackToken = :t',
-      ExpressionAttributeValues: {
-        ':t': slackToken,
+        resolve(data as UserSettings);
       },
-    });
-  } catch (err) {
-    console.error(err, 'Error storing slack token for email: ', email);
-    throw err;
-  }
+    ),
+  );
 };
 
-export const upsertDefaultStatus = async (email: string, defaultStatus: SlackStatus) => {
+export const storeCalendarAuthenticationToken = async (
+  email: string,
+  calendarStoredToken: Token,
+): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: { email: email },
+        UpdateExpression: 'set calendarStoredToken = :t',
+        ExpressionAttributeValues: {
+          ':t': calendarStoredToken,
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
+};
+
+export const upsertSlackToken = async (email: string, slackToken: string): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: email,
+        },
+        UpdateExpression: 'set slackToken = :t',
+        ExpressionAttributeValues: {
+          ':t': slackToken,
+        },
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
+};
+
+export const upsertDefaultStatus = async (email: string, defaultStatus: SlackStatus): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
   if (!defaultStatus) {
     return await removeDefaultStatus(email);
   }
 
-  try {
-    await updateUserSettings(email, {
-      UpdateExpression: 'set defaultStatus = :s',
-      ExpressionAttributeValues: {
-        ':s': toDynamoStatus(defaultStatus),
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: email,
+        },
+        UpdateExpression: 'set defaultStatus = :s',
+        ExpressionAttributeValues: {
+          ':s': toDynamoStatus(defaultStatus),
+        },
+        ReturnValues: 'ALL_NEW',
       },
-    });
-  } catch (err) {
-    console.error(err, 'Error storing default status for email: ', email);
-    throw err;
-  }
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
 };
 
-export const removeDefaultStatus = async (email: string) => {
-  try {
-    await updateUserSettings(email, { UpdateExpression: 'remove defaultStatus' });
-  } catch (err) {
-    console.error(err, 'Error removing default status for email: ', email);
-    throw err;
-  }
+export const removeDefaultStatus = async (email: string): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: email,
+        },
+        UpdateExpression: 'remove defaultStatus',
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
 };
 
 export const upsertStatusMappings = async (email: string, statusMappings: StatusMapping[]): Promise<UserSettings> => {
-  try {
-    return updateUserSettings(email, {
-      UpdateExpression: 'set statusMappings = :s',
-      ExpressionAttributeValues: {
-        ':s': statusMappings,
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: email,
+        },
+        UpdateExpression: 'set statusMappings = :s',
+        ExpressionAttributeValues: {
+          ':s': toDynamoStatusMappings(statusMappings),
+        },
+        ReturnValues: 'ALL_NEW',
       },
-    });
-  } catch (err) {
-    console.error(err, 'Error storing status mappings for email: ', email);
-    throw err;
-  }
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
 };
 
-export const upsertCurrentEvent = async (email: string, event: CalendarEvent) => {
-  try {
-    await updateUserSettings(email, {
-      UpdateExpression: 'set currentEvent = :e',
-      ExpressionAttributeValues: {
-        ':e': { ...event, location: event.location || null },
+export const upsertCurrentEvent = async (email: string, event: CalendarEvent): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: email,
+        },
+        UpdateExpression: 'set currentEvent = :e',
+        ExpressionAttributeValues: {
+          ':e': {
+            ...event,
+            location: event.location || null,
+          },
+        },
+        ReturnValues: 'ALL_NEW',
       },
-    });
-  } catch (err) {
-    console.error(err, 'Error storing current event for email: ', email);
-    throw err;
-  }
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
 };
 
-export const removeCurrentEvent = async (email: string) => {
-  try {
-    await updateUserSettings(email, {
-      UpdateExpression: 'remove currentEvent',
-    });
-  } catch (err) {
-    console.error(err, 'Error removing current event for email: ', email);
-    throw err;
-  }
+export const removeCurrentEvent = async (email: string): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email: email,
+        },
+        UpdateExpression: 'remove currentEvent',
+        ReturnValues: 'ALL_NEW',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
 };
 
 export const getAllUserSettings = async (): Promise<UserSettings[]> => {
-  const dynamoDb = getClient();
-  const command = new ScanCommand({
-    TableName: config.dynamoDb.tableName,
-    ProjectionExpression: 'email',
-  });
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-  try {
-    const response = await dynamoDb.send(command);
-    if (!response.Items) return [];
-    return response.Items.map((item) => item as UserSettings);
-  } catch (err) {
-    console.error(err);
-    throw err;
-  }
+  return new Promise((resolve, reject) =>
+    dynamoDb.scan(
+      {
+        TableName: config.dynamoDb.tableName,
+        ProjectionExpression: 'email',
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Items as UserSettings[]);
+      },
+    ),
+  );
 };
 
 export const getSettingsForUsers = async (emails: string[]): Promise<UserSettings[]> => {
-  const dynamoDb = getClient();
-  const command = new BatchGetCommand({
-    RequestItems: {
-      [config.dynamoDb.tableName]: {
-        Keys: emails.map(getKeyForEmail),
-      },
-    },
-  });
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
-  try {
-    const response = await dynamoDb.send(command);
-    if (!response.Responses?.[config.dynamoDb.tableName]) return [];
-    return response.Responses[config.dynamoDb.tableName].map((item) => item as UserSettings);
-  } catch (err) {
-    console.error(err, 'Error getting user settings for emails: ', emails.join(', '));
-    throw err;
-  }
+  return new Promise((resolve, reject) =>
+    dynamoDb.batchGet(
+      {
+        RequestItems: {
+          [config.dynamoDb.tableName]: { Keys: emails.map((email) => ({ email })) },
+        },
+      },
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Responses ? (data.Responses[config.dynamoDb.tableName] as UserSettings[]) : []);
+      },
+    ),
+  );
 };
 
 export const setZoomLinksDisabled = async (email: string, zoomLinksDisabled: boolean): Promise<UserSettings> => {
-  try {
-    return await updateUserSettings(email, {
-      UpdateExpression: 'set zoomLinksDisabled = :z',
-      ExpressionAttributeValues: {
-        ':z': zoomLinksDisabled,
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email,
+        },
+        UpdateExpression: 'set zoomLinksDisabled = :z',
+        ExpressionAttributeValues: {
+          ':z': zoomLinksDisabled,
+        },
+        ReturnValues: 'ALL_NEW',
       },
-    });
-  } catch (err) {
-    console.error(err, 'Error setting zoom links disabled for email: ', email);
-    throw err;
-  }
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
 };
 
 export const setMeetingReminderTimingOverride = async (
   email: string,
   meetingReminderTimingOverride: number,
 ): Promise<UserSettings> => {
-  try {
-    return await updateUserSettings(email, {
-      UpdateExpression: 'set meetingReminderTimingOverride = :o',
-      ExpressionAttributeValues: {
-        ':o': meetingReminderTimingOverride,
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email,
+        },
+        UpdateExpression: 'set meetingReminderTimingOverride = :o',
+        ExpressionAttributeValues: {
+          ':o': meetingReminderTimingOverride,
+        },
+        ReturnValues: 'ALL_NEW',
       },
-    });
-  } catch (err) {
-    console.error(
-      err,
-      'Error setting meeting reminder timing override for email: ',
-      email,
-      ' to ',
-      meetingReminderTimingOverride,
-    );
-    throw err;
-  }
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
 };
 
-export const setLastReminderEventId = async (email: string, lastReminderEventId: string) => {
-  try {
-    await updateUserSettings(email, {
-      UpdateExpression: 'set lastReminderEventId = :id',
-      ExpressionAttributeValues: {
-        ':id': lastReminderEventId,
+export const setLastReminderEventId = async (email: string, lastReminderEventId: string): Promise<UserSettings> => {
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email,
+        },
+        UpdateExpression: 'set lastReminderEventId = :id',
+        ExpressionAttributeValues: {
+          ':id': lastReminderEventId,
+        },
+        ReturnValues: 'ALL_NEW',
       },
-    });
-  } catch (err) {
-    console.error(err, 'Error setting last reminder event id for email: ', email, ' to ', lastReminderEventId);
-    throw err;
-  }
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
 };
 
 export const setSnoozed = async (email: string, snoozed: boolean): Promise<UserSettings> => {
-  try {
-    return await updateUserSettings(email, {
-      UpdateExpression: 'set snoozed = :s',
-      ExpressionAttributeValues: {
-        ':s': snoozed,
+  const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+  return new Promise((resolve, reject) =>
+    dynamoDb.update(
+      {
+        TableName: config.dynamoDb.tableName,
+        Key: {
+          email,
+        },
+        UpdateExpression: 'set snoozed = :s',
+        ExpressionAttributeValues: {
+          ':s': snoozed,
+        },
+        ReturnValues: 'ALL_NEW',
       },
-    });
-  } catch (err) {
-    console.error(err, 'Error setting snoozed for email: ', email, ' to ', snoozed);
-    throw err;
-  }
+      (err, data) => {
+        if (err) {
+          reject(err.message);
+          return;
+        }
+
+        resolve(data.Attributes as UserSettings);
+      },
+    ),
+  );
 };
