@@ -45,6 +45,11 @@ const getClient = () => {
     new DynamoDBClient({
       region: config.region,
     }),
+    {
+      marshallOptions: {
+        convertClassInstanceToMap: true,
+      },
+    },
   );
 };
 
