@@ -155,7 +155,7 @@ export const slackInstall: Handler = async () => ({
     Location: `https://slack.com/oauth/authorize?client_id=${
       config.slack.clientId
     }&redirect_uri=${createUserUrl()}&scope=${encodeURIComponent(
-      'users.profile:read,users.profile:write,users:write,users:read.email',
+      'users.profile:read,users.profile:write,users:write,users:read,users:read.email',
     )}`,
   },
 });
