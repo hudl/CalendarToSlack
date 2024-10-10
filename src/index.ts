@@ -192,9 +192,9 @@ export const createUser: Handler = async (event: any) => {
   const tokenStr: string = accessToken.token.access_token;
 
   const slackClient = new WebClient(tokenStr);
-  const userInfo = await slackClient.users.info();
+  const userInfo = await slackClient.users.identity({ token: tokenStr });
 
-  if (userInfo.error) {
+  if (userInfo?.error) {
     console.error('Error getting profile from Slack', userInfo.error);
     return {
       statusCode: 400,
@@ -202,7 +202,7 @@ export const createUser: Handler = async (event: any) => {
     };
   }
 
-  if (!userInfo.user || !userInfo.user.profile || !userInfo.user.profile.email) {
+  if (!userInfo?.user?.email) {
     console.error('No email returned from Slack', userInfo);
     return {
       statusCode: 400,
@@ -210,7 +210,7 @@ export const createUser: Handler = async (event: any) => {
     };
   }
 
-  const { email } = userInfo.user.profile;
+  const { email } = userInfo.user;
 
   await upsertSlackToken(email, tokenStr);
 

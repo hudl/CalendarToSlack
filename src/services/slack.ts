@@ -1,4 +1,4 @@
-import { WebClient, ChatPostMessageArguments } from '@slack/web-api';
+import { WebClient, ChatPostMessageArguments, ErrorCode, WebAPICallError, WebAPIPlatformError } from '@slack/web-api';
 import { clearUserTokens } from './dynamo';
 import { getSlackSecretWithKey } from '../utils/secrets';
 import { slackInstallUrl } from '../utils/urls';
@@ -24,9 +24,7 @@ export type SlackUser = {
 const handleError = async (error: any, email: string) => {
   console.error(error);
 
-  const {
-    data: { error: errorMessage },
-  } = error;
+  const errorMessage = error?.data.error ?? error?.toString();
   if (errorMessage === 'token_revoked' || errorMessage === 'invalid_auth') {
     console.error(`No authorization for Slack for user ${email}`);
     try {
@@ -46,7 +44,8 @@ export const setUserPresence = async (email: string, token: string | undefined, 
   const slackClient = new WebClient(token);
 
   try {
-    await slackClient.users.setPresence({ presence });
+    const result = await slackClient.users.setPresence({ presence });
+    throw result.error;
   } catch (error) {
     await handleError(error, email);
   }
@@ -58,10 +57,14 @@ export const setUserStatus = async (email: string, token: string | undefined, st
   console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email}`);
 
   const slackClient = new WebClient(token);
-  const profile = JSON.stringify({ status_text: status.text || '', status_emoji: status.emoji || '' });
 
   try {
-    await slackClient.users.profile.set({ profile });
+    await slackClient.users.profile.set({
+      profile: {
+        status_text: status?.text || '',
+        status_emoji: status?.emoji || '',
+      },
+    });
   } catch (error) {
     await handleError(error, email);
   }
@@ -71,8 +74,8 @@ export const getUserInfo = async (token: string, slackUserId: string): Promise<S
   if (!token) return;
 
   const slackClient = new WebClient(token);
-  const response: any = await slackClient.users.info({ user: slackUserId });
-  return response.user.profile as SlackUserProfile;
+  const response = await slackClient.users.info({ user: slackUserId });
+  return response?.user?.profile as SlackUserProfile;
 };
 
 export const getUserByEmail = async (token: string, email: string): Promise<SlackUser | undefined> => {
@@ -82,8 +85,8 @@ export const getUserByEmail = async (token: string, email: string): Promise<Slac
 
   try {
     return (await slackClient.users.lookupByEmail({ token, email })).user as SlackUser;
-  } catch (e) {
-    if (e.data.error === 'users_not_found') {
+  } catch (e: any) {
+    if (e?.data?.error === 'users_not_found') {
       console.warn(`Could not find Slack user for email: ${email}`);
       return;
     }
