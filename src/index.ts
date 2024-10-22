@@ -1,24 +1,24 @@
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+import {InvokeCommand, LambdaClient} from '@aws-sdk/client-lambda';
 import oauth from 'simple-oauth2';
-import { WebClient } from '@slack/web-api';
-import { getEventsForUser, CalendarEvent, ShowAs } from './services/calendar';
+import {LogLevel, WebClient} from '@slack/web-api';
+import {CalendarEvent, getEventsForUser, ShowAs} from './services/calendar';
 import {
   getAllUserSettings,
   getSettingsForUsers,
-  upsertSlackToken,
-  upsertCurrentEvent,
   removeCurrentEvent,
-  UserSettings,
   setLastReminderEventId,
+  upsertCurrentEvent,
+  upsertSlackToken,
+  UserSettings,
 } from './services/dynamo';
-import { setUserStatus, setUserPresence, getUserByEmail, postMessage, SlackUser } from './services/slack';
-import { Handler } from 'aws-lambda';
-import { getStatusForUserEvent } from './utils/mapEventStatus';
-import { GraphApiAuthenticationProvider } from './services/calendar/graphApiAuthenticationProvider';
+import {getUserByEmail, postMessage, setUserPresence, setUserStatus, SlackUser} from './services/slack';
+import {Handler} from 'aws-lambda';
+import {getStatusForUserEvent} from './utils/mapEventStatus';
+import {GraphApiAuthenticationProvider} from './services/calendar/graphApiAuthenticationProvider';
 import config from '../config';
-import { getSlackSecretWithKey } from './utils/secrets';
-import { authorizeMicrosoftGraphUrl, createUserUrl } from './utils/urls';
-import { getUpcomingEventMessage } from './utils/eventHelper';
+import {getSlackSecretWithKey} from './utils/secrets';
+import {authorizeMicrosoftGraphUrl, createUserUrl} from './utils/urls';
+import {getUpcomingEventMessage} from './utils/eventHelper';
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) =>
   events.length
