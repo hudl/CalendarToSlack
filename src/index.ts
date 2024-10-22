@@ -1,5 +1,5 @@
 import {InvokeCommand, LambdaClient} from '@aws-sdk/client-lambda';
-import oauth from 'simple-oauth2';
+import { AuthorizationCode } from 'simple-oauth2';
 import {LogLevel, WebClient} from '@slack/web-api';
 import {CalendarEvent, getEventsForUser, ShowAs} from './services/calendar';
 import {
@@ -173,7 +173,7 @@ export const createUser: Handler = async (event: any) => {
   const clientId = config.slack.clientId;
   const clientSecret = await getSlackSecretWithKey('client-secret');
 
-  const oauthClient = oauth.create({
+  const oauthConfig = {
     client: {
       id: clientId,
       secret: clientSecret,
@@ -182,19 +182,23 @@ export const createUser: Handler = async (event: any) => {
       tokenHost: 'https://slack.com',
       tokenPath: '/api/oauth.access',
     },
-  });
+  };
+  const oauthClient = new AuthorizationCode(oauthConfig);
 
-  const tokenResult = await oauthClient.authorizationCode.getToken({
+  const tokenResult = await oauthClient.getToken({
     code,
-    redirect_uri: createUserUrl(),
+    redirect_uri: createUserUrl()
   });
-  const accessToken = oauthClient.accessToken.create(tokenResult);
-  const tokenStr: string = accessToken.token.access_token;
+  const tokenStr: string = tokenResult.token.access_token as string;
+  const user: string = tokenResult.token.user_id as string;
+  console.log(tokenResult.token);
 
   const slackClient = new WebClient(tokenStr);
-  const userInfo = await slackClient.users.identity({ token: tokenStr });
+  const userInfo = await slackClient.users.info({ token: tokenStr, user: user })
 
-  if (userInfo?.error) {
+  console.log(userInfo);
+
+  if (userInfo.error) {
     console.error('Error getting profile from Slack', userInfo.error);
     return {
       statusCode: 400,
@@ -202,7 +206,7 @@ export const createUser: Handler = async (event: any) => {
     };
   }
 
-  if (!userInfo?.user?.email) {
+  if (!userInfo.user || !userInfo.user.profile || !userInfo.user.profile.email) {
     console.error('No email returned from Slack', userInfo);
     return {
       statusCode: 400,
@@ -210,7 +214,7 @@ export const createUser: Handler = async (event: any) => {
     };
   }
 
-  const { email } = userInfo.user;
+  const { email } = userInfo.user.profile;
 
   await upsertSlackToken(email, tokenStr);
 
