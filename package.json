@@ -9,7 +9,7 @@
   "scripts": {
     "start": "serverless offline",
     "test": "jest",
-    "debug": "export SLS_DEBUG=* && node --inspect ./node_modules/.bin/serverless offline --noTimeout",
+    "debug": "export SLS_DEBUG=* && node --inspect ./node_modules/.bin/serverless offline --noTimeout --noPrependStageInUrl",
     "debug-tests": "node --inspect ./node_modules/.bin/jest --runInBand --coverage false"
   },
   "repository": {

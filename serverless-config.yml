@@ -1,0 +1,13 @@
+lambda:
+  update:
+    roleName: hudl-cal2slack-lambda-update
+    policyName: hudl-cal2slack-lambda-update-policy
+  slackbot:
+    roleName: hudl-cal2slack-lambda-slackbot
+    policyName: hudl-cal2slack-lambda-slackbot-policy
+    secretsPrefix: hudl/internal/cal2slack/slackbot-secrets
+  testSecret:
+    roleName: hudl-cal2slack-lambda-slackbot
+    policyName: hudl-cal2slack-lambda-slackbot-policy
+deployment:
+  bucketName: hudl-calendar2slack-deployment

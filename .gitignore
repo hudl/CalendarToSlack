@@ -166,7 +166,8 @@ $RECYCLE.BIN/
 # End of https://www.gitignore.io/api/node,macos,windows,serverless,visualstudiocode
 
 # Configuration
-serverless-config.yml
-
 **/obj/**
 **/bin/**
+
+# JetBrains
+.idea/**/*
