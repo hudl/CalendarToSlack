@@ -3,15 +3,18 @@ import {
   setZoomLinksDisabled,
   setMeetingReminderTimingOverride,
   setSnoozed,
-  upsertStatusMappings
+  upsertStatusMappings,
+  exportSettings,
+  getExportedSettingsBySettingsId, 
+  getSettingsForUsers
 } from '../services/dynamo';
-import {exportSettings, getExportedSettingsBySettingsId} from "../services/dynamo/exportedSettings";
 
 type SettingsCommandArguments = {
   zoomLinksEnabled?: boolean;
   meetingReminderTimingOverride?: number;
   snoozed?: boolean;
   settingsId?: string;
+  listSubCommand?: string;
 };
 
 enum SettingsCommandArgumentKeys {
@@ -21,6 +24,7 @@ enum SettingsCommandArgumentKeys {
   Snoozed = 'snoozed',
   Export = 'export',
   Import = 'import',
+  List = 'list',
 }
 
 const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArguments => {
@@ -29,6 +33,7 @@ const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArgumen
     [SettingsCommandArgumentKeys.ReminderTiming]: '',
     [SettingsCommandArgumentKeys.Snoozed]: '',
     [SettingsCommandArgumentKeys.Import]: '',
+    [SettingsCommandArgumentKeys.List]: '',
   };
 
   for (let arg of argList) {
@@ -42,12 +47,14 @@ const constructSettingsCommandArgs = (argList: string[]): SettingsCommandArgumen
   const reminderTimingArg = args[SettingsCommandArgumentKeys.ReminderTiming];
   const snoozedArg = args[SettingsCommandArgumentKeys.Snoozed];
   const settingsIdArg = args[SettingsCommandArgumentKeys.Import];
+  const listArg = args[SettingsCommandArgumentKeys.List];
 
   return {
     zoomLinksEnabled: zoomLinksArg.length ? zoomLinksArg.toLowerCase() === 'true' : undefined,
     meetingReminderTimingOverride: reminderTimingArg.length ? Number(reminderTimingArg) : undefined,
     snoozed: snoozedArg.length ? snoozedArg.toLowerCase() === 'true' : undefined,
     settingsId: settingsIdArg.length ? settingsIdArg : undefined,
+    listSubCommand: listArg.length ? listArg : undefined
   };
 };
 
@@ -74,8 +81,8 @@ export const handleSettings = async (userSettings: UserSettings, argList: string
     if (!userSettings.statusMappings) {
       return `You have no status mappings to export.`;
     }
-    const exportedSettings = await exportSettings(userSettings.email, userSettings.statusMappings);
-    return `Your settings have been exported with the ID: ${exportedSettings.settings_id}`;
+    const exportedSettingsId = await exportSettings(userSettings.email, userSettings.statusMappings);
+    return `Your settings have been exported with the ID: ${exportedSettingsId}`;
   }
 
   const args = constructSettingsCommandArgs(argList);
@@ -97,6 +104,14 @@ export const handleSettings = async (userSettings: UserSettings, argList: string
     }
     
     newSettings = await upsertStatusMappings(userSettings.email, exportedSettings.statusMappings);
+  }
+  if (args.listSubCommand) {
+    if (args.listSubCommand === SettingsCommandArgumentKeys.Export) {
+      const settings = await getSettingsForUsers([userSettings.email]);
+      const exportedSettings = settings.flatMap((s) => s.exportedSettings || []);
+      const exportedSettingsIds = exportedSettings.map((es) => es.settingsId);
+      return 'Settings IDs for user: ' + exportedSettingsIds.join('\n');
+    }
   }
 
   return newSettings

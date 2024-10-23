@@ -6,14 +6,22 @@ import {
   BatchGetCommand,
   ScanCommand,
   UpdateCommand,
-  UpdateCommandInput, GetCommand,
+  UpdateCommandInput, 
 } from '@aws-sdk/lib-dynamodb';
 import config from '../../config';
 import { CalendarEvent } from './calendar';
+import { v4 as uuidv4 } from 'uuid';
 
 export type StatusMapping = {
   calendarText: string;
   slackStatus: SlackStatus;
+};
+
+export type ExportedSettings = {
+  settingsId: string;
+  // TODO create new status mapping type and map between types
+  // Should status mappings change, we need to handle updating the exported settings
+  statusMappings: StatusMapping[];
 };
 
 export type UserSettings = {
@@ -27,6 +35,7 @@ export type UserSettings = {
   meetingReminderTimingOverride?: number;
   lastReminderEventId?: string;
   snoozed?: boolean;
+  exportedSettings?: ExportedSettings[]
 };
 
 const toDynamoStatus = (status: SlackStatus) => ({
@@ -270,6 +279,53 @@ export const setSnoozed = async (email: string, snoozed: boolean): Promise<UserS
     });
   } catch (err) {
     console.error(err, 'Error setting snoozed for email: ', email, ' to ', snoozed);
+    throw err;
+  }
+};
+
+export const getExportedSettingsBySettingsId = async (settingsId: string): Promise<ExportedSettings> => {
+  const client = getClient();
+  const command = new ScanCommand({
+    TableName: config.dynamoDb.tableName,
+    ProjectionExpression: 'exportedSettings',
+  });
+
+  try {
+    const response = await client.send(command);
+    if (!response?.Items) {
+      return {} as ExportedSettings;
+    }
+
+    const userSettings = response.Items.map((item) => item as UserSettings);
+    const exportedSettings = userSettings.flatMap((item) => item.exportedSettings?.map(es => es as ExportedSettings));
+    return exportedSettings
+      .filter((item) => item && item?.settingsId === settingsId)[0]
+      ?? {} as ExportedSettings;
+
+  } catch (err) {
+    console.error(err, 'Error getting exported settings for id', settingsId);
+    throw err;
+  }
+};
+
+export const exportSettings = async (email: string, statusMappings: StatusMapping[]): Promise<string> => {
+  const settingsId = uuidv4();
+
+  try {
+    await updateUserSettings(email, {
+      UpdateExpression: 'set exportedSettings = list_append(if_not_exists(exportedSettings, :default), :s)',
+      ExpressionAttributeValues: {
+        ':default': [],
+        ':s': [{
+          settingsId: settingsId,
+          statusMappings: statusMappings,
+        }]
+      },
+    });
+    
+    return settingsId;
+  } catch (err) {
+    console.error(err, 'Error storing current event for email: ', email);
     throw err;
   }
 };
