@@ -1,6 +1,6 @@
 import {InvokeCommand, LambdaClient} from '@aws-sdk/client-lambda';
 import oauth from 'simple-oauth2';
-import {LogLevel, WebClient} from '@slack/web-api';
+import {WebClient} from '@slack/web-api';
 import {CalendarEvent, getEventsForUser, ShowAs} from './services/calendar';
 import {
   getAllUserSettings,
@@ -191,9 +191,7 @@ export const createUser: Handler = async (event: any) => {
   const accessToken = oauthClient.accessToken.create(tokenResult);
   const tokenStr: string = accessToken.token.access_token;
 
-  console.log(`AccessToken=${JSON.stringify(accessToken)}, TokenStr=${tokenStr}`);
-
-  const slackClient = new WebClient(tokenStr, {logLevel: LogLevel.DEBUG});
+  const slackClient = new WebClient(tokenStr);
   const userInfo = await slackClient.users.info();
 
   if (userInfo.error) {
