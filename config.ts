@@ -4,7 +4,8 @@ export default {
   },
   region: '',
   hosts: {
-    dev: '',
+    devLambda: 'http://localhost:3002',
+    dev: 'http://localhost:3000',
     prod: '',
   },
   slack: {

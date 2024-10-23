@@ -60,7 +60,7 @@ export const update: Handler = async () => {
   const lambda = new LambdaClient({
     apiVersion: 'latest',
     region: config.region,
-    endpoint: process.env.IS_OFFLINE ? config.hosts.dev : undefined,
+    endpoint: process.env.IS_OFFLINE ? config.hosts.devLambda : undefined,
   });
 
   const userSettings = await getAllUserSettings();
