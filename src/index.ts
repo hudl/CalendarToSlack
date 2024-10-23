@@ -202,7 +202,6 @@ export const createUser: Handler = async (event: any) => {
   const slackClient = new WebClient(tokenStr);
   const userInfo = await slackClient.users.info({ token: tokenStr, user: user })
 
-  console.log(userInfo);
 
   if (userInfo.error) {
     console.error('Error getting profile from Slack', userInfo.error);
