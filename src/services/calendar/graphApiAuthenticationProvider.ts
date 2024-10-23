@@ -72,7 +72,9 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     }
 
     console.log(
-      `Microsoft Graph access token expired for ${this.userEmail}. Refreshing...`,
+      `Microsoft Graph access token expired for ${this.userEmail} at ${
+        this.storedToken.expires_at_timestamp
+      }. Refreshing...`,
     );
 
     try {
