@@ -34,7 +34,6 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       },
     };
 
-    console.log(oauthConfig);
     return new AuthorizationCode(oauthConfig);
   }
 
@@ -49,12 +48,11 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     const authentication = await this.createOAuthClient();
 
     const tokenResult = await authentication.getToken({
+      scope: this.scope,
       code: authCode || '',
       redirect_uri: authorizeMicrosoftGraphUrl()
     });
 
-    console.log(tokenResult);
-    
     await storeCalendarAuthenticationToken(this.userEmail, tokenResult.token);
     return tokenResult.token;
   }
@@ -69,16 +67,14 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     }
 
     console.log(
-      `Microsoft Graph access token expired for ${this.userEmail} at ${
-        (new Date()).toISOString()
-      }. Refreshing...`,
+      `Microsoft Graph access token expired for ${this.userEmail}. Refreshing...`,
     );
 
     try {
       const authentication = await this.createOAuthClient();
       const accessToken = authentication.createToken(this.storedToken);
 
-      const newToken = (await accessToken.refresh());
+      const newToken = (await accessToken.refresh({ scope: this.scope }));
 
       console.log(
         `Refreshed Microsoft graph access token for ${this.userEmail} with expiration: ${
