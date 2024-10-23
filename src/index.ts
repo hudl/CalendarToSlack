@@ -198,7 +198,6 @@ export const createUser: Handler = async (event: any) => {
   });
   const tokenStr: string = tokenResult.token.access_token as string;
   const user: string = tokenResult.token.user_id as string;
-  console.log(tokenResult.token);
 
   const slackClient = new WebClient(tokenStr);
   const userInfo = await slackClient.users.info({ token: tokenStr, user: user })
