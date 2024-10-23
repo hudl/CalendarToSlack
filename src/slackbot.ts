@@ -264,7 +264,7 @@ You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   const subcommand = tokens[0] || "none";
   const args = tokens.slice(1);
 
-  if (subcommand in commandHandlerMap) {
+  if (subcommand && subcommand in commandHandlerMap) {
     const message = await commandHandlerMap[subcommand](userSettings[0], args);
     return await sendMessage(message);
   }
