@@ -29,10 +29,7 @@
   "homepage": "https://github.com/hudl/CalendarToSlack#readme",
   "resolutions": {
     "superagent": "^10.1.0",
-    "glob": "^11.0.0",
-    "strip-ansi": "6.0.1",
-    "wrap-ansi": "7.0.0",
-    "string-width": "4.2.2"
+    "glob": "^11.0.0"
   },
   "devDependencies": {
     "@slack/types": "2.14.0",
