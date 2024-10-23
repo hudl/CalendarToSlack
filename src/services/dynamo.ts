@@ -209,26 +209,6 @@ export const getSettingsForUsers = async (emails: string[]): Promise<UserSetting
   }
 };
 
-export const getSettingsForUser = async (email: string): Promise<UserSettings> => {
-  const dynamoDb = getClient();
-  const command = new GetCommand({
-    TableName: config.dynamoDb.tableName,
-    Key: getKeyForEmail(email),
-  });
-
-  try {
-    const response = await dynamoDb.send(command);
-    if (!response.Item) {
-      return {} as UserSettings;
-    }
-    
-    return response.Item as UserSettings;
-  } catch (err) {
-    console.error(err, 'Error getting user settings for email: ', email);
-    throw err;
-  }
-};
-
 export const setZoomLinksDisabled = async (email: string, zoomLinksDisabled: boolean): Promise<UserSettings> => {
   try {
     return await updateUserSettings(email, {

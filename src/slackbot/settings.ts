@@ -1,5 +1,11 @@
-import { UserSettings, setZoomLinksDisabled, setMeetingReminderTimingOverride, setSnoozed } from '../services/dynamo';
-import {exportSettings} from "../services/dynamo/exportedSettings";
+import {
+  UserSettings,
+  setZoomLinksDisabled,
+  setMeetingReminderTimingOverride,
+  setSnoozed,
+  upsertStatusMappings
+} from '../services/dynamo';
+import {exportSettings, getExportedSettingsBySettingsId} from "../services/dynamo/exportedSettings";
 
 type SettingsCommandArguments = {
   zoomLinksEnabled?: boolean;
@@ -85,7 +91,12 @@ export const handleSettings = async (userSettings: UserSettings, argList: string
     newSettings = await setSnoozed(userSettings.email, args.snoozed);
   }
   if (args.settingsId) {
-    //TODO import
+    const exportedSettings = await getExportedSettingsBySettingsId(args.settingsId);
+    if (!exportedSettings) {
+      return `No settings found for ${args.settingsId}`;
+    }
+    
+    newSettings = await upsertStatusMappings(userSettings.email, exportedSettings.statusMappings);
   }
 
   return newSettings
