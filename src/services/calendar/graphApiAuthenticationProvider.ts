@@ -37,11 +37,15 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     return new AuthorizationCode(oauthConfig);
   }
 
-  private async shouldRefreshToken(token: Token) {
-    const authentication = await this.createOAuthClient();
-    const accessToken = authentication.createToken(token);
-    // Return if token is expire or expires in next 120 seconds
-    return accessToken.expired(120);
+  private shouldRefreshToken(token: Token) {
+    const expiresAtTimestamp = token.expires_at_timestamp as string | null | undefined;
+    if (!expiresAtTimestamp) {
+      return true;
+    }
+    const now = new Date();
+    const expiration = new Date(expiresAtTimestamp);
+    expiration.setMinutes(expiration.getMinutes() - 1);
+    return now >= expiration;
   }
 
   public async getTokenWithAuthCode(authCode: string): Promise<Token> {
@@ -62,7 +66,7 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       throw new Error(`Could not authenticate user ${this.userEmail} with Microsoft Graph`);
     }
 
-    if (!(await this.shouldRefreshToken(this.storedToken))) {
+    if (!this.shouldRefreshToken(this.storedToken)) {
       return this.storedToken.access_token;
     }
 
@@ -75,15 +79,17 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       const accessToken = authentication.createToken(this.storedToken);
 
       const newToken = (await accessToken.refresh({ scope: this.scope }));
+      const mutableToken = JSON.parse(JSON.stringify(newToken.token))
+      mutableToken.expires_at_timestamp = (newToken.token.expires_at as Date).toISOString();
 
       console.log(
         `Refreshed Microsoft graph access token for ${this.userEmail} with expiration: ${
-          newToken.token.expires_in as number
+          mutableToken.expires_at_timestamp
         }`,
       );
 
-      await storeCalendarAuthenticationToken(this.userEmail, newToken.token);
-      return newToken.token.access_token as string;
+      await storeCalendarAuthenticationToken(this.userEmail, mutableToken);
+      return mutableToken.access_token as string;
     } catch (error) {
       console.error(error);
       throw error;
