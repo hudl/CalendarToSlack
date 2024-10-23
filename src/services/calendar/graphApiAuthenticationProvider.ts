@@ -2,8 +2,7 @@ import 'isomorphic-fetch';
 import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
 import { AuthorizationCode, Token } from 'simple-oauth2';
 import { storeCalendarAuthenticationToken } from '../dynamo';
-import config from '../../../config';
-import { getMicrosoftGraphSecretWithKey } from '../../utils/secrets';
+import { getMicrosoftGraphIdWithKey, getMicrosoftGraphSecretWithKey } from '../../utils/secrets';
 import { authorizeMicrosoftGraphUrl } from '../../utils/urls';
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
@@ -22,13 +21,15 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
 
   private async createOAuthClient(): Promise<AuthorizationCode<string>> {
     const clientSecret = await getMicrosoftGraphSecretWithKey('client-secret');
+    const clientId = await getMicrosoftGraphIdWithKey('clientId');
+    const tenantId = await getMicrosoftGraphIdWithKey('tenantId');
     const oauthConfig = {
       client: {
-        id: config.microsoftGraph.clientId || '',
+        id: clientId || '',
         secret: clientSecret,
       },
       auth: {
-        tokenHost: `${this.oauthAuthority}${config.microsoftGraph.tenantId || ''}/`,
+        tokenHost: `${this.oauthAuthority}${tenantId || ''}/`,
         tokenPath: this.tokenPath,
         authorizePath: this.authorizePath,
       },
