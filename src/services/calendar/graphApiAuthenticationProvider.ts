@@ -38,14 +38,11 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     return new AuthorizationCode(oauthConfig);
   }
 
-  private shouldRefreshToken({ expires_at_timestamp: expiresAtTimestamp }: Token) {
-    if (!expiresAtTimestamp) {
-      return true;
-    }
-    const now = new Date();
-    const expiration = new Date(expiresAtTimestamp);
-    expiration.setMinutes(expiration.getMinutes() - 1);
-    return now >= expiration;
+  private async shouldRefreshToken(token: Token) {
+    const authentication = await this.createOAuthClient();
+    const accessToken = authentication.createToken(token);
+    // Return if token is expire or expires in next 120 seconds
+    return accessToken.expired(120);
   }
 
   public async getTokenWithAuthCode(authCode: string): Promise<Token> {
@@ -67,31 +64,30 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
       throw new Error(`Could not authenticate user ${this.userEmail} with Microsoft Graph`);
     }
 
-    if (!this.shouldRefreshToken(this.storedToken)) {
+    if (!(await this.shouldRefreshToken(this.storedToken))) {
       return this.storedToken.access_token;
     }
 
     console.log(
       `Microsoft Graph access token expired for ${this.userEmail} at ${
-        this.storedToken.expires_at_timestamp
+        (new Date()).toISOString()
       }. Refreshing...`,
     );
 
     try {
       const authentication = await this.createOAuthClient();
-      const accessToken = authentication.accessToken.create(this.storedToken);
+      const accessToken = authentication.createToken(this.storedToken);
 
-      const newToken = (await accessToken.refresh()).token;
-      newToken.expires_at_timestamp = newToken.expires_at.toISOString();
+      const newToken = (await accessToken.refresh());
 
       console.log(
         `Refreshed Microsoft graph access token for ${this.userEmail} with expiration: ${
-          newToken.expires_at_timestamp
+          newToken.token.expires_in as number
         }`,
       );
 
-      await storeCalendarAuthenticationToken(this.userEmail, newToken);
-      return newToken.access_token;
+      await storeCalendarAuthenticationToken(this.userEmail, newToken.token);
+      return newToken.token.access_token as string;
     } catch (error) {
       console.error(error);
       throw error;
