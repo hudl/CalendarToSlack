@@ -55,6 +55,7 @@
     "@microsoft/microsoft-graph-client": "3.0.7",
     "@slack/web-api": "7.6.0",
     "isomorphic-fetch": "3.0.0",
-    "simple-oauth2": "5.1.0"
+    "simple-oauth2": "5.1.0",
+    "uuid": "^10.0.0"
   }
 }

@@ -6,12 +6,12 @@ import {
   BatchGetCommand,
   ScanCommand,
   UpdateCommand,
-  UpdateCommandInput,
+  UpdateCommandInput, GetCommand,
 } from '@aws-sdk/lib-dynamodb';
 import config from '../../config';
 import { CalendarEvent } from './calendar';
 
-type StatusMapping = {
+export type StatusMapping = {
   calendarText: string;
   slackStatus: SlackStatus;
 };
@@ -205,6 +205,26 @@ export const getSettingsForUsers = async (emails: string[]): Promise<UserSetting
     return response.Responses[config.dynamoDb.tableName].map((item) => item as UserSettings);
   } catch (err) {
     console.error(err, 'Error getting user settings for emails: ', emails.join(', '));
+    throw err;
+  }
+};
+
+export const getSettingsForUser = async (email: string): Promise<UserSettings> => {
+  const dynamoDb = getClient();
+  const command = new GetCommand({
+    TableName: config.dynamoDb.tableName,
+    Key: getKeyForEmail(email),
+  });
+
+  try {
+    const response = await dynamoDb.send(command);
+    if (!response.Item) {
+      return {} as UserSettings;
+    }
+    
+    return response.Item as UserSettings;
+  } catch (err) {
+    console.error(err, 'Error getting user settings for email: ', email);
     throw err;
   }
 };

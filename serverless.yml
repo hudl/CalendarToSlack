@@ -78,6 +78,18 @@ resources:
           - AttributeName: email
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
+        
+    exportedSettingsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: cal2slack-exportedSettings
+        AttributeDefinitions:
+          - AttributeName: settings_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: settings_id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
 
     updateRole:
       Type: AWS::IAM::Role
@@ -124,6 +136,21 @@ resources:
                           - Ref: 'AWS::Region'
                           - Ref: 'AWS::AccountId'
                           - 'table/cal2slack-usersettings'
+                - Effect: Allow
+                  Action:
+                    - dynamodb:Scan
+                    - dynamodb:Query
+                    - dynamodb:GetItem
+                    - dynamodb:BatchGetItem
+                    - dynamodb:PutItem
+                    - dynamodb:UpdateItem
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:dynamodb'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'table/cal2slack-exportedsettings'
                 - Effect: 'Allow'
                   Action:
                     - lambda:InvokeFunction
@@ -190,6 +217,21 @@ resources:
                           - Ref: 'AWS::Region'
                           - Ref: 'AWS::AccountId'
                           - 'table/cal2slack-usersettings'
+                - Effect: Allow
+                  Action:
+                    - dynamodb:Scan
+                    - dynamodb:Query
+                    - dynamodb:GetItem
+                    - dynamodb:BatchGetItem
+                    - dynamodb:PutItem
+                    - dynamodb:UpdateItem
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:dynamodb'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'table/cal2slack-exportedsettings'
   Outputs:
     UserSettingsTableArn:
       Description: 'The ARN for the cal2slack-usersettings table'

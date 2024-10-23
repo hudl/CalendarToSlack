@@ -10,6 +10,7 @@ import {
 } from './services/dynamo';
 import { slackInstallUrl } from './utils/urls';
 import { handleSettings } from './slackbot/settings';
+import {exportSettings} from "./services/dynamo/exportedSettings";
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
@@ -280,7 +281,7 @@ You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
 
 export const handler = async (event: ApiGatewayEvent) => {
   let body = JSON.parse(event.body);
-
+  
   if (!(await validateSlackRequest(event))) {
     return {
       statusCode: 400,
