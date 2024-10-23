@@ -1,6 +1,6 @@
 import 'isomorphic-fetch';
 import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
-import oauth2, { OAuthClient, Token } from 'simple-oauth2';
+import { AuthorizationCode, Token } from 'simple-oauth2';
 import { storeCalendarAuthenticationToken } from '../dynamo';
 import config from '../../../config';
 import { getMicrosoftGraphSecretWithKey } from '../../utils/secrets';
@@ -12,7 +12,7 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
 
   private readonly oauthAuthority: string = 'https://login.microsoftonline.com/';
   private readonly authorizePath: string = '/oauth2/v2.0/authorize';
-  private readonly tokenPath: string = '/oauth2/v2.0/token';
+  private readonly tokenPath: string = 'oauth2/v2.0/token';
   private readonly scope: string = 'offline_access https://graph.microsoft.com/.default';
 
   constructor(userEmail: string, storedToken?: Token) {
@@ -20,19 +20,22 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     this.storedToken = storedToken;
   }
 
-  private async createOAuthClient(): Promise<OAuthClient<string>> {
+  private async createOAuthClient(): Promise<AuthorizationCode<string>> {
     const clientSecret = await getMicrosoftGraphSecretWithKey('client-secret');
-    return oauth2.create({
+    const oauthConfig = {
       client: {
         id: config.microsoftGraph.clientId || '',
         secret: clientSecret,
       },
       auth: {
-        tokenHost: `${this.oauthAuthority}${config.microsoftGraph.tenantId || ''}`,
+        tokenHost: `${this.oauthAuthority}${config.microsoftGraph.tenantId || ''}/`,
         tokenPath: this.tokenPath,
         authorizePath: this.authorizePath,
       },
-    });
+    };
+
+    console.log(oauthConfig);
+    return new AuthorizationCode(oauthConfig);
   }
 
   private shouldRefreshToken({ expires_at_timestamp: expiresAtTimestamp }: Token) {
@@ -46,19 +49,17 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
   }
 
   public async getTokenWithAuthCode(authCode: string): Promise<Token> {
-    const tokenConfig = {
-      scope: this.scope,
-      code: authCode || '',
-      redirect_uri: authorizeMicrosoftGraphUrl(),
-    };
-
     const authentication = await this.createOAuthClient();
-    const result = await authentication.authorizationCode.getToken(tokenConfig);
-    const { token } = authentication.accessToken.create(result);
-    token.expires_at_timestamp = token.expires_at.toISOString();
 
-    await storeCalendarAuthenticationToken(this.userEmail, token);
-    return token;
+    const tokenResult = await authentication.getToken({
+      code: authCode || '',
+      redirect_uri: authorizeMicrosoftGraphUrl()
+    });
+
+    console.log(tokenResult);
+    
+    await storeCalendarAuthenticationToken(this.userEmail, tokenResult.token);
+    return tokenResult.token;
   }
 
   public async getAccessToken(): Promise<any> {
