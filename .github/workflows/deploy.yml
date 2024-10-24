@@ -24,7 +24,7 @@ jobs:
         env:
           FILE_NAME: serverless-config.yml
           FILE_BASE64: ${{ secrets.SERVERLESS_CONFIG_FILE_DATA }}
-      - run: yarn install
+      - run: npm install
       - name: serverless deploy
         uses: serverless/github-action@master
         with:

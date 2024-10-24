@@ -12,12 +12,12 @@ Check out the [Wiki](https://github.com/hudl/CalendarToSlack/wiki) for more info
 
 ### Initial setup
 
-The Lambda functions in this project use the Node 10.x runtime. Ensure you're running Node 20.x on the command line using a tool like [nvm](https://github.com/nvm-sh/nvm) or [nodist](https://github.com/nullivex/nodist). Then, clone the repository and install dependencies with [Yarn](https://yarnpkg.com/):
+The Lambda functions in this project use the Node 20.x runtime. Ensure you're running Node 20.x on the command line using a tool like [nvm](https://github.com/nvm-sh/nvm) or [nodist](https://github.com/nullivex/nodist). Then, clone the repository and install dependencies with `npm install`.
 
 ```bash
 ~$ git clone https://github.com/hudl/CalendarToSlack.git
 ~$ cd CalendarToSlack
-CalendarToSlack$ yarn
+CalendarToSlack$ npm install
 ```
 
 Next, you'll need to create a `config.ts` file with the following structure in the project root directory (Hudl users can DM an existing user for the correct config file for our environment):
@@ -46,23 +46,25 @@ export default {
 };
 ```
 
-Once you've done this, you can validate your installation by running `yarn test` in the project root directory:
+Once you've done this, you can validate your installation by running `npm run test` in the project root directory:
 
 ```bash
-CalendarToSlack$ yarn test
-yarn run v1.12.3
-$ jest
+$ npm run test
+
+> calendartoslack@1.0.0 test
+> jest
+
  PASS  src/slackbot/__tests__/settings.tests.ts
+ PASS  src/services/__tests__/slack.tests.ts
  PASS  src/utils/__tests__/eventHelper.tests.ts
  PASS  src/utils/__tests__/mapEventStatus.tests.ts
  PASS  src/__tests__/updateOne.tests.ts
 
-Test Suites: 4 passed, 4 total
-Tests:       88 passed, 88 total
+Test Suites: 5 passed, 5 total
+Tests:       101 passed, 101 total
 Snapshots:   0 total
-Time:        2.939s, estimated 7s
+Time:        3.284 s, estimated 4 s
 Ran all test suites.
-✨  Done in 3.95s.
 ```
 
 ### Writing and debugging Lambda code
@@ -89,11 +91,10 @@ deployment:
   bucketName: my-serverless-deployment-bucket
 ```
 
-Once this config file is created, you can run the Serverless app offline with `yarn start`:
+Once this config file is created, you can run the Serverless app offline with `npm run start`:
 
 ```bash
-CalendarToSlack$ yarn start
-yarn run v1.12.3
+CalendarToSlack$ npm run start
 $ serverless offline
 Serverless: Compiling with Typescript...
 Serverless: Using local tsconfig.json
@@ -128,11 +129,11 @@ Serverless: Offline [HTTP] listening on http://localhost:3000
 Serverless: Enter "rp" to replay the last request
 ```
 
-If you need to debug the app locally with breakpoints, you can use `yarn debug` rather than `yarn start`. For those developing using VS Code, the "Debug Serverless" launch configuration can be used.
+If you need to debug the app locally with breakpoints, you can use `npm run debug` rather than `npm run start`. For those developing using VS Code, the "Debug Serverless" launch configuration can be used.
 
 ### Writing and debugging unit tests
 
-When possible, unit tests should be written alongside code changes as the first line of defense against regressions. All unit tests live in a `__tests__` directory alongside their source code and follow the naming convention `filename.tests.ts`. Tests are written with [Jest](https://jestjs.io/). As shown in the setup guide, tests can be run using `yarn test`.
+When possible, unit tests should be written alongside code changes as the first line of defense against regressions. All unit tests live in a `__tests__` directory alongside their source code and follow the naming convention `filename.tests.ts`. Tests are written with [Jest](https://jestjs.io/). As shown in the setup guide, tests can be run using `npm run test`.
 
 **Please note** that Jest automocking is disabled in [jest.config.js](./jest.config.js). If the code you're testing makes downstream calls to a third-party service (AWS DynamoDB, AWS Secrets Manager, Slack, Microsoft Graph), the services should be mocked like so:
 
@@ -155,7 +156,7 @@ describe('myFunction', () => {
 });
 ```
 
-If you need to step through unit tests with breakpoints, you can use `yarn debug-tests` rather than `yarn test`. For those developing using VS Code, the "Debug Tests" launch configuration can be used.
+If you need to step through unit tests with breakpoints, you can use `npm run debug-tests` rather than `npm run test`. For those developing using VS Code, the "Debug Tests" launch configuration can be used.
 
 ## Deployment
 

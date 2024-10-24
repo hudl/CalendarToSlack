@@ -6,16 +6,16 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceRoot}",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["debug"],
-      "port": 5858
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "debug"],
+      "runtimeVersion": "20.18.0"
     },
     {
       "name": "Debug Jest Tests",
       "type": "node",
       "request": "launch",
-      "runtimeExecutable": "yarn",
-      "runtimeArgs": ["debug-tests"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "debug-tests"],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     }
