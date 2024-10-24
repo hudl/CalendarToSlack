@@ -30,6 +30,7 @@ functions:
       - http:
           path: 'slack/install'
           method: get
+    role: slackbotRole
   create-user:
     handler: src/index.createUser
     events:
