@@ -1,5 +1,5 @@
 import { handleSettings } from '../settings';
-import { setZoomLinksDisabled, setMeetingReminderTimingOverride, setSnoozed } from '../../services/dynamo';
+import { setZoomLinksDisabled, setMeetingReminderTimingOverride, setSnoozed, upsertStatusMappings, getExportedSettingsBySettingsId, getSettingsForUsers, exportSettings } from '../../services/dynamo';
 
 jest.mock('../../services/dynamo');
 
@@ -12,8 +12,19 @@ meetingReminderMock.mockResolvedValue({});
 const setSnoozedMock = <jest.Mock>setSnoozed;
 setSnoozedMock.mockResolvedValue({});
 
+const exportSettingsMock = <jest.Mock>exportSettings;
+
 const userSettings = {
   email: 'blah@blah.com',
+  statusMappings: [
+    {
+      calendarText: 'busy',
+      slackStatus: {
+        text: 'busy',
+        emoji: ':calendar:',
+      },
+    },
+  ],
 };
 
 describe('handleSettings', () => {
@@ -150,6 +161,25 @@ describe('handleSettings', () => {
       expect(meetingReminderMock).toBeCalledWith(userSettings.email, 15);
     });
   });
+  
+  describe('With export argument', () => {
+    beforeEach(() => {
+      exportSettingsMock.mockResolvedValueOnce("123");
+    });
+    test('Returns exported message', async () => {
+      const message = await handleSettings(userSettings, ['export']);
+
+      expect(message).toBe(
+        'Your settings have been exported with the ID: 123'
+      );
+    });
+    test('Exports settings in DynamoDB', async () => {
+      await handleSettings(userSettings, ['export']);
+
+      expect(exportSettingsMock).toBeCalledWith(userSettings.email, userSettings.statusMappings);
+    });
+  });
+  
   describe('With multiple arguments', () => {
     beforeEach(() => {
       setZoomLinksMock.mockResolvedValueOnce({ ...userSettings, zoomLinksDisabled: true });
