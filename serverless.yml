@@ -205,7 +205,7 @@ resources:
       Type: AWS::IAM::Role
       Properties:
         Path: /
-        RoleName: ${self:custom.lambda.slackbot.roleName}
+        RoleName: ${self:custom.lambda.install.roleName}
         AssumeRolePolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -215,7 +215,7 @@ resources:
                   - lambda.amazonaws.com
               Action: sts:AssumeRole
         Policies:
-          - PolicyName: calendar2slack-prod-us-east-1-lambdaRole
+          - PolicyName: ${self:custom.lambda.install.policyName}
             PolicyDocument:
               Version: '2012-10-17'
               Statement:
