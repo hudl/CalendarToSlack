@@ -30,6 +30,7 @@ functions:
       - http:
           path: 'slack/install'
           method: get
+    role: slackbotRole
   create-user:
     handler: src/index.createUser
     events:
@@ -124,6 +125,16 @@ resources:
                           - Ref: 'AWS::Region'
                           - Ref: 'AWS::AccountId'
                           - 'table/cal2slack-usersettings'
+                - Effect: Allow
+                  Action:
+                    - secretsmanager:GetSecretValue
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:secretsmanager'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'secret:${self:custom.lambda.slackbot.secretsPrefix}/*'
                 - Effect: 'Allow'
                   Action:
                     - lambda:InvokeFunction
