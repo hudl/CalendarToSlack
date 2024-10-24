@@ -1,20 +1,19 @@
 export default {
   dynamoDb: {
-    tableName: 'cal2slack-usersettings',
-    exportedSettingsTableName: 'cal2slack-exportedsettings',
+    tableName: '',
   },
   region: 'us-east-1',
   hosts: {
+    devLambda: 'http://localhost:3002',
     dev: 'http://localhost:3000',
-    prod: 'https://c242y9d8ki.execute-api.us-east-1.amazonaws.com/prod',
+    prod: '',
   },
   slack: {
     secretName: 'hudl/internal/cal2slack/slackbot-secrets',
-    clientId: '',
+    clientId: 'hudl/internal/cal2slack/slackbot-client-id',
   },
   microsoftGraph: {
-    clientId: '',
-    tenantId: '',
+    ids: 'hudl/internal/cal2slack/microsoftGraph-ids',
     secretName: 'hudl/internal/cal2slack/microsoft-graph',
   },
 };

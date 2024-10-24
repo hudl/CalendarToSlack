@@ -2,8 +2,7 @@ import 'isomorphic-fetch';
 import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
 import { AuthorizationCode, Token } from 'simple-oauth2';
 import { storeCalendarAuthenticationToken } from '../dynamo';
-import config from '../../../config';
-import { getMicrosoftGraphSecretWithKey } from '../../utils/secrets';
+import { getMicrosoftGraphIdWithKey, getMicrosoftGraphSecretWithKey } from '../../utils/secrets';
 import { authorizeMicrosoftGraphUrl } from '../../utils/urls';
 
 export class GraphApiAuthenticationProvider implements AuthenticationProvider {
@@ -22,23 +21,25 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
 
   private async createOAuthClient(): Promise<AuthorizationCode<string>> {
     const clientSecret = await getMicrosoftGraphSecretWithKey('client-secret');
+    const clientId = await getMicrosoftGraphIdWithKey('clientId');
+    const tenantId = await getMicrosoftGraphIdWithKey('tenantId');
     const oauthConfig = {
       client: {
-        id: config.microsoftGraph.clientId || '',
+        id: clientId || '',
         secret: clientSecret,
       },
       auth: {
-        tokenHost: `${this.oauthAuthority}${config.microsoftGraph.tenantId || ''}/`,
+        tokenHost: `${this.oauthAuthority}${tenantId || ''}/`,
         tokenPath: this.tokenPath,
         authorizePath: this.authorizePath,
       },
     };
 
-    console.log(oauthConfig);
     return new AuthorizationCode(oauthConfig);
   }
 
-  private shouldRefreshToken({ expires_at_timestamp: expiresAtTimestamp }: Token) {
+  private shouldRefreshToken(token: Token) {
+    const expiresAtTimestamp = token.expires_at_timestamp as string | null | undefined;
     if (!expiresAtTimestamp) {
       return true;
     }
@@ -52,12 +53,11 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
     const authentication = await this.createOAuthClient();
 
     const tokenResult = await authentication.getToken({
+      scope: this.scope,
       code: authCode || '',
       redirect_uri: authorizeMicrosoftGraphUrl()
     });
 
-    console.log(tokenResult);
-    
     await storeCalendarAuthenticationToken(this.userEmail, tokenResult.token);
     return tokenResult.token;
   }
@@ -79,19 +79,20 @@ export class GraphApiAuthenticationProvider implements AuthenticationProvider {
 
     try {
       const authentication = await this.createOAuthClient();
-      const accessToken = authentication.accessToken.create(this.storedToken);
+      const accessToken = authentication.createToken(this.storedToken);
 
-      const newToken = (await accessToken.refresh()).token;
-      newToken.expires_at_timestamp = newToken.expires_at.toISOString();
+      const newToken = (await accessToken.refresh({ scope: this.scope }));
+      const mutableToken = JSON.parse(JSON.stringify(newToken.token))
+      mutableToken.expires_at_timestamp = (newToken.token.expires_at as Date).toISOString();
 
       console.log(
         `Refreshed Microsoft graph access token for ${this.userEmail} with expiration: ${
-          newToken.expires_at_timestamp
+          mutableToken.expires_at_timestamp
         }`,
       );
 
-      await storeCalendarAuthenticationToken(this.userEmail, newToken);
-      return newToken.access_token;
+      await storeCalendarAuthenticationToken(this.userEmail, mutableToken);
+      return mutableToken.access_token as string;
     } catch (error) {
       console.error(error);
       throw error;

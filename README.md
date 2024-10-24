@@ -31,16 +31,16 @@ export default {
   },
   region: 'us-east-1',
   hosts: {
+    devLambda: 'http://localhost:3002',
     dev: 'http://localhost:3000',
     prod: 'https://some-id.execute-api.us-east-1.amazonaws.com/prod',
   },
   slack: {
     secretName: 'my/slack/AWS/secret/name',
-    clientId: 'slack client ID',
+    clientId: 'my/slack/AWS/secret/clientId',
   },
   microsoftGraph: {
-    clientId: 'graph client ID',
-    tenantId: 'graph tenant ID',
+    ids: 'my/graph/AWS/client-and-tenant-ids',
     secretName: 'my/graph/AWS/secret/name',
   },
 };
