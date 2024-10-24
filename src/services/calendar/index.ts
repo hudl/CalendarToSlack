@@ -72,6 +72,7 @@ export const getEventsForUser = async (
     const outlookEvents = await getAuthenticatedClient(email, storedToken)
       .api(`/users/${email}/calendarView?startDateTime=${startTime.toISOString()}&endDateTime=${endTime.toISOString()}`)
       .select('start,end,subject,body,showAs,location,sensitivity')
+      .filter('isCancelled eq false')
       .get();
 
     return outlookEvents.value.map((e: any) => {
