@@ -1,4 +1,7 @@
 lambda:
+  install:
+    roleName: calendar2slack-prod-us-east-1-lambdaRole
+    policyName: calendar2slack-prod-us-east-1-lambdaRole-policy
   update:
     roleName: hudl-cal2slack-lambda-update
     policyName: hudl-cal2slack-lambda-update-policy
