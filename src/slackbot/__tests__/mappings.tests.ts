@@ -6,13 +6,17 @@ import {
   UserSettings, ExportedSettings
 } from '../../services/dynamo';
 import {handleMappings} from "../mappings";
+import {serializeStatusMappings} from "../../slackbot";
 
 jest.mock('../../services/dynamo');
+jest.mock('../../slackbot');
 
 const exportSettingsMock = <jest.Mock>exportSettings;
 const getSettingsForUsersMock = <jest.Mock>getSettingsForUsers;
 const upsertStatusMappingsMock = <jest.Mock>upsertStatusMappings;
 const getExportedSettingsBySettingsIdMock = <jest.Mock>getExportedSettingsBySettingsId;
+
+const serializeStatusMappingsMock = <jest.Mock>serializeStatusMappings;
 
 const userSettings = {
   email: 'blah@blah.com',
@@ -105,6 +109,7 @@ describe('handleMappings', () => {
   describe('With import argument', () => {
     beforeEach(() => {
       upsertStatusMappingsMock.mockResolvedValueOnce(userSettings);
+      serializeStatusMappingsMock.mockReturnValue('serializedStatusMappings');
     });
     
     test('With imported settings Id matching a valid settingsId, imports settings', async () => {
@@ -113,7 +118,7 @@ describe('handleMappings', () => {
 
       const message = await handleMappings(userSettings, ['import=123']);
 
-      expect(message).toBe(`Your status mappings have been updated`);
+      expect(message).toBe(`Your status mappings have been updated:\nserializedStatusMappings`);
     });
 
     test('With invalid settingsId, reports error', async () => {

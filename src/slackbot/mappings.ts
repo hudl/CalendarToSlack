@@ -5,6 +5,7 @@ import {
   getExportedSettingsBySettingsId,
   getSettingsForUsers
 } from '../services/dynamo';
+import {serializeStatusMappings} from "../slackbot";
 
 type StatusMappingsCommandArguments = {
   zoomLinksEnabled?: boolean;
@@ -67,8 +68,8 @@ export const handleMappings = async (userSettings: UserSettings, argList: string
       return `No status mappings found for ${args.settingsId}`;
     }
 
-    await upsertStatusMappings(userSettings.email, exportedSettings.statusMappings);
-    return `Your status mappings have been updated`;
+    const updatedSettings = await upsertStatusMappings(userSettings.email, exportedSettings.statusMappings);
+    return `Your status mappings have been updated:\n${serializeStatusMappings(updatedSettings)}`;
   }
 
   return 'No supported arguments given. See the wiki for more information: https://github.com/hudl/CalendarToSlack/wiki';
