@@ -10,6 +10,7 @@ import {
 } from './services/dynamo';
 import { slackInstallUrl } from './utils/urls';
 import { handleSettings } from './slackbot/settings';
+import {handleMappings} from "./slackbot/mappings";
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
@@ -76,7 +77,7 @@ const validateSlackRequest = async (event: ApiGatewayEvent): Promise<boolean> =>
   return crypto.timingSafeEqual(Buffer.from(calculatedSignature, 'utf8'), Buffer.from(slackHash, 'utf8'));
 };
 
-const serializeStatusMappings = ({ defaultStatus, statusMappings }: UserSettings): string => {
+export const serializeStatusMappings = ({ defaultStatus, statusMappings }: UserSettings): string => {
   let defaultStatusString = '_Not set_';
   if (defaultStatus) {
     const statusText = defaultStatus.text ? ` \`${defaultStatus.text}\`` : '';
@@ -224,6 +225,7 @@ const commandHandlerMap: {
   'set-default': handleSetDefault,
   'remove-default': handleRemoveDefault,
   settings: handleSettings,
+  mappings: handleMappings,
 };
 
 const handleSlackEventCallback = async ({

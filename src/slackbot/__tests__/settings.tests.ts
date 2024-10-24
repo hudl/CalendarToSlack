@@ -3,10 +3,6 @@ import {
   setZoomLinksDisabled,
   setMeetingReminderTimingOverride,
   setSnoozed,
-  upsertStatusMappings,
-  getExportedSettingsBySettingsId,
-  getSettingsForUsers,
-  exportSettings,
   UserSettings, ExportedSettings
 } from '../../services/dynamo';
 
@@ -20,11 +16,6 @@ meetingReminderMock.mockResolvedValue({});
 
 const setSnoozedMock = <jest.Mock>setSnoozed;
 setSnoozedMock.mockResolvedValue({});
-
-const exportSettingsMock = <jest.Mock>exportSettings;
-const getSettingsForUsersMock = <jest.Mock>getSettingsForUsers;
-const upsertStatusMappingsMock = <jest.Mock>upsertStatusMappings;
-const getExportedSettingsBySettingsIdMock = <jest.Mock>getExportedSettingsBySettingsId;
 
 const userSettings = {
   email: 'blah@blah.com',
@@ -173,80 +164,6 @@ describe('handleSettings', () => {
       expect(meetingReminderMock).toBeCalledWith(userSettings.email, 15);
     });
   });
-  
-  describe('With export argument', () => {
-    beforeEach(() => {
-      exportSettingsMock.mockResolvedValueOnce("123");
-    });
-    test('Returns exported message', async () => {
-      const message = await handleSettings(userSettings, ['export']);
-
-      expect(message).toBe(
-        'Your status mappings have been exported with the ID: 123'
-      );
-    });
-    test('Exports settings in DynamoDB', async () => {
-      await handleSettings(userSettings, ['export']);
-
-      expect(exportSettingsMock).toBeCalledWith(userSettings.email, userSettings.statusMappings);
-    });
-  });
-
-  describe('With list argument', () => {
-    test('With exported settings Returns list of exported settings', async () => {
-      const statusMappings = [
-        {
-          exportedSettings: [
-            {settingsId: '123'},
-            {settingsId: '456'},
-          ]
-        }
-      ];
-      getSettingsForUsersMock.mockResolvedValueOnce(statusMappings);
-      
-      const message = await handleSettings(userSettings, ['list=export']);
-
-      expect(message).toBe(
-        'Status mapping IDs for user: 123\n456'
-      );
-    });
-
-    test('With no exported settings Returns no exported settings message', async () => {
-      const statusMappings: UserSettings[] = [];
-      getSettingsForUsersMock.mockResolvedValueOnce(statusMappings);
-
-      const message = await handleSettings(userSettings, ['list=export']);
-
-      expect(message).toBe(
-        'No exported status mappings found for user'
-      );
-    });
-  });
-
-  describe('With import argument', () => {
-    beforeEach(() => {
-      upsertStatusMappingsMock.mockResolvedValueOnce(userSettings);
-    });
-    
-    test('With imported settings Id matching a valid settingsId, imports settings', async () => {
-      const exportedSettings: ExportedSettings = {settingsId: '123', statusMappings: []};
-      getExportedSettingsBySettingsIdMock.mockResolvedValueOnce(exportedSettings);
-
-      const message = await handleSettings(userSettings, ['import=123']);
-
-      expect(message).toBe(`Your status mappings have been updated`);
-    });
-
-    test('With invalid settingsId, reports error', async () => {
-      const exportedSettings: ExportedSettings = {} as ExportedSettings;
-      getExportedSettingsBySettingsIdMock.mockResolvedValueOnce(exportedSettings);
-
-      const message = await handleSettings(userSettings, ['import=123']);
-
-      expect(message).toBe(`No status mappings found for 123`);
-    });  
-  });
-  
   describe('With multiple arguments', () => {
     beforeEach(() => {
       setZoomLinksMock.mockResolvedValueOnce({ ...userSettings, zoomLinksDisabled: true });
