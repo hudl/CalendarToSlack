@@ -110,7 +110,9 @@ export const handleSettings = async (userSettings: UserSettings, argList: string
       const settings = await getSettingsForUsers([userSettings.email]);
       const exportedSettings = settings.flatMap((s) => s.exportedSettings || []);
       const exportedSettingsIds = exportedSettings.map((es) => es.settingsId);
-      return 'Settings IDs for user: ' + exportedSettingsIds.join('\n');
+      return exportedSettingsIds.length > 0 
+        ? 'Settings IDs for user: ' + exportedSettingsIds.join('\n')
+        : 'No exported settings found for user';
     }
   }
 

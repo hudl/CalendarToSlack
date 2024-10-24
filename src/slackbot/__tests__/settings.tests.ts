@@ -1,5 +1,14 @@
 import { handleSettings } from '../settings';
-import { setZoomLinksDisabled, setMeetingReminderTimingOverride, setSnoozed, upsertStatusMappings, getExportedSettingsBySettingsId, getSettingsForUsers, exportSettings } from '../../services/dynamo';
+import {
+  setZoomLinksDisabled,
+  setMeetingReminderTimingOverride,
+  setSnoozed,
+  upsertStatusMappings,
+  getExportedSettingsBySettingsId,
+  getSettingsForUsers,
+  exportSettings,
+  UserSettings
+} from '../../services/dynamo';
 
 jest.mock('../../services/dynamo');
 
@@ -13,6 +22,9 @@ const setSnoozedMock = <jest.Mock>setSnoozed;
 setSnoozedMock.mockResolvedValue({});
 
 const exportSettingsMock = <jest.Mock>exportSettings;
+const getSettingsForUsersMock = <jest.Mock>getSettingsForUsers;
+const upsertStatusMappingsMock = <jest.Mock>upsertStatusMappings;
+const getExportedSettingsBySettingsIdMock = <jest.Mock>getExportedSettingsBySettingsId;
 
 const userSettings = {
   email: 'blah@blah.com',
@@ -177,6 +189,37 @@ describe('handleSettings', () => {
       await handleSettings(userSettings, ['export']);
 
       expect(exportSettingsMock).toBeCalledWith(userSettings.email, userSettings.statusMappings);
+    });
+  });
+
+  describe('With list argument', () => {
+    test('With exported settings Returns list of exported settings', async () => {
+      const statusMappings = [
+        {
+          exportedSettings: [
+            {settingsId: '123'},
+            {settingsId: '456'},
+          ]
+        }
+      ];
+      getSettingsForUsersMock.mockResolvedValueOnce(statusMappings);
+      
+      const message = await handleSettings(userSettings, ['list=export']);
+
+      expect(message).toBe(
+        'Settings IDs for user: 123\n456'
+      );
+    });
+
+    test('With no exported settings Returns no exported settings message', async () => {
+      const statusMappings: UserSettings[] = [];
+      getSettingsForUsersMock.mockResolvedValueOnce(statusMappings);
+
+      const message = await handleSettings(userSettings, ['list=export']);
+
+      expect(message).toBe(
+        'No exported settings found for user'
+      );
     });
   });
   
