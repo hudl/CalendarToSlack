@@ -261,7 +261,7 @@ You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   }
   const command = text;
   const tokens = command.match(/emoji\s*=\s*:[^"”:]+:|[\w-]+\s*=\s*(true|false|["“][^"”]+["”])|[^ "“”]+/gi) || [];
-  const subcommand = tokens[0];
+  const subcommand = tokens[0] || "none";
   const args = tokens.slice(1);
 
   if (subcommand in commandHandlerMap) {
@@ -281,7 +281,7 @@ You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
 export const handler = async (event: ApiGatewayEvent) => {
   let body = JSON.parse(event.body);
 
-  if (!(await validateSlackRequest(event))) {
+  if (!(process.env.IS_OFFLINE || await validateSlackRequest(event))) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: 'Request was invalid' }),

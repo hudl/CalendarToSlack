@@ -5,7 +5,7 @@ lambda:
   slackbot:
     roleName: hudl-cal2slack-lambda-slackbot
     policyName: hudl-cal2slack-lambda-slackbot-policy
-    secretsPrefix: hudl/internal/cal2slack/slackbot-secrets
+    secretsPrefix: hudl/internal/cal2slack
   testSecret:
     roleName: hudl-cal2slack-lambda-slackbot
     policyName: hudl-cal2slack-lambda-slackbot-policy
