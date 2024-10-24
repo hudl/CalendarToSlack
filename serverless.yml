@@ -30,7 +30,7 @@ functions:
       - http:
           path: 'slack/install'
           method: get
-    role: slackbotRole
+    role: slackInstallRole
   create-user:
     handler: src/index.createUser
     events:
@@ -161,6 +161,61 @@ resources:
               Action: sts:AssumeRole
         Policies:
           - PolicyName: ${self:custom.lambda.slackbot.policyName}
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:logs'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'log-group:/aws/lambda/*:*:*'
+                - Effect: Allow
+                  Action:
+                    - secretsmanager:GetSecretValue
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:secretsmanager'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'secret:${self:custom.lambda.slackbot.secretsPrefix}/*'
+                - Effect: Allow
+                  Action:
+                    - dynamodb:Scan
+                    - dynamodb:Query
+                    - dynamodb:GetItem
+                    - dynamodb:BatchGetItem
+                    - dynamodb:PutItem
+                    - dynamodb:UpdateItem
+                  Resource:
+                    - 'Fn::Join':
+                        - ':'
+                        - - 'arn:aws:dynamodb'
+                          - Ref: 'AWS::Region'
+                          - Ref: 'AWS::AccountId'
+                          - 'table/cal2slack-usersettings'
+    slackInstallRole:
+      Type: AWS::IAM::Role
+      Properties:
+        Path: /
+        RoleName: ${self:custom.lambda.slackbot.roleName}
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: calendar2slack-prod-us-east-1-lambdaRole
             PolicyDocument:
               Version: '2012-10-17'
               Statement:
