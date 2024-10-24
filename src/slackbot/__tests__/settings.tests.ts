@@ -7,7 +7,7 @@ import {
   getExportedSettingsBySettingsId,
   getSettingsForUsers,
   exportSettings,
-  UserSettings
+  UserSettings, ExportedSettings
 } from '../../services/dynamo';
 
 jest.mock('../../services/dynamo');
@@ -221,6 +221,35 @@ describe('handleSettings', () => {
         'No exported settings found for user'
       );
     });
+  });
+
+  describe('With import argument', () => {
+    beforeEach(() => {
+      upsertStatusMappingsMock.mockResolvedValueOnce(userSettings);
+    });
+    
+    test('With imported settings Id matching a valid settingsId, imports settings', async () => {
+      const exportedSettings: ExportedSettings = {settingsId: '123', statusMappings: []};
+      getExportedSettingsBySettingsIdMock.mockResolvedValueOnce(exportedSettings);
+
+      const message = await handleSettings(userSettings, ['import=123']);
+
+      expect(message).toBe(
+        `Your settings have been updated:
+• \`zoom-links\`: \`true\`
+• \`reminder-timing\`: \`1\`
+• \`snoozed\`: \`false\``,
+      );
+    });
+
+    test('With invalid settingsId, reports error', async () => {
+      const exportedSettings: ExportedSettings = {} as ExportedSettings;
+      getExportedSettingsBySettingsIdMock.mockResolvedValueOnce(exportedSettings);
+
+      const message = await handleSettings(userSettings, ['import=123']);
+
+      expect(message).toBe(`No settings found for 123`);
+    });  
   });
   
   describe('With multiple arguments', () => {

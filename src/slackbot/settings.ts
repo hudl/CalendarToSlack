@@ -99,7 +99,7 @@ export const handleSettings = async (userSettings: UserSettings, argList: string
   }
   if (args.settingsId) {
     const exportedSettings = await getExportedSettingsBySettingsId(args.settingsId);
-    if (!exportedSettings) {
+    if (!exportedSettings.statusMappings) {
       return `No settings found for ${args.settingsId}`;
     }
     
