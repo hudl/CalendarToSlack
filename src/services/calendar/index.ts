@@ -1,5 +1,5 @@
 import 'isomorphic-fetch';
-import { Client, ClientOptions } from '@microsoft/microsoft-graph-client';
+import { Client, ClientOptions, GraphError } from '@microsoft/microsoft-graph-client';
 import { GraphApiAuthenticationProvider } from './graphApiAuthenticationProvider';
 import { Token } from 'simple-oauth2';
 import { clearUserTokens } from '../dynamo';
@@ -90,14 +90,16 @@ export const getEventsForUser = async (
   } catch (error) {
     console.error(error);
 
-    const { statusCode } = error;
-    if (statusCode === 401 || statusCode === 403) {
-      console.error(`No authorization for Graph API for user ${email}`);
-      try {
-        await sendAuthErrorMessage(email);
-        await clearUserTokens(email);
-      } finally {
-        return null;
+    if (error instanceof GraphError) {
+      const { statusCode } = error;
+      if (statusCode === 401 || statusCode === 403) {
+        console.error(`No authorization for Graph API for user ${email}`);
+        try {
+          await sendAuthErrorMessage(email);
+          await clearUserTokens(email);
+        } finally {
+          return null;
+        }
       }
     }
   }

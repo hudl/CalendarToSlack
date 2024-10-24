@@ -1,8 +1,16 @@
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import config from '../../config';
 
+export const getSlackClientIdWithKey = async (key: string): Promise<string> => {
+  return getSecretWithKey(config.slack.clientId, key);
+};
+
 export const getSlackSecretWithKey = async (key: string): Promise<string> => {
   return getSecretWithKey(config.slack.secretName, key);
+};
+
+export const getMicrosoftGraphIdWithKey = async (key: string): Promise<string> => {
+  return getSecretWithKey(config.microsoftGraph.ids, key);
 };
 
 export const getMicrosoftGraphSecretWithKey = async (key: string): Promise<string> => {
@@ -18,7 +26,7 @@ const getSecretWithKey = async (secretName: string, key: string): Promise<string
   });
 
   try {
-    const data = await client.send(command);
+    const data: any = await client.send(command);
     if (data && data.SecretString) {
       const secrets = JSON.parse(data.SecretString);
       const value = secrets[key];
