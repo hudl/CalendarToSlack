@@ -45,7 +45,9 @@ export const setUserPresence = async (email: string, token: string | undefined, 
 
   try {
     const result = await slackClient.users.setPresence({ presence });
-    throw result.error;
+    if (!result.ok) {
+      throw result.error;
+    }
   } catch (error) {
     await handleError(error, email);
   }
