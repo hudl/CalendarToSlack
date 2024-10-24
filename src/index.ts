@@ -1,6 +1,6 @@
 import {InvokeCommand, LambdaClient} from '@aws-sdk/client-lambda';
 import { AuthorizationCode } from 'simple-oauth2';
-import {LogLevel, WebClient} from '@slack/web-api';
+import {WebClient} from '@slack/web-api';
 import {CalendarEvent, getEventsForUser, ShowAs} from './services/calendar';
 import {
   getAllUserSettings,
@@ -200,8 +200,7 @@ export const createUser: Handler = async (event: any) => {
   const user: string = tokenResult.token.user_id as string;
 
   const slackClient = new WebClient(tokenStr);
-  const userInfo = await slackClient.users.info({ token: tokenStr, user: user })
-
+  const userInfo = await slackClient.users.info({ token: tokenStr, user: user });
 
   if (userInfo.error) {
     console.error('Error getting profile from Slack', userInfo.error);
