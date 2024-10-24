@@ -155,6 +155,7 @@ export const authorizeMicrosoftGraph: Handler = async (event: any) => {
 };
 
 export const slackInstall: Handler = async () => {
+  console.log('Slack install requested.')
   const clientId = await getSlackClientIdWithKey('clientId');
 
   return {
