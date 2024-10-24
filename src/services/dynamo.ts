@@ -19,8 +19,6 @@ export type StatusMapping = {
 
 export type ExportedSettings = {
   settingsId: string;
-  // TODO create new status mapping type and map between types
-  // Should status mappings change, we need to handle updating the exported settings
   statusMappings: StatusMapping[];
 };
 

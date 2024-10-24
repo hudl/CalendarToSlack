@@ -64,8 +64,6 @@ const stringifySettings = ({ zoomLinksDisabled, meetingReminderTimingOverride, s
     meetingReminderTimingOverride || 1
     }\``;
   const snoozedString = `• \`${SettingsCommandArgumentKeys.Snoozed}\`: \`${!!snoozed}\``;
-  //TODO list export settings ids
-  
   return `${zoomLinksString}\n${reminderTimingString}\n${snoozedString}`;
 };
 
@@ -82,7 +80,7 @@ export const handleSettings = async (userSettings: UserSettings, argList: string
       return `You have no status mappings to export.`;
     }
     const exportedSettingsId = await exportSettings(userSettings.email, userSettings.statusMappings);
-    return `Your settings have been exported with the ID: ${exportedSettingsId}`;
+    return `Your status mappings have been exported with the ID: ${exportedSettingsId}`;
   }
 
   const args = constructSettingsCommandArgs(argList);
@@ -100,10 +98,11 @@ export const handleSettings = async (userSettings: UserSettings, argList: string
   if (args.settingsId) {
     const exportedSettings = await getExportedSettingsBySettingsId(args.settingsId);
     if (!exportedSettings.statusMappings) {
-      return `No settings found for ${args.settingsId}`;
+      return `No status mappings found for ${args.settingsId}`;
     }
     
     newSettings = await upsertStatusMappings(userSettings.email, exportedSettings.statusMappings);
+    return `Your status mappings have been updated`;
   }
   if (args.listSubCommand) {
     if (args.listSubCommand === SettingsCommandArgumentKeys.Export) {
@@ -111,8 +110,8 @@ export const handleSettings = async (userSettings: UserSettings, argList: string
       const exportedSettings = settings.flatMap((s) => s.exportedSettings || []);
       const exportedSettingsIds = exportedSettings.map((es) => es.settingsId);
       return exportedSettingsIds.length > 0 
-        ? 'Settings IDs for user: ' + exportedSettingsIds.join('\n')
-        : 'No exported settings found for user';
+        ? 'Status mapping IDs for user: ' + exportedSettingsIds.join('\n')
+        : 'No exported status mappings found for user';
     }
   }
 

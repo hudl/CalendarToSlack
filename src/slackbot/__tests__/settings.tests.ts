@@ -182,7 +182,7 @@ describe('handleSettings', () => {
       const message = await handleSettings(userSettings, ['export']);
 
       expect(message).toBe(
-        'Your settings have been exported with the ID: 123'
+        'Your status mappings have been exported with the ID: 123'
       );
     });
     test('Exports settings in DynamoDB', async () => {
@@ -207,7 +207,7 @@ describe('handleSettings', () => {
       const message = await handleSettings(userSettings, ['list=export']);
 
       expect(message).toBe(
-        'Settings IDs for user: 123\n456'
+        'Status mapping IDs for user: 123\n456'
       );
     });
 
@@ -218,7 +218,7 @@ describe('handleSettings', () => {
       const message = await handleSettings(userSettings, ['list=export']);
 
       expect(message).toBe(
-        'No exported settings found for user'
+        'No exported status mappings found for user'
       );
     });
   });
@@ -234,12 +234,7 @@ describe('handleSettings', () => {
 
       const message = await handleSettings(userSettings, ['import=123']);
 
-      expect(message).toBe(
-        `Your settings have been updated:
-• \`zoom-links\`: \`true\`
-• \`reminder-timing\`: \`1\`
-• \`snoozed\`: \`false\``,
-      );
+      expect(message).toBe(`Your status mappings have been updated`);
     });
 
     test('With invalid settingsId, reports error', async () => {
@@ -248,7 +243,7 @@ describe('handleSettings', () => {
 
       const message = await handleSettings(userSettings, ['import=123']);
 
-      expect(message).toBe(`No settings found for 123`);
+      expect(message).toBe(`No status mappings found for 123`);
     });  
   });
   
