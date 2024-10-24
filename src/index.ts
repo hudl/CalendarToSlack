@@ -61,7 +61,7 @@ const sendUpcomingEventMessage = async (
 
 export const update: Handler = async () => {
   const batchSize = 10;
-
+  
   const lambda = new LambdaClient({
     apiVersion: 'latest',
     region: config.region,

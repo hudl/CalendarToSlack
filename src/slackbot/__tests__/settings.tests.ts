@@ -1,5 +1,10 @@
 import { handleSettings } from '../settings';
-import { setZoomLinksDisabled, setMeetingReminderTimingOverride, setSnoozed } from '../../services/dynamo';
+import {
+  setZoomLinksDisabled,
+  setMeetingReminderTimingOverride,
+  setSnoozed,
+  UserSettings, ExportedSettings
+} from '../../services/dynamo';
 
 jest.mock('../../services/dynamo');
 
@@ -14,6 +19,15 @@ setSnoozedMock.mockResolvedValue({});
 
 const userSettings = {
   email: 'blah@blah.com',
+  statusMappings: [
+    {
+      calendarText: 'busy',
+      slackStatus: {
+        text: 'busy',
+        emoji: ':calendar:',
+      },
+    },
+  ],
 };
 
 describe('handleSettings', () => {

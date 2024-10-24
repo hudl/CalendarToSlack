@@ -1,4 +1,9 @@
-import { UserSettings, setZoomLinksDisabled, setMeetingReminderTimingOverride, setSnoozed } from '../services/dynamo';
+import {
+  UserSettings,
+  setZoomLinksDisabled,
+  setMeetingReminderTimingOverride,
+  setSnoozed
+} from '../services/dynamo';
 
 type SettingsCommandArguments = {
   zoomLinksEnabled?: boolean;
@@ -44,7 +49,6 @@ const stringifySettings = ({ zoomLinksDisabled, meetingReminderTimingOverride, s
     meetingReminderTimingOverride || 1
     }\``;
   const snoozedString = `• \`${SettingsCommandArgumentKeys.Snoozed}\`: \`${!!snoozed}\``;
-
   return `${zoomLinksString}\n${reminderTimingString}\n${snoozedString}`;
 };
 
