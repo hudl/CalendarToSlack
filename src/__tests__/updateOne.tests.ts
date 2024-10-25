@@ -66,10 +66,10 @@ describe('updateOne', () => {
   test('skips updates for snoozed users', () => {
     updateOne({ ...baseUserSettings, snoozed: true });
 
-    expect(setUserStatusMock).not.toBeCalled();
-    expect(setUserPresenceMock).not.toBeCalled();
-    expect(upsertCurrentEventMock).not.toBeCalled();
-    expect(postMessageMock).not.toBeCalled();
+    expect(setUserStatusMock).not.toHaveBeenCalled();
+    expect(setUserPresenceMock).not.toHaveBeenCalled();
+    expect(upsertCurrentEventMock).not.toHaveBeenCalled();
+    expect(postMessageMock).not.toHaveBeenCalled();
   });
 
   describe('updating Slack status', () => {
@@ -82,25 +82,25 @@ describe('updateOne', () => {
         test('does not update Slack status', async () => {
           await updateOne(baseUserSettings);
 
-          expect(setUserStatusMock).not.toBeCalled();
-          expect(setUserPresenceMock).not.toBeCalled();
+          expect(setUserStatusMock).not.toHaveBeenCalled();
+          expect(setUserPresenceMock).not.toHaveBeenCalled();
         });
         test('does not update DynamoDB', async () => {
           await updateOne(baseUserSettings);
 
-          expect(upsertCurrentEventMock).not.toBeCalled();
-          expect(removeCurrentEventMock).not.toBeCalled();
+          expect(upsertCurrentEventMock).not.toHaveBeenCalled();
+          expect(removeCurrentEventMock).not.toHaveBeenCalled();
         });
       });
       describe('and a current event', () => {
         test('clears Slack status', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(setUserStatusMock).toBeCalledWith(userWithCurrentEvent.email, userWithCurrentEvent.slackToken, {
+          expect(setUserStatusMock).toHaveBeenCalledWith(userWithCurrentEvent.email, userWithCurrentEvent.slackToken, {
             text: '',
             emoji: '',
           });
-          expect(setUserPresenceMock).toBeCalledWith(
+          expect(setUserPresenceMock).toHaveBeenCalledWith(
             userWithCurrentEvent.email,
             userWithCurrentEvent.slackToken,
             'auto',
@@ -109,7 +109,7 @@ describe('updateOne', () => {
         test('removes event in DynamoDB', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(removeCurrentEventMock).toBeCalledWith(userWithCurrentEvent.email);
+          expect(removeCurrentEventMock).toHaveBeenCalledWith(userWithCurrentEvent.email);
         });
       });
     });
@@ -122,14 +122,14 @@ describe('updateOne', () => {
         test('does not update Slack status', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(setUserStatusMock).not.toBeCalled();
-          expect(setUserPresenceMock).not.toBeCalled();
+          expect(setUserStatusMock).not.toHaveBeenCalled();
+          expect(setUserPresenceMock).not.toHaveBeenCalled();
         });
         test('does not update DynamoDB', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(upsertCurrentEventMock).not.toBeCalled();
-          expect(removeCurrentEventMock).not.toBeCalled();
+          expect(upsertCurrentEventMock).not.toHaveBeenCalled();
+          expect(removeCurrentEventMock).not.toHaveBeenCalled();
         });
       });
       describe('that does not match the current event', () => {
@@ -140,11 +140,11 @@ describe('updateOne', () => {
         test('updates Slack status to OOO', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(setUserStatusMock).toBeCalledWith(userWithCurrentEvent.email, userWithCurrentEvent.slackToken, {
+          expect(setUserStatusMock).toHaveBeenCalledWith(userWithCurrentEvent.email, userWithCurrentEvent.slackToken, {
             text: 'OOO until Saturday, January 4',
             emoji: ':ooo:',
           });
-          expect(setUserPresenceMock).toBeCalledWith(
+          expect(setUserPresenceMock).toHaveBeenCalledWith(
             userWithCurrentEvent.email,
             userWithCurrentEvent.slackToken,
             'away',
@@ -153,7 +153,7 @@ describe('updateOne', () => {
         test('sets the current event to the new event DynamoDB', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(upsertCurrentEventMock).toBeCalledWith(userWithCurrentEvent.email, oooEvent);
+          expect(upsertCurrentEventMock).toHaveBeenCalledWith(userWithCurrentEvent.email, oooEvent);
         });
       });
     });
@@ -176,14 +176,14 @@ describe('updateOne', () => {
         test('does not update Slack status', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(setUserStatusMock).not.toBeCalled();
-          expect(setUserPresenceMock).not.toBeCalled();
+          expect(setUserStatusMock).not.toHaveBeenCalled();
+          expect(setUserPresenceMock).not.toHaveBeenCalled();
         });
         test('does not update DynamoDB', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(upsertCurrentEventMock).not.toBeCalled();
-          expect(removeCurrentEventMock).not.toBeCalled();
+          expect(upsertCurrentEventMock).not.toHaveBeenCalled();
+          expect(removeCurrentEventMock).not.toHaveBeenCalled();
         });
       });
 
@@ -195,11 +195,11 @@ describe('updateOne', () => {
         test('updates Slack status to event with highest-priority ShowAs', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(setUserStatusMock).toBeCalledWith(userWithCurrentEvent.email, userWithCurrentEvent.slackToken, {
+          expect(setUserStatusMock).toHaveBeenCalledWith(userWithCurrentEvent.email, userWithCurrentEvent.slackToken, {
             text: 'OOO until Saturday, January 4',
             emoji: ':ooo:',
           });
-          expect(setUserPresenceMock).toBeCalledWith(
+          expect(setUserPresenceMock).toHaveBeenCalledWith(
             userWithCurrentEvent.email,
             userWithCurrentEvent.slackToken,
             'away',
@@ -208,7 +208,7 @@ describe('updateOne', () => {
         test('sets the current event to event with highest-priority ShowAs in DynamoDB', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(upsertCurrentEventMock).toBeCalledWith(userWithCurrentEvent.email, oooEvent);
+          expect(upsertCurrentEventMock).toHaveBeenCalledWith(userWithCurrentEvent.email, oooEvent);
         });
       });
 
@@ -228,11 +228,11 @@ describe('updateOne', () => {
         test('updates Slack status to event with latest start time', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(setUserStatusMock).toBeCalledWith(userWithCurrentEvent.email, userWithCurrentEvent.slackToken, {
+          expect(setUserStatusMock).toHaveBeenCalledWith(userWithCurrentEvent.email, userWithCurrentEvent.slackToken, {
             text: 'Away',
             emoji: ':spiral_calendar_pad:',
           });
-          expect(setUserPresenceMock).toBeCalledWith(
+          expect(setUserPresenceMock).toHaveBeenCalledWith(
             userWithCurrentEvent.email,
             userWithCurrentEvent.slackToken,
             'away',
@@ -241,7 +241,7 @@ describe('updateOne', () => {
         test('sets the current event to event with latest start time in DynamoDB', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(upsertCurrentEventMock).toBeCalledWith(userWithCurrentEvent.email, busyEvent);
+          expect(upsertCurrentEventMock).toHaveBeenCalledWith(userWithCurrentEvent.email, busyEvent);
         });
       });
     });
@@ -256,7 +256,7 @@ describe('updateOne', () => {
           test('sends a Slack reminder', async () => {
             await updateOne(userWithCurrentEvent);
 
-            expect(postMessageMock).toBeCalledWith(botToken, {
+            expect(postMessageMock).toHaveBeenCalledWith(botToken, {
               text: 'You have an upcoming meeting: *meetings* at https://my.test.url',
               channel: slackUser.id,
             });
@@ -264,19 +264,19 @@ describe('updateOne', () => {
           test('updates the last reminder event ID in DynamoDB', async () => {
             await updateOne(userWithCurrentEvent);
 
-            expect(setLastReminderEventIdMock).toBeCalledWith(userWithCurrentEvent.email, oooEvent.id);
+            expect(setLastReminderEventIdMock).toHaveBeenCalledWith(userWithCurrentEvent.email, oooEvent.id);
           });
         });
         describe('and the user has been sent a reminder', () => {
           test('does not send a Slack reminder', async () => {
             await updateOne({ ...userWithCurrentEvent, lastReminderEventId: oooEvent.id });
 
-            expect(postMessageMock).not.toBeCalled();
+            expect(postMessageMock).not.toHaveBeenCalled();
           });
           test('does not update the last reminder event ID in DynamoDB', async () => {
             await updateOne({ ...userWithCurrentEvent, lastReminderEventId: oooEvent.id });
 
-            expect(setLastReminderEventIdMock).not.toBeCalled();
+            expect(setLastReminderEventIdMock).not.toHaveBeenCalled();
           });
         });
       });
@@ -287,12 +287,12 @@ describe('updateOne', () => {
         test('does not send a Slack reminder', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(postMessageMock).not.toBeCalled();
+          expect(postMessageMock).not.toHaveBeenCalled();
         });
         test('does not update the last reminder event ID in DynamoDB', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(setLastReminderEventIdMock).not.toBeCalled();
+          expect(setLastReminderEventIdMock).not.toHaveBeenCalled();
         });
       });
       describe('and no upcoming meeting', () => {
@@ -302,12 +302,12 @@ describe('updateOne', () => {
         test('does not send a Slack reminder', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(postMessageMock).not.toBeCalled();
+          expect(postMessageMock).not.toHaveBeenCalled();
         });
         test('does not update the last reminder event ID in DynamoDB', async () => {
           await updateOne(userWithCurrentEvent);
 
-          expect(setLastReminderEventIdMock).not.toBeCalled();
+          expect(setLastReminderEventIdMock).not.toHaveBeenCalled();
         });
       });
     });
@@ -322,7 +322,7 @@ describe('updateOne', () => {
           test('sends a Slack reminder', async () => {
             await updateOne(overrideUser);
 
-            expect(postMessageMock).toBeCalledWith(botToken, {
+            expect(postMessageMock).toHaveBeenCalledWith(botToken, {
               text: 'You have an upcoming meeting: *anotha one* at https://my.test.url/2',
               channel: slackUser.id,
             });
@@ -330,19 +330,19 @@ describe('updateOne', () => {
           test('updates the last reminder event ID in DynamoDB', async () => {
             await updateOne(overrideUser);
 
-            expect(setLastReminderEventIdMock).toBeCalledWith(userWithCurrentEvent.email, busyEvent.id);
+            expect(setLastReminderEventIdMock).toHaveBeenCalledWith(userWithCurrentEvent.email, busyEvent.id);
           });
         });
         describe('and the user has been sent a reminder', () => {
           test('does not send a Slack reminder', async () => {
             await updateOne({ ...overrideUser, lastReminderEventId: busyEvent.id });
 
-            expect(postMessageMock).not.toBeCalled();
+            expect(postMessageMock).not.toHaveBeenCalled();
           });
           test('does not update the last reminder event ID in DynamoDB', async () => {
             await updateOne({ ...overrideUser, lastReminderEventId: busyEvent.id });
 
-            expect(setLastReminderEventIdMock).not.toBeCalled();
+            expect(setLastReminderEventIdMock).not.toHaveBeenCalled();
           });
         });
       });
@@ -354,12 +354,12 @@ describe('updateOne', () => {
         test('does not send a Slack reminder', async () => {
           await updateOne(overrideUser);
 
-          expect(postMessageMock).not.toBeCalled();
+          expect(postMessageMock).not.toHaveBeenCalled();
         });
         test('does not update the last reminder event ID in DynamoDB', async () => {
           await updateOne(overrideUser);
 
-          expect(setLastReminderEventIdMock).not.toBeCalled();
+          expect(setLastReminderEventIdMock).not.toHaveBeenCalled();
         });
       });
       describe('and no upcoming meeting', () => {
@@ -370,12 +370,12 @@ describe('updateOne', () => {
         test('does not send a Slack reminder', async () => {
           await updateOne(overrideUser);
 
-          expect(postMessageMock).not.toBeCalled();
+          expect(postMessageMock).not.toHaveBeenCalled();
         });
         test('does not update the last reminder event ID in DynamoDB', async () => {
           await updateOne(overrideUser);
 
-          expect(setLastReminderEventIdMock).not.toBeCalled();
+          expect(setLastReminderEventIdMock).not.toHaveBeenCalled();
         });
       });
     });
@@ -384,7 +384,7 @@ describe('updateOne', () => {
         getEventsForUserMock.mockResolvedValueOnce([oooEvent]);
         await updateOne({ ...userWithCurrentEvent, meetingReminderTimingOverride: 1 });
 
-        expect(getEventsForUserMock).toBeCalledTimes(1);
+        expect(getEventsForUserMock).toHaveBeenCalledTimes(1);
       });
     });
   });
