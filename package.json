@@ -40,7 +40,7 @@
     "@types/simple-oauth2": "5.0.7",
     "jest": "29.7.0",
     "serverless": "3.39.0",
-    "serverless-offline": "13.6.0",
+    "serverless-offline": "13.9.0",
     "serverless-plugin-include-dependencies": "6.1.1",
     "serverless-plugin-typescript": "2.1.5",
     "ts-jest": "29.2.5",
