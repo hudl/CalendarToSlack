@@ -93,7 +93,8 @@ export const getEventsForUser = async (
 
     if (error instanceof GraphError) {
       const { statusCode } = error;
-      if (statusCode === 401 || statusCode === 403) {
+      // statusCode -1 === 400 which Microsoft now sends out when Graph credentials expire :/
+      if (statusCode === -1 || statusCode === 401 || statusCode === 403) {
         console.error(`No authorization for Graph API for user ${email}`);
         try {
           await sendAuthErrorMessage(email);
