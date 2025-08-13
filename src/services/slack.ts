@@ -6,6 +6,7 @@ import { slackInstallUrl } from '../utils/urls';
 export type SlackStatus = {
   text?: string;
   emoji?: string;
+  expiration?: number;
 };
 
 export type SlackUserProfile = {
@@ -56,7 +57,7 @@ export const setUserPresence = async (email: string, token: string | undefined, 
 export const setUserStatus = async (email: string, token: string | undefined, status: SlackStatus) => {
   if (!token) return;
 
-  console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email}`);
+  console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email} until ${status.expiration}`);
 
   const slackClient = new WebClient(token);
 
@@ -65,6 +66,7 @@ export const setUserStatus = async (email: string, token: string | undefined, st
       profile: {
         status_text: status?.text || '',
         status_emoji: status?.emoji || '',
+        status_expiration: status?.expiration || 0,
       },
     });
   } catch (error) {
