@@ -61,12 +61,14 @@ export const setUserStatus = async (email: string, token: string | undefined, st
 
   const slackClient = new WebClient(token);
 
+  const expiration_seconds = Math.floor((status?.expiration || 0) / 1000);
+
   try {
     await slackClient.users.profile.set({
       profile: {
         status_text: status?.text || '',
         status_emoji: status?.emoji || '',
-        status_expiration: status?.expiration || 0,
+        status_expiration: expiration_seconds,
       },
     });
   } catch (error) {
