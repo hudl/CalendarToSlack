@@ -21,13 +21,16 @@ export const getStatusForUserEvent = (
   event: CalendarEvent | null,
   userTimeZone: string = 'UTC',
 ): SlackStatus => {
+  const expiration = event?.endTime.valueOf() || 0;
+
   const defaultStatusByVisibility = {
     [ShowAs.Free]: settings.defaultStatus || { text: '', emoji: '' },
-    [ShowAs.Busy]: { text: 'Away', emoji: ':spiral_calendar_pad:' },
-    [ShowAs.Tentative]: { text: 'Away', emoji: ':spiral_calendar_pad:' },
+    [ShowAs.Busy]: { text: 'Away', emoji: ':spiral_calendar_pad:', expiration },
+    [ShowAs.Tentative]: { text: 'Away', emoji: ':spiral_calendar_pad:', expiration },
     [ShowAs.OutOfOffice]: {
       text: `OOO until ${getOOODateString(event && event.endTime, userTimeZone)}`,
       emoji: ':ooo:',
+      expiration,
     },
   };
 
@@ -40,6 +43,11 @@ export const getStatusForUserEvent = (
     settings.statusMappings.find(
       (sm) => sm.calendarText && event.name.toLowerCase().includes(sm.calendarText.toLowerCase()),
     );
+
+  // If there is a relevant status for this event set its expiration since that isn't stored in the mappings
+  if (relevantStatus) {
+    relevantStatus.slackStatus.expiration = expiration;
+  }
 
   return relevantStatus ? relevantStatus.slackStatus : defaultStatusByVisibility[event.showAs];
 };

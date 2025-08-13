@@ -207,7 +207,7 @@ const handleSetDefault = async (userSettings: UserSettings, argList: string[]): 
 
 const handleRemoveDefault = async (userSettings: UserSettings): Promise<string> => {
   const slackPromise = !userSettings.currentEvent
-    ? setUserStatus(userSettings.email, userSettings.slackToken, { text: '', emoji: '' })
+    ? setUserStatus(userSettings.email, userSettings.slackToken, { text: '', emoji: '', expiration: 0 })
     : Promise.resolve();
 
   await Promise.all([removeDefaultStatus(userSettings.email), slackPromise]);

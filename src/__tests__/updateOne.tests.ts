@@ -143,6 +143,7 @@ describe('updateOne', () => {
           expect(setUserStatusMock).toHaveBeenCalledWith(userWithCurrentEvent.email, userWithCurrentEvent.slackToken, {
             text: 'OOO until Saturday, January 4',
             emoji: ':ooo:',
+            expiration: oooEvent.endTime.valueOf()
           });
           expect(setUserPresenceMock).toHaveBeenCalledWith(
             userWithCurrentEvent.email,
@@ -198,6 +199,7 @@ describe('updateOne', () => {
           expect(setUserStatusMock).toHaveBeenCalledWith(userWithCurrentEvent.email, userWithCurrentEvent.slackToken, {
             text: 'OOO until Saturday, January 4',
             emoji: ':ooo:',
+            expiration: oooEvent.endTime.valueOf()
           });
           expect(setUserPresenceMock).toHaveBeenCalledWith(
             userWithCurrentEvent.email,
@@ -231,6 +233,7 @@ describe('updateOne', () => {
           expect(setUserStatusMock).toHaveBeenCalledWith(userWithCurrentEvent.email, userWithCurrentEvent.slackToken, {
             text: 'Away',
             emoji: ':spiral_calendar_pad:',
+            expiration: busyEvent.endTime.valueOf()
           });
           expect(setUserPresenceMock).toHaveBeenCalledWith(
             userWithCurrentEvent.email,
