@@ -10,7 +10,7 @@ import {
 } from './services/dynamo';
 import { slackInstallUrl } from './utils/urls';
 import { handleSettings } from './slackbot/settings';
-import {handleMappings} from "./slackbot/mappings";
+import { handleMappings } from './slackbot/mappings';
 
 const MILLIS_IN_SEC = 1000;
 const FIVE_MIN_IN_SEC = 300;
@@ -51,6 +51,7 @@ type CalendarCommandArguments = {
   meeting?: string;
   message?: string;
   emoji?: string;
+  dnd?: string;
 };
 
 interface SlackResponse {}
@@ -102,7 +103,7 @@ export const serializeStatusMappings = ({ defaultStatus, statusMappings }: UserS
 };
 
 const constructCalendarCommandArgs = (argList: string[]): CalendarCommandArguments => {
-  const args: { [key: string]: string } = { meeting: '', message: '', emoji: '' };
+  const args: { [key: string]: string } = { meeting: '', message: '', emoji: '', dnd: '' };
 
   for (let arg of argList) {
     const [key, value] = arg.split(/\s?=\s?/g);
@@ -115,6 +116,7 @@ const constructCalendarCommandArgs = (argList: string[]): CalendarCommandArgumen
     meeting: args['meeting'],
     message: args['message'],
     emoji: args['emoji'],
+    dnd: args['dnd'],
   };
 };
 
@@ -140,6 +142,8 @@ const handleSet = async (userSettings: UserSettings, argList: string[]): Promise
     text: args.message || args.meeting,
     emoji: args.emoji,
   };
+  // Checks if dnd is "True". If first letter isn't 't' or if arg not provided assume false
+  const dnd = args.dnd?.toLowerCase().startsWith('t');
 
   const updatedMappings = userSettings.statusMappings || [];
   const existingMapping = updatedMappings.find(
@@ -148,8 +152,9 @@ const handleSet = async (userSettings: UserSettings, argList: string[]): Promise
 
   if (existingMapping) {
     existingMapping.slackStatus = slackStatus;
+    existingMapping.dnd = dnd;
   } else {
-    updatedMappings.push({ calendarText: args.meeting, slackStatus });
+    updatedMappings.push({ calendarText: args.meeting, slackStatus, dnd });
   }
 
   const slackPromise =
@@ -263,7 +268,7 @@ You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
   }
   const command = text;
   const tokens = command.match(/emoji\s*=\s*:[^"”:]+:|[\w-]+\s*=\s*(true|false|["“][^"”]+["”])|[^ "“”]+/gi) || [];
-  const subcommand = tokens[0] || "none";
+  const subcommand = tokens[0] || 'none';
   const args = tokens.slice(1);
 
   if (subcommand in commandHandlerMap) {
@@ -283,7 +288,7 @@ You need to authorize me before we can do anything else: ${slackInstallUrl()}`);
 export const handler = async (event: ApiGatewayEvent) => {
   let body = JSON.parse(event.body);
 
-  if (!(process.env.IS_OFFLINE || await validateSlackRequest(event))) {
+  if (!(process.env.IS_OFFLINE || (await validateSlackRequest(event)))) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: 'Request was invalid' }),

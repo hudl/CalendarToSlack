@@ -6,7 +6,7 @@ import {
   BatchGetCommand,
   ScanCommand,
   UpdateCommand,
-  UpdateCommandInput, 
+  UpdateCommandInput,
 } from '@aws-sdk/lib-dynamodb';
 import config from '../../config';
 import { CalendarEvent } from './calendar';
@@ -15,6 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 export type StatusMapping = {
   calendarText: string;
   slackStatus: SlackStatus;
+  dnd?: boolean;
 };
 
 export type ExportedSettings = {
@@ -33,7 +34,7 @@ export type UserSettings = {
   meetingReminderTimingOverride?: number;
   lastReminderEventId?: string;
   snoozed?: boolean;
-  exportedSettings?: ExportedSettings[]
+  exportedSettings?: ExportedSettings[];
 };
 
 const toDynamoStatus = (status: SlackStatus) => ({
@@ -295,11 +296,8 @@ export const getExportedSettingsBySettingsId = async (settingsId: string): Promi
     }
 
     const userSettings = response.Items.map((item) => item as UserSettings);
-    const exportedSettings = userSettings.flatMap((item) => item.exportedSettings?.map(es => es as ExportedSettings));
-    return exportedSettings
-      .filter((item) => item && item?.settingsId === settingsId)[0]
-      ?? {} as ExportedSettings;
-
+    const exportedSettings = userSettings.flatMap((item) => item.exportedSettings?.map((es) => es as ExportedSettings));
+    return exportedSettings.filter((item) => item && item?.settingsId === settingsId)[0] ?? ({} as ExportedSettings);
   } catch (err) {
     console.error(err, 'Error getting exported settings for id', settingsId);
     throw err;
@@ -314,13 +312,15 @@ export const exportSettings = async (email: string, statusMappings: StatusMappin
       UpdateExpression: 'set exportedSettings = list_append(if_not_exists(exportedSettings, :default), :s)',
       ExpressionAttributeValues: {
         ':default': [],
-        ':s': [{
-          settingsId: settingsId,
-          statusMappings: statusMappings,
-        }]
+        ':s': [
+          {
+            settingsId: settingsId,
+            statusMappings: statusMappings,
+          },
+        ],
       },
     });
-    
+
     return settingsId;
   } catch (err) {
     console.error(err, 'Error storing current event for email: ', email);
