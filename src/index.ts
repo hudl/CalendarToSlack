@@ -114,7 +114,7 @@ export const updateOne = async (us: UserSettings) => {
   const presence = relevantEvent && relevantEvent.showAs > ShowAs.Tentative ? 'away' : 'auto';
 
   const promises: Promise<UserSettings | void>[] = [];
-  if (shouldUpdateSlackStatus || us.email.toLowerCase() === 'blaine.traudt@hudl.com') {
+  if (shouldUpdateSlackStatus) {
     promises.push(
       setUserStatus(us.email, us.slackToken, status),
       setUserPresence(us.email, us.slackToken, presence),
