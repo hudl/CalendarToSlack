@@ -1,7 +1,7 @@
-import {InvokeCommand, LambdaClient} from '@aws-sdk/client-lambda';
+import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
 import { AuthorizationCode } from 'simple-oauth2';
-import {WebClient} from '@slack/web-api';
-import {CalendarEvent, getEventsForUser, ShowAs} from './services/calendar';
+import { WebClient } from '@slack/web-api';
+import { CalendarEvent, getEventsForUser, ShowAs } from './services/calendar';
 import {
   getAllUserSettings,
   getSettingsForUsers,
@@ -11,14 +11,14 @@ import {
   upsertSlackToken,
   UserSettings,
 } from './services/dynamo';
-import {getUserByEmail, postMessage, setUserPresence, setUserStatus, SlackUser} from './services/slack';
-import {Handler} from 'aws-lambda';
-import {getStatusForUserEvent} from './utils/mapEventStatus';
-import {GraphApiAuthenticationProvider} from './services/calendar/graphApiAuthenticationProvider';
+import { getUserByEmail, postMessage, setUserPresence, setUserStatus, SlackUser } from './services/slack';
+import { Handler } from 'aws-lambda';
+import { getStatusForUserEvent } from './utils/mapEventStatus';
+import { GraphApiAuthenticationProvider } from './services/calendar/graphApiAuthenticationProvider';
 import config from '../config';
-import {getMicrosoftGraphIdWithKey, getSlackClientIdWithKey, getSlackSecretWithKey} from './utils/secrets';
-import {authorizeMicrosoftGraphUrl, createUserUrl} from './utils/urls';
-import {getUpcomingEventMessage} from './utils/eventHelper';
+import { getMicrosoftGraphIdWithKey, getSlackClientIdWithKey, getSlackSecretWithKey } from './utils/secrets';
+import { authorizeMicrosoftGraphUrl, createUserUrl } from './utils/urls';
+import { getUpcomingEventMessage } from './utils/eventHelper';
 
 const getHighestPriorityEvent = (events: CalendarEvent[]) =>
   events.length
@@ -34,11 +34,9 @@ const microsoftAuthRedirect = async (email: string) => {
   return {
     statusCode: 301,
     headers: {
-      Location: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${
-        clientId
-      }&response_type=code&redirect_uri=${authorizeMicrosoftGraphUrl()}&response_mode=query&scope=calendars.read&state=${email}`,
+      Location: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${authorizeMicrosoftGraphUrl()}&response_mode=query&scope=calendars.read&state=${email}`,
     },
-  }
+  };
 };
 
 const areEventsDifferent = (e1: CalendarEvent | undefined, e2: CalendarEvent | null) =>
@@ -61,7 +59,7 @@ const sendUpcomingEventMessage = async (
 
 export const update: Handler = async () => {
   const batchSize = 10;
-  
+
   const lambda = new LambdaClient({
     apiVersion: 'latest',
     region: config.region,
@@ -116,7 +114,7 @@ export const updateOne = async (us: UserSettings) => {
   const presence = relevantEvent && relevantEvent.showAs > ShowAs.Tentative ? 'away' : 'auto';
 
   const promises: Promise<UserSettings | void>[] = [];
-  if (shouldUpdateSlackStatus) {
+  if (shouldUpdateSlackStatus || us.email.toLowerCase() === 'blaine.traudt@hudl.com') {
     promises.push(
       setUserStatus(us.email, us.slackToken, status),
       setUserPresence(us.email, us.slackToken, presence),
@@ -155,17 +153,17 @@ export const authorizeMicrosoftGraph: Handler = async (event: any) => {
 };
 
 export const slackInstall: Handler = async () => {
-  console.log('Slack install requested.')
+  console.log('Slack install requested.');
   const clientId = await getSlackClientIdWithKey('clientId');
 
   return {
     statusCode: 302,
     headers: {
       Location: `https://slack.com/oauth/authorize?client_id=${clientId}&redirect_uri=${createUserUrl()}&scope=${encodeURIComponent(
-        'users.profile:read,users.profile:write,users:write,users:read,users:read.email',
+        'users.profile:read,users.profile:write,users:write,users:read,users:read.email,dnd:write',
       )}`,
     },
-  }
+  };
 };
 
 export const createUser: Handler = async (event: any) => {
@@ -195,7 +193,7 @@ export const createUser: Handler = async (event: any) => {
 
   const tokenResult = await oauthClient.getToken({
     code,
-    redirect_uri: createUserUrl()
+    redirect_uri: createUserUrl(),
   });
   const tokenStr: string = tokenResult.token.access_token as string;
   const user: string = tokenResult.token.user_id as string;
