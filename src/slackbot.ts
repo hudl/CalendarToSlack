@@ -92,9 +92,9 @@ export const serializeStatusMappings = ({ defaultStatus, statusMappings }: UserS
       '\n',
       ...statusMappings.map(
         (m) =>
-          `\n${m.slackStatus.emoji || ':transparent:'} \`${m.calendarText}\` ${
-            m.slackStatus.text ? `uses status \`${m.slackStatus.text}\`` : ''
-          }`,
+          `\n${m.slackStatus.emoji || ':transparent:'} \`${m.calendarText}\`${
+            m.slackStatus.text ? ` uses status \`${m.slackStatus.text}\`` : ''
+          }${m.slackStatus.dnd ? ' and toggles DND' : ''}`,
       ),
     );
   }
