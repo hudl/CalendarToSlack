@@ -87,7 +87,7 @@ export const setUserDnd = async (email: string, token: string | undefined, statu
 
   const slackClient = new WebClient(token);
 
-  const num_milliseconds = Date.now().valueOf() - status.expiration;
+  const num_milliseconds = status.expiration - Date.now().valueOf();
   const num_seconds = num_milliseconds / 1000;
   const num_minutes = Math.ceil(num_seconds / 60);
 
