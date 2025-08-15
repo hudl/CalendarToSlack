@@ -1,11 +1,4 @@
-import {
-  WebClient,
-  ChatPostMessageArguments,
-  ErrorCode,
-  WebAPICallError,
-  WebAPIPlatformError,
-  DndInfoResponse,
-} from '@slack/web-api';
+import { WebClient, ChatPostMessageArguments, ErrorCode, WebAPICallError, WebAPIPlatformError } from '@slack/web-api';
 import { clearUserTokens } from './dynamo';
 import { getSlackSecretWithKey } from '../utils/secrets';
 import { slackInstallUrl } from '../utils/urls';
@@ -64,9 +57,7 @@ export const setUserPresence = async (email: string, token: string | undefined, 
 export const setUserStatus = async (email: string, token: string | undefined, status: SlackStatus) => {
   if (!token) return;
 
-  console.log(
-    `Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email} until ${status.expiration}`,
-  );
+  console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email} until ${status.expiration}`);
 
   const slackClient = new WebClient(token);
 
@@ -83,14 +74,6 @@ export const setUserStatus = async (email: string, token: string | undefined, st
   } catch (error) {
     await handleError(error, email);
   }
-};
-
-export const getUserDndInfo = async (token: string, slackUserId: string): Promise<DndInfoResponse | undefined> => {
-  if (!token) return;
-
-  const slackClient = new WebClient(token);
-  const response = await slackClient.dnd.info({ user: slackUserId });
-  return response;
 };
 
 export const getUserInfo = async (token: string, slackUserId: string): Promise<SlackUserProfile | undefined> => {
