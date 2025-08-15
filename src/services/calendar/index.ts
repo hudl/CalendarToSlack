@@ -93,7 +93,10 @@ export const getEventsForUser = async (
 
     if (error instanceof GraphError) {
       const { statusCode } = error;
-      if (statusCode === 401 || statusCode === 403) {
+      // statusCode is -1 when there's a 400 from Microsoft when our credentials are woefully out of date
+      // The statusCode comes from: /src/services/calendar/graphApiAuthenticationProvider.ts#L84
+      // More details on this PR: https://github.com/hudl/CalendarToSlack/pull/107
+      if (statusCode === -1 || statusCode === 401 || statusCode === 403) {
         console.error(`No authorization for Graph API for user ${email}`);
         try {
           await sendAuthErrorMessage(email);
