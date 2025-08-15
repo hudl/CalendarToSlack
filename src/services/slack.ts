@@ -79,12 +79,12 @@ export const setUserStatus = async (email: string, token: string | undefined, st
   }
 };
 
-export const setUserDnd = async (email: string, token: string | undefined, expiration: number) => {
-  if (!token) return;
+export const setUserDnd = async (email: string, token: string | undefined, status: SlackStatus) => {
+  if (!token || !status.dnd || !status.expiration) return;
 
   const slackClient = new WebClient(token);
 
-  const num_milliseconds = Date.now().valueOf() - expiration;
+  const num_milliseconds = Date.now().valueOf() - status.expiration;
   const num_seconds = num_milliseconds / 1000;
   const num_minutes = Math.ceil(num_seconds / 60);
 
