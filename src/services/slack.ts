@@ -57,7 +57,9 @@ export const setUserPresence = async (email: string, token: string | undefined, 
 export const setUserStatus = async (email: string, token: string | undefined, status: SlackStatus) => {
   if (!token) return;
 
-  console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email} until ${status.expiration}`);
+  console.log(
+    `Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email} until ${status.expiration}`,
+  );
 
   const slackClient = new WebClient(token);
 
@@ -70,6 +72,26 @@ export const setUserStatus = async (email: string, token: string | undefined, st
         status_emoji: status?.emoji || '',
         status_expiration: expiration_seconds,
       },
+    });
+  } catch (error) {
+    await handleError(error, email);
+  }
+};
+
+export const setUserDnd = async (email: string, token: string | undefined, expiration: number) => {
+  if (!token) return;
+
+  const slackClient = new WebClient(token);
+
+  const num_milliseconds = Date.now().valueOf() - expiration;
+  const num_seconds = num_milliseconds / 1000;
+  const num_minutes = Math.ceil(num_seconds / 60);
+
+  console.log(`Setting DND on for ${email} for ${num_minutes} minutes`);
+
+  try {
+    await slackClient.dnd.setSnooze({
+      num_minutes,
     });
   } catch (error) {
     await handleError(error, email);
