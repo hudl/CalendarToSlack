@@ -137,13 +137,14 @@ const handleSet = async (userSettings: UserSettings, argList: string[]): Promise
   if (!args.meeting) {
     return `You must specify a meeting using \`meeting="My Meeting"\`.`;
   }
+  // Checks if dnd is "True". If first letter isn't 't' or if arg not provided assume false
+  const dnd = args.dnd?.toLowerCase().startsWith('t');
 
   const slackStatus = {
     text: args.message || args.meeting,
     emoji: args.emoji,
+    dnd,
   };
-  // Checks if dnd is "True". If first letter isn't 't' or if arg not provided assume false
-  const dnd = args.dnd?.toLowerCase().startsWith('t');
 
   const updatedMappings = userSettings.statusMappings || [];
   const existingMapping = updatedMappings.find(
@@ -152,9 +153,8 @@ const handleSet = async (userSettings: UserSettings, argList: string[]): Promise
 
   if (existingMapping) {
     existingMapping.slackStatus = slackStatus;
-    existingMapping.dnd = dnd;
   } else {
-    updatedMappings.push({ calendarText: args.meeting, slackStatus, dnd });
+    updatedMappings.push({ calendarText: args.meeting, slackStatus });
   }
 
   const slackPromise =

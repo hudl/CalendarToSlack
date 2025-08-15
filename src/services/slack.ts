@@ -7,6 +7,7 @@ export type SlackStatus = {
   text?: string;
   emoji?: string;
   expiration?: number;
+  dnd?: boolean;
 };
 
 export type SlackUserProfile = {

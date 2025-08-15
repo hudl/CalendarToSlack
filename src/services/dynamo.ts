@@ -15,7 +15,6 @@ import { v4 as uuidv4 } from 'uuid';
 export type StatusMapping = {
   calendarText: string;
   slackStatus: SlackStatus;
-  dnd?: boolean;
 };
 
 export type ExportedSettings = {
