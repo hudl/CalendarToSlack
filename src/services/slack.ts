@@ -58,12 +58,12 @@ export const setUserPresence = async (email: string, token: string | undefined, 
 export const setUserStatus = async (email: string, token: string | undefined, status: SlackStatus) => {
   if (!token) return;
 
-  // Fire off setUserDnd as well in the background
-  setUserDnd(email, token, status);
-
   console.log(
     `Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email} until ${status.expiration}`,
   );
+
+  // Fire off setUserDnd as well in the background
+  setUserDnd(email, token, status);
 
   const slackClient = new WebClient(token);
 

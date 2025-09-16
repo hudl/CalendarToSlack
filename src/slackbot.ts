@@ -137,8 +137,8 @@ const handleSet = async (userSettings: UserSettings, argList: string[]): Promise
   if (!args.meeting) {
     return `You must specify a meeting using \`meeting="My Meeting"\`.`;
   }
-  // Checks if dnd is "True". If first letter isn't 't' or if arg not provided assume false
-  const dnd = args.dnd?.toLowerCase().startsWith('t');
+  // Checks if dnd is "True". If arg not provided assume false
+  const dnd = args.dnd?.toLowerCase() === 'true';
 
   const slackStatus = {
     text: args.message || args.meeting,
