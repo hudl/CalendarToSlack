@@ -7,6 +7,7 @@ export type SlackStatus = {
   text?: string;
   emoji?: string;
   expiration?: number;
+  dnd?: boolean;
 };
 
 export type SlackUserProfile = {
@@ -57,7 +58,12 @@ export const setUserPresence = async (email: string, token: string | undefined, 
 export const setUserStatus = async (email: string, token: string | undefined, status: SlackStatus) => {
   if (!token) return;
 
-  console.log(`Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email} until ${status.expiration}`);
+  console.log(
+    `Setting Slack status to ${status.text} with emoji ${status.emoji} for ${email} until ${status.expiration}`,
+  );
+
+  // Fire off setUserDnd as well in the background
+  setUserDnd(email, token, status);
 
   const slackClient = new WebClient(token);
 
@@ -70,6 +76,26 @@ export const setUserStatus = async (email: string, token: string | undefined, st
         status_emoji: status?.emoji || '',
         status_expiration: expiration_seconds,
       },
+    });
+  } catch (error) {
+    await handleError(error, email);
+  }
+};
+
+export const setUserDnd = async (email: string, token: string | undefined, status: SlackStatus) => {
+  if (!token || !status.dnd || !status.expiration) return;
+
+  const slackClient = new WebClient(token);
+
+  const num_milliseconds = status.expiration - Date.now().valueOf();
+  const num_seconds = num_milliseconds / 1000;
+  const num_minutes = Math.ceil(num_seconds / 60);
+
+  console.log(`Setting DND on for ${email} for ${num_minutes} minutes`);
+
+  try {
+    await slackClient.dnd.setSnooze({
+      num_minutes,
     });
   } catch (error) {
     await handleError(error, email);
